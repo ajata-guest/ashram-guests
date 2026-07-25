@@ -1488,6 +1488,7 @@
       const gate = $('signin-gate');
       gate.classList.remove('denied');
       gate.style.display = 'flex';
+      $('gsi-button-container').style.visibility = 'visible';
       $('signin-message').textContent = message || 'Sign in with an authorized Google account to continue.';
     }
 
@@ -1499,17 +1500,18 @@
       const gate = $('signin-gate');
       gate.classList.add('denied');
       gate.style.display = 'flex';
+      $('gsi-button-container').style.visibility = 'visible';
       $('signin-message').innerHTML = `You're signed in as <strong>${currentUserEmail}</strong>, which doesn't have access to this application.<br>If you believe this is a mistake, contact the ashram office to be added, or sign in with a different account below.`;
     }
 
-    function handleCredentialResponse(response) {
+    function handleCredentialResponse(response, isResume) {
       currentIdToken = response.credential;
       currentUserEmail = decodeJwtPayload(currentIdToken).email || '';
-      // Gate stays up — and visibly "Verifying…" — until applyAppData()
+      // Gate stays up — and visibly verifying — until applyAppData()
       // confirms the account is actually whitelisted. Hiding it here first
       // showed the empty app shell for a beat even for denied accounts.
       $('signin-gate').classList.remove('denied');
-      $('signin-message').textContent = 'Verifying sign-in…';
+      $('signin-message').textContent = isResume ? 'Signing you back in…' : 'Verifying sign-in…';
       if (!appInitialized) {
         appInitialized = true;
         initializeApp();
@@ -1543,9 +1545,15 @@
         // A reopened app (or a refreshed tab) resumes with whatever
         // still-valid token was saved last time, through the exact same
         // verify-then-reveal path a fresh sign-in uses — no separate resume
-        // logic to keep in sync with handleCredentialResponse.
+        // logic to keep in sync with handleCredentialResponse. The button
+        // stays hidden (not removed — showSignInGate/showAccessDenied
+        // reveal it again) while this resolves, so it doesn't sit there
+        // inviting a tap while "Signing you back in…" is already running.
         const stored = getStoredToken();
-        if (stored) handleCredentialResponse({ credential: stored });
+        if (stored) {
+          $('gsi-button-container').style.visibility = 'hidden';
+          handleCredentialResponse({ credential: stored }, true);
+        }
       });
     });
 
