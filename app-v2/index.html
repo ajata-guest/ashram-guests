@@ -2,44 +2,4032 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Ajatananda Ashram — Guest Management</title>
-  <link rel="icon" type="image/png" href="icon-64.png">
-  <link rel="apple-touch-icon" href="icon-180.png">
-  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#121212">
+  <meta name="application-name" content="Ajatananda Ashram Guest Management">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Ashram Guests">
+  <meta name="apple-mobile-web-app-title" content="Ajatananda Guests">
+  <link rel="icon" type="image/png" href="data:image/png;base64,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">
+  <link rel="apple-touch-icon" href="data:image/png;base64,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">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
-    html, body {
-      width: 100%;
-      height: 100%;
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-raised: #242424;
+      --surface-hover: #2a2a2a;
+      --border: #363636;
+      --text: #e8e8e8;
+      --muted: #a4a4a4;
+      --subtle: #777;
+      --blue: #3498db;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --orange: #f39c12;
+      --purple: #b878d6;
+      --pink: #ff7675;
+      --salmon: #fa8072;
+      /* Same-hue tints for "this is fine / confirmed" and "this is a real
+         problem" badges, derived from the base colors above so a future
+         addition can't drift into an unrelated hue (or collide with one,
+         the way badge-travel-critical used to sit almost on top of --pink). */
+      --green-deep: color-mix(in srgb, var(--green) 70%, black);
+      --green-light: color-mix(in srgb, var(--green) 55%, white);
+      --red-deep: color-mix(in srgb, var(--red) 72%, black);
+      /* Room-tier tints reuse --purple rather than a new hue. Safe to share:
+         Visiting Guest is the only status badge on full --purple, and a
+         Visiting Guest structurally never has a room (normalizeGuestPayload_
+         forces room to '' for that status), so a purple room badge and the
+         purple status badge can never appear on the same card. */
+      --purple-light: color-mix(in srgb, var(--purple) 55%, white);
+      --purple-deep: color-mix(in srgb, var(--purple) 70%, black);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
       margin: 0;
-      padding: 0;
-      background: #121212;
-      color: #eeeeee;
+      min-height: 100vh;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .loading {
+
+    /* Opaque full-viewport overlay covering the rest of the page (header,
+       tabs, cards, modal — none of which need their own signed-out state)
+       until sign-in succeeds. Hiding it is the only thing that reveals the
+       app; nothing underneath has to know whether the user is signed in. */
+    #signin-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
       display: flex;
-      width: 100%;
-      height: 100%;
       align-items: center;
       justify-content: center;
-      font-size: 0.95rem;
+      padding: 24px;
+      background: var(--bg);
+      text-align: center;
     }
-    a { color: #69b7ed; }
+
+    #signin-gate .card {
+      max-width: 420px;
+      padding: 32px 28px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    #signin-gate .icon {
+      width: 44px;
+      height: 44px;
+      margin-bottom: 16px;
+      color: var(--red);
+      fill: currentColor;
+    }
+
+    #signin-gate.denied .icon { display: inline-block; }
+    #signin-gate .icon { display: none; }
+
+    #signin-gate h1 {
+      margin: 0 0 6px;
+      color: #fff;
+      font-size: 1.3rem;
+    }
+
+    #signin-gate .app-subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    #signin-gate p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    #signin-gate p:last-of-type { margin-bottom: 0; }
+    #signin-gate strong { color: var(--text); }
+
+    #gsi-button-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    #signin-gate.denied #gsi-button-container { margin-top: 16px; }
+
+    button, input, select { font: inherit; }
+
+    .header-container {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .brand-lockup {
+      display: flex;
+      min-width: 0;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .title-block { min-width: 0; }
+
+    .title-block h1 {
+      margin: 0;
+      color: var(--salmon);
+      font-size: 1.8rem;
+      line-height: 1.1;
+    }
+
+    .app-subtitle {
+      margin-top: 3px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .last-updated {
+      margin-top: 7px;
+      color: var(--subtle);
+      font-size: 0.78rem;
+    }
+
+    .controls {
+      display: flex;
+      flex: 1;
+      max-width: 520px;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .search-wrap {
+      position: relative;
+      min-width: 0;
+      flex: 1;
+    }
+
+    #search-bar {
+      width: 100%;
+      min-width: 180px;
+      padding: 10px 34px 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      outline: none;
+      background: var(--surface);
+      color: #fff;
+    }
+
+    /* Custom clear button replaces the native one so its presence and style
+       are consistent across browsers instead of easy to miss. */
+    #search-bar::-webkit-search-cancel-button { display: none; }
+
+    #search-bar:focus,
+    .edit-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      display: flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+
+    .search-clear-btn:hover { background: var(--surface-hover); color: var(--text); }
+
+    .icon-button,
+    .add-btn {
+      display: inline-flex;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 7px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .icon-button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .icon-button:hover { background: var(--surface-hover); }
+    .icon-button:disabled { cursor: wait; opacity: 0.55; }
+
+    .add-btn {
+      background: var(--salmon);
+    }
+
+    .add-btn .icon {
+      width: 20px;
+      height: 20px;
+      margin-top: 0;
+    }
+
+    .add-btn:hover { background: #e96f62; }
+
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #loading,
+    .empty-state,
+    .error-state {
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .error-state { color: #ff8b84; }
+
+    .tier-tabs {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+      gap: 22px;
+      padding: 0 4px;
+      border-bottom: 1px solid #2a2a2a;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #3a3a3a transparent;
+    }
+
+    .tier-tabs::-webkit-scrollbar { height: 4px; }
+    .tier-tabs::-webkit-scrollbar-track { background: transparent; }
+    .tier-tabs::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 999px; }
+    .tier-tabs::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
+
+    .tier-tab {
+      display: flex;
+      flex: 0 0 auto;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 10px 2px 12px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+      white-space: nowrap;
+      transition: border-color 0.15s ease;
+    }
+
+    .tier-tab-count {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #666;
+      transition: color 0.15s ease;
+    }
+
+    .tier-tab-label {
+      font-size: 0.72rem;
+      color: #777;
+      letter-spacing: 0.02em;
+      transition: color 0.15s ease;
+    }
+
+    .tier-tab.active { border-bottom-color: var(--accent); }
+
+    .tier-tab.active .tier-tab-count,
+    .tier-tab.active .tier-tab-label { color: var(--accent); }
+
+    .tier-tab:hover .tier-tab-count { color: #999; }
+
+    .zone {
+      margin-bottom: 32px;
+      border-radius: 10px;
+    }
+
+    .zone-header {
+      display: flex;
+      margin-bottom: 13px;
+      gap: 10px;
+      align-items: center;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .zone-title { font-size: 1.08rem; }
+
+    .zone-count {
+      display: inline-flex;
+      min-width: 25px;
+      height: 22px;
+      padding: 0 7px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #303030;
+      color: #ccc;
+      font-size: 0.75rem;
+    }
+
+    .zone-description {
+      margin-left: auto;
+      color: var(--subtle);
+      font-size: 0.78rem;
+      font-weight: 400;
+    }
+
+    .zone-urgent .zone-title { color: #ff8b84; }
+    .zone-today .zone-title { color: #6fbaf0; }
+    .zone-current .zone-title { color: var(--purple); }
+    .zone-upcoming .zone-title { color: #71d99d; }
+    .zone-past .zone-title { color: #aaa; }
+
+    .zone-empty {
+      padding: 14px 16px;
+      border: 1px dashed #303030;
+      border-radius: 8px;
+      color: #666;
+      font-size: 0.88rem;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      display: flex;
+      min-width: 0;
+      padding: 18px;
+      flex-direction: column;
+      gap: 9px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface-raised);
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-2px);
+      border-color: #4a4a4a;
+      outline: none;
+      background: var(--surface-hover);
+    }
+
+    .card.pending {
+      cursor: wait;
+      opacity: 0.72;
+    }
+
+    .card.pending:hover { transform: none; }
+
+    .guest-name {
+      overflow-wrap: anywhere;
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .badge-row {
+      display: flex;
+      margin-top: 3px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-block;
+      width: max-content;
+      max-width: 100%;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.015em;
+      overflow-wrap: anywhere;
+      text-transform: uppercase;
+    }
+
+    /* Identity/category badges (who or what this is) — deliberately kept
+       out of the amber "needs attention" and red/green "state" families
+       below, so they never get mistaken for a warning or a good outcome. */
+    .badge-salmon { border: 1px solid rgba(250, 128, 114, 0.35); background: rgba(250, 128, 114, 0.16); color: var(--salmon); }
+    .badge-blue { background: rgba(41, 128, 185, 0.2); color: #6fbaf0; }
+    .badge-purple { background: rgba(155, 89, 182, 0.2); color: var(--purple); }
+    .badge-gray { background: rgba(149, 165, 166, 0.18); color: #bdc3c7; }
+    .badge-pink { border: 1px solid rgba(255, 118, 117, 0.3); background: rgba(255, 118, 117, 0.14); color: var(--pink); }
+    /* Room tiers share --purple with the Visiting Guest status badge, kept
+       collision-free by construction — see the --purple-light/deep comment
+       in :root. */
+    /* On a dark theme, dimming a color mutes it further — the top tier
+       needs to be brighter, not darker, to actually stand out. VIP gets
+       the quieter, darker tint; VVIP gets the vivid, undiluted base hue. */
+    .badge-room-vip { border: 1px solid color-mix(in srgb, var(--purple-deep) 40%, transparent); background: color-mix(in srgb, var(--purple-deep) 18%, transparent); color: var(--purple-deep); }
+    .badge-room-vvip { border: 1px solid rgba(184, 120, 214, 0.55); background: rgba(184, 120, 214, 0.24); color: var(--purple); }
+
+    /* Confirmed / good outcome — one green family across pickup, dropoff,
+       and travel legs, so "green = handled" reads the same everywhere. */
+    .badge-pickup { border: 1px solid rgba(46, 204, 113, 0.3); background: rgba(46, 204, 113, 0.14); color: var(--green); }
+    .badge-dropoff { border: 1px solid color-mix(in srgb, var(--green-deep) 40%, transparent); background: color-mix(in srgb, var(--green-deep) 16%, transparent); color: var(--green-deep); }
+    .badge-confirmed { border: 1px solid color-mix(in srgb, var(--green-light) 40%, transparent); background: color-mix(in srgb, var(--green-light) 16%, transparent); color: var(--green-light); }
+
+    /* Needs attention — amber family, darker/stronger means more urgent. */
+    .badge-action { border: 1px solid rgba(243, 156, 18, 0.38); background: rgba(243, 156, 18, 0.16); color: #f6bd55; }
+    .badge-cab-action { border: 1px solid rgba(243, 156, 18, 0.28); background: rgba(243, 156, 18, 0.1); color: #d9aa5b; }
+
+    /* Real problems — red family, kept clear of --pink. */
+    .badge-warning { border: 1px solid rgba(231, 76, 60, 0.3); background: rgba(231, 76, 60, 0.14); color: var(--red); }
+    .badge-travel-critical { border: 1px solid color-mix(in srgb, var(--red-deep) 48%, transparent); background: color-mix(in srgb, var(--red-deep) 20%, transparent); color: var(--red-deep); }
+    .badge-travel-action { border: 1px solid rgba(250, 128, 114, 0.46); background: rgba(250, 128, 114, 0.16); color: #ff9d92; }
+
+    .badge-saving { border: 1px solid rgba(52, 152, 219, 0.3); background: rgba(52, 152, 219, 0.14); color: #6fbaf0; }
+
+    .card-supporting-text {
+      margin-top: -2px;
+      color: var(--subtle);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .travel-stack {
+      display: flex;
+      margin-top: 2px;
+      gap: 11px;
+      flex-direction: column;
+    }
+
+    .travel-item {
+      display: flex;
+      gap: 6px;
+      flex-direction: column;
+    }
+
+    .travel-item .badge-row { margin-top: 0; }
+
+    .detail-line {
+      display: flex;
+      min-width: 0;
+      gap: 8px;
+      align-items: flex-start;
+      color: var(--muted);
+      font-size: 0.88rem;
+      overflow-wrap: anywhere;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      flex: 0 0 16px;
+      fill: currentColor;
+    }
+
+    #modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      padding: 16px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.75);
+    }
+
+    .modal-content {
+      width: min(100%, 500px);
+      max-height: 92vh;
+      padding: 24px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-header {
+      display: flex;
+      margin-bottom: 18px;
+      gap: 15px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 { margin: 0; color: #fff; }
+
+    .modal-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .delete-btn,
+    .close-btn {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      padding: 6px 10px;
+      gap: 5px;
+      color: var(--red);
+    }
+
+    .delete-btn:hover { background: rgba(231, 76, 60, 0.1); }
+
+    .delete-btn.confirm-state {
+      background: var(--red);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .close-btn {
+      width: 34px;
+      color: #aaa;
+    }
+
+    .close-btn:hover { color: #fff; background: #2b2b2b; }
+
+    .close-btn.confirm-state {
+      background: rgba(231, 76, 60, 0.16);
+      color: var(--red);
+    }
+
+    .close-btn.confirm-state:hover { background: rgba(231, 76, 60, 0.26); }
+
+    .form-section {
+      margin: 0 0 20px;
+      padding: 0 0 18px;
+      border: 0;
+      border-bottom: 1px solid #3c3c3c;
+    }
+
+    .form-section:last-of-type {
+      margin-bottom: 12px;
+      border-bottom: 0;
+    }
+
+    .form-section-title {
+      display: flex;
+      margin: 0 0 14px;
+      gap: 8px;
+      align-items: center;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .section-title-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--salmon);
+      fill: currentColor;
+    }
+
+    .modal-section-nav {
+      display: flex;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 0 0 18px;
+      gap: 6px;
+      padding: 10px 0;
+      background: var(--surface-raised);
+      border-bottom: 1px solid #2c2c2c;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Lets the sticky nav's raised background bleed to the modal's edges
+       without needing negative margins on the sticky element itself —
+       negative margins combined with position: sticky is a known source of
+       inconsistent "stuck" behavior across browsers. */
+    .modal-section-nav::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -24px;
+      right: -24px;
+      z-index: -1;
+      background: inherit;
+    }
+
+    /* So scrollIntoView() lands each section below the sticky nav instead
+       of partially behind it — the browser has no built-in awareness that
+       a pinned sticky sibling will cover the first ~54px of whatever
+       scrolls to the very top. */
+    #sec-guest, #sec-stay, #sec-cabs, #sec-travel {
+      scroll-margin-top: 76px;
+    }
+
+    .section-nav-pill {
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    .section-nav-pill:hover { color: var(--text); }
+    .section-nav-pill.active { background: rgba(250, 128, 114, 0.15); color: var(--salmon); }
+
+    .form-section-description {
+      margin: -7px 0 14px;
+      color: var(--subtle);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .conditional-fields {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+    }
+
+    .conditional-fields.expanded {
+      max-height: 600px;
+      opacity: 1;
+    }
+
+    .input-group { margin-bottom: 15px; }
+
+    .input-label {
+      display: block;
+      margin-bottom: 6px;
+      color: #aaa;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .edit-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      outline: none;
+      background: #292929;
+      color: #fff;
+    }
+
+    .edit-input:disabled {
+      border-color: #242424;
+      background: #151515;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .date-time-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 0.65fr);
+      gap: 10px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      margin: -2px 0 16px;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-label {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .checkbox-label.disabled-label { color: #5f5f5f; cursor: not-allowed; }
+
+    .checkbox-input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+
+    .transport-requirement {
+      margin: 0 0 12px;
+    }
+
+    .cab-confirmation { margin-top: 4px; }
+
+    optgroup { background: var(--surface); color: #6fbaf0; font-weight: 700; }
+    option { background: #292929; color: #fff; font-weight: 400; }
+    option:disabled { color: #e77d76; font-style: italic; }
+
+    .custom-select { position: relative; }
+
+    .custom-select-trigger {
+      display: flex;
+      width: 100%;
+      padding: 10px;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #444;
+      border-radius: 5px;
+      outline: none;
+      background: #292929;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .custom-select-trigger .icon { width: 16px; height: 16px; flex: 0 0 16px; color: #888; }
+
+    .custom-select-trigger:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+    }
+
+    .custom-select-trigger:disabled {
+      border-color: #242424;
+      background: #151515;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .custom-select-list {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 6px;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      background: #242424;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .custom-select-group-label {
+      padding: 8px 10px 4px;
+      color: #666;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .custom-select-option {
+      display: flex;
+      width: 100%;
+      padding: 8px 10px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #eee;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    .custom-select-option:hover { background: var(--surface-hover); }
+    .custom-select-option.selected { background: rgba(52, 152, 219, 0.14); }
+
+    .custom-select-option.occupied {
+      color: #888;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .custom-select-option.occupied:hover { background: transparent; }
+    .custom-select-option.occupied .custom-select-option-label { text-decoration: line-through; }
+
+    .custom-select-occupied-note {
+      flex: 0 0 auto;
+      color: #e77d76;
+      font-size: 0.72rem;
+    }
+
+    .section-divider {
+      margin: 20px 0;
+      padding-top: 17px;
+      border-top: 1px solid #404040;
+    }
+
+    .field-message {
+      min-height: 18px;
+      margin-top: 6px;
+      color: #e77d76;
+      font-size: 0.78rem;
+    }
+
+    .field-message.info { color: #8cbfe5; }
+
+
+
+    .travel-section-header {
+      display: flex;
+      margin-bottom: 8px;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .travel-section-title {
+      display: flex;
+      margin: 0;
+      gap: 8px;
+      align-items: center;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .travel-help {
+      margin: 0 0 14px;
+      color: var(--subtle);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .travel-leg-list {
+      display: flex;
+      gap: 12px;
+      flex-direction: column;
+    }
+
+    .travel-leg-editor {
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      background: #242424;
+      overflow: hidden;
+    }
+
+    .travel-leg-summary {
+      display: flex;
+      padding: 11px 12px;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .travel-leg-summary-text {
+      display: flex;
+      min-width: 0;
+      gap: 8px;
+      align-items: center;
+      color: #ddd;
+      font-size: 0.85rem;
+    }
+
+    .travel-leg-summary-text span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .travel-leg-summary-text .icon { color: #8fc8ef; flex: 0 0 15px; }
+
+    .travel-leg-summary-actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .travel-leg-chevron {
+      color: #888;
+      transition: transform 0.2s ease;
+    }
+
+    .travel-leg-editor.leg-expanded .travel-leg-chevron { transform: rotate(180deg); }
+
+    .travel-leg-details {
+      padding: 0 12px;
+    }
+
+    .travel-leg-details.expanded { padding: 2px 12px 12px; }
+
+    .travel-leg-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .travel-leg-grid .input-group { margin-bottom: 2px; }
+    .travel-leg-grid .span-two { grid-column: 1 / -1; }
+
+    .travel-leg-optional {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #333;
+    }
+
+    .travel-leg-optional-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #666;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .travel-leg-optional .travel-leg-grid .edit-input {
+      background: #1e1e1e;
+      border-color: #383838;
+      color: #999;
+      font-size: 0.82rem;
+    }
+
+    .travel-remove-btn,
+    .travel-add-btn {
+      display: inline-flex;
+      min-height: 34px;
+      padding: 6px 10px;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .travel-remove-btn {
+      border: 1px solid rgba(231, 76, 60, 0.35);
+      background: rgba(231, 76, 60, 0.08);
+      color: #ef8a82;
+      font-size: 0.76rem;
+    }
+
+    .travel-add-btn {
+      border: 1px solid rgba(250, 128, 114, 0.45);
+      background: rgba(250, 128, 114, 0.12);
+      color: var(--salmon);
+      font-size: 0.82rem;
+    }
+
+    .travel-remove-btn:hover { background: rgba(231, 76, 60, 0.16); }
+    .travel-add-btn:hover { background: rgba(250, 128, 114, 0.2); }
+
+    .travel-empty {
+      padding: 12px;
+      border: 1px dashed #3a3a3a;
+      border-radius: 7px;
+      color: #777;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    #save-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border: 0;
+      border-radius: 5px;
+      background: var(--blue);
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    #save-btn:hover { background: #2980b9; }
+    #save-btn:disabled { background: #555; cursor: wait; }
+
+    #toast-container {
+      position: fixed;
+      z-index: 200;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      width: min(380px, calc(100vw - 36px));
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    .toast {
+      padding: 12px 14px;
+      border: 1px solid #404040;
+      border-radius: 7px;
+      background: #242424;
+      color: #eee;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+      font-size: 0.9rem;
+    }
+
+    .toast.error { border-color: rgba(231, 76, 60, 0.6); }
+    .toast.success { border-color: rgba(46, 204, 113, 0.55); }
+
+    .toast-action-btn {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 3px 9px;
+      border: 1px solid rgba(111, 186, 240, 0.4);
+      border-radius: 5px;
+      background: rgba(52, 152, 219, 0.14);
+      color: #8fc8ef;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .toast-action-btn:hover { background: rgba(52, 152, 219, 0.24); }
+
+    .quick-filters {
+      display: flex;
+      max-width: 1200px;
+      margin: -10px auto 22px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip,
+    .filter-chip-toggle {
+      padding: 5px 11px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    .filter-chip:hover { border-color: #4a4a4a; background: var(--surface-hover); color: var(--text); }
+    .filter-chip.active { border-color: rgba(111, 186, 240, 0.5); background: rgba(52, 152, 219, 0.14); color: #8fc8ef; }
+    /* Signals "click again to remove" right where the user's attention already is. */
+    .filter-chip.active::after { content: ' \2715'; font-size: 0.85em; }
+
+    .filter-chip-toggle {
+      border-style: dashed;
+      color: var(--subtle);
+      font-weight: 700;
+    }
+
+    .filter-chip-toggle:hover { border-color: #4a4a4a; color: var(--text); }
+
+    @media (max-width: 620px) {
+      body { padding: 14px; }
+      .header-container { align-items: stretch; }
+      .controls { max-width: none; }
+      .zone-description { display: none; }
+      .modal-content { padding: 20px 16px; }
+      .modal-section-nav::before { left: -16px; right: -16px; }
+      .date-time-row,
+      .travel-leg-grid { grid-template-columns: 1fr; }
+      .travel-leg-grid .span-two { grid-column: auto; }
+    }
   </style>
 </head>
 <body>
-  <div class="loading">
-    <noscript><a href="https://script.google.com/macros/s/AKfycbw5t0AEINS4-qo_8b2MMjzydCu1IUCoDf09uAKOy1O-bAN7WsFs7T9IAObFD9aCn28/exec">Open Guest Management</a></noscript>
+  <div id="signin-gate">
+    <div class="card">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
+      </svg>
+      <h1>Ajatananda Ashram</h1>
+      <div class="app-subtitle">Guest Management</div>
+      <p id="signin-message">Sign in with an authorized Google account to continue.</p>
+      <div id="gsi-button-container"></div>
+    </div>
   </div>
+
+  <header class="header-container">
+    <div class="brand-lockup">
+      <div class="title-block">
+        <h1>Ajatananda Ashram</h1>
+        <div class="app-subtitle">Guest Management</div>
+        <div id="last-updated" class="last-updated" aria-live="polite">Not yet refreshed</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <input type="search" id="search-bar" placeholder="Search guests, rooms, travel, or dates..." aria-label="Search guests">
+        <button id="search-clear-btn" class="search-clear-btn" type="button" aria-label="Clear search" hidden>&times;</button>
+      </div>
+      <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh dashboard" title="Refresh dashboard">
+        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+      </button>
+      <button id="add-btn" class="add-btn" type="button" aria-label="Add guest" title="Add guest">
+        <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="quick-filters" class="quick-filters" role="group" aria-label="Quick filters">
+    <button type="button" class="filter-chip" data-query="room not assigned">Room not assigned</button>
+    <button type="button" class="filter-chip" data-query="foreign national">Foreign national</button>
+    <button type="button" class="filter-chip" data-query="c-form pending">C-form pending</button>
+    <button type="button" class="filter-chip" data-query="travel arrange">Travel to arrange</button>
+    <button type="button" class="filter-chip" data-query="invited guest">Invited Guest</button>
+    <button type="button" class="filter-chip" data-query="visiting guest">Visiting Guest</button>
+    <button type="button" class="filter-chip" data-query="friend">Friend</button>
+    <button type="button" class="filter-chip" data-query="flight">Flight</button>
+    <button type="button" class="filter-chip" data-query="train">Train</button>
+    <button type="button" class="filter-chip" data-query="bus">Bus</button>
+    <button type="button" class="filter-chip" data-query="taxi">Taxi</button>
+    <button type="button" class="filter-chip" data-query="pickup unconfirmed">Pickup unconfirmed</button>
+    <button type="button" class="filter-chip" data-query="dropoff unconfirmed">Drop-off unconfirmed</button>
+    <button type="button" class="filter-chip" data-query="needs reconfirmation">Needs reconfirmation</button>
+    <button type="button" id="quick-filters-toggle" class="filter-chip-toggle" aria-expanded="false"></button>
+  </div>
+
+  <div id="loading">Loading guests...</div>
+  <div id="tier-tabs" class="tier-tabs" role="tablist" aria-label="Guest priority tiers" hidden></div>
+  <main id="app" aria-live="polite"></main>
+
+  <div id="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Edit Guest</h2>
+        <div class="modal-header-actions">
+          <button id="delete-btn" class="delete-btn" type="button" aria-label="Delete guest" title="Delete guest">
+            <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+          </button>
+          <button id="close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="modal-mode">
+      <input type="hidden" id="edit-guest-id">
+      <input type="hidden" id="edit-version">
+
+      <div class="modal-section-nav" id="modal-section-nav" aria-label="Jump to section">
+        <button type="button" class="section-nav-pill active" data-target="sec-guest">Guest</button>
+        <button type="button" class="section-nav-pill" data-target="sec-stay">Stay</button>
+        <button type="button" class="section-nav-pill" data-target="sec-cabs">Cabs</button>
+        <button type="button" class="section-nav-pill" data-target="sec-travel">Travel</button>
+      </div>
+
+      <section class="form-section" id="sec-guest" aria-labelledby="guest-section-title">
+        <h3 id="guest-section-title" class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+          Guest
+        </h3>
+
+        <div class="input-group">
+          <label class="input-label" for="edit-name">Name</label>
+          <input type="text" id="edit-name" class="edit-input" maxlength="500" required autocomplete="off">
+        </div>
+
+        <div class="input-group">
+          <label class="input-label" for="edit-status">Status</label>
+          <select id="edit-status" class="edit-input">
+            <option value="Invited Guest">Invited Guest</option>
+            <option value="Friend">Friend</option>
+            <option value="Visiting Guest">Visiting Guest</option>
+          </select>
+        </div>
+
+        <div class="checkbox-row" id="foreign-cform-row">
+          <label class="checkbox-label" for="edit-foreign">
+            <input type="checkbox" id="edit-foreign" class="checkbox-input">
+            Foreign National
+          </label>
+          <label class="checkbox-label" id="cform-control" for="edit-cform" hidden>
+            <input type="checkbox" id="edit-cform" class="checkbox-input">
+            C-form complete
+          </label>
+        </div>
+      </section>
+
+      <section class="form-section" id="sec-stay" aria-labelledby="stay-section-title">
+        <h3 id="stay-section-title" class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+          Stay
+        </h3>
+
+        <div class="input-group">
+          <label class="input-label" for="edit-arrival-date">Arrival</label>
+          <div class="date-time-row">
+            <input type="date" id="edit-arrival-date" class="edit-input">
+            <input type="time" id="edit-arrival-time" class="edit-input" aria-label="Arrival time">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label" for="edit-departure-date">Departure</label>
+          <div class="date-time-row">
+            <input type="date" id="edit-departure-date" class="edit-input">
+            <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
+          </div>
+        </div>
+
+        <div class="input-group" id="room-group">
+          <label class="input-label" for="room-trigger">Room Allocation</label>
+          <div class="custom-select" id="room-custom-select">
+            <button type="button" class="custom-select-trigger" id="room-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span id="room-trigger-label">-- Unassigned --</span>
+              <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="custom-select-list" id="room-custom-list" role="listbox" aria-label="Room allocation" hidden></div>
+          </div>
+          <select id="edit-room" class="edit-input" hidden>
+            <option value="">-- Unassigned --</option>
+          </select>
+          <div id="room-warning" class="field-message" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="form-section" id="sec-cabs" aria-labelledby="cab-section-title">
+        <h3 id="cab-section-title" class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-car"></use></svg>
+          Ashram Cabs
+        </h3>
+        <p class="form-section-description">Only add local pickup or drop-off that the ashram is responsible for.</p>
+
+        <div class="transport-requirement">
+          <label class="checkbox-label" id="label-pickup-required" for="edit-pickup-required">
+            <input type="checkbox" id="edit-pickup-required" class="checkbox-input">
+            Ashram pickup required
+          </label>
+        </div>
+
+        <div id="pickup-fields" class="conditional-fields">
+          <div class="input-group">
+            <label class="input-label" for="edit-pickup-date">Pickup Cab — Date &amp; Time</label>
+            <div class="date-time-row">
+              <input type="date" id="edit-pickup-date" class="edit-input">
+              <input type="time" id="edit-pickup-time" class="edit-input" aria-label="Pickup time">
+            </div>
+            <div id="pickup-warning" class="field-message" aria-live="polite"></div>
+          </div>
+
+          <div class="transport-requirement cab-confirmation">
+            <label class="checkbox-label" id="label-pickup-booking-confirmed" for="edit-pickup-booking-confirmed">
+              <input type="checkbox" id="edit-pickup-booking-confirmed" class="checkbox-input">
+              <span id="pickup-booking-label">Cab booking confirmed</span>
+            </label>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="edit-pickup-details">Pickup Cab Details — optional</label>
+            <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." disabled>
+          </div>
+        </div>
+
+        <div class="transport-requirement section-divider">
+          <label class="checkbox-label" id="label-dropoff-required" for="edit-dropoff-required">
+            <input type="checkbox" id="edit-dropoff-required" class="checkbox-input">
+            Ashram drop-off required
+          </label>
+        </div>
+
+        <div id="dropoff-fields" class="conditional-fields">
+          <div class="input-group">
+            <label class="input-label" for="edit-dropoff-date">Drop-off Cab — Date &amp; Time</label>
+            <div class="date-time-row">
+              <input type="date" id="edit-dropoff-date" class="edit-input">
+              <input type="time" id="edit-dropoff-time" class="edit-input" aria-label="Drop-off time">
+            </div>
+            <div id="dropoff-warning" class="field-message" aria-live="polite"></div>
+          </div>
+
+          <div class="transport-requirement cab-confirmation">
+            <label class="checkbox-label" id="label-dropoff-booking-confirmed" for="edit-dropoff-booking-confirmed">
+              <input type="checkbox" id="edit-dropoff-booking-confirmed" class="checkbox-input">
+              <span id="dropoff-booking-label">Cab booking confirmed</span>
+            </label>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="edit-dropoff-details">Drop-off Cab Details — optional</label>
+            <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." disabled>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" id="sec-travel" aria-labelledby="travel-section-title">
+        <div class="travel-section-header">
+          <h3 id="travel-section-title" class="travel-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+            Travel Itinerary
+          </h3>
+          <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
+        </div>
+        <p class="travel-help">
+          Add only journeys the ashram is arranging. Legs stay in this order. Dates and times are optional, but every later dated leg must occur after the earlier dated legs.
+        </p>
+        <div id="travel-leg-list" class="travel-leg-list"></div>
+        <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
+      </section>
+
+      <button id="save-btn" type="button">Save Changes</button>
+    </div>
+  </div>
+
+  <div id="toast-container" aria-live="assertive"></div>
+
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></symbol>
+    <symbol id="icon-car" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></symbol>
+    <symbol id="icon-bed" viewBox="0 0 24 24"><path d="M21 10V7c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v3c-1.66 0-3 1.34-3 3v5h2v-2h20v2h2v-5c0-1.66-1.34-3-3-3zm-14 0c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm8 0c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+    <symbol id="icon-flight" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z"/></symbol>
+    <symbol id="icon-train" viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5A3.5 3.5 0 0 0 7.5 19L6 20.5V22h2l2-2h4l2 2h2v-1.5L16.5 19a3.5 3.5 0 0 0 3.5-3.5V6c0-3.5-4-4-8-4zm-5 14a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4-6H6V6h5v4zm2 0V6h5v4h-5zm4 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></symbol>
+    <symbol id="icon-bus" viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 0 0 2 0v-1h10v1a1 1 0 0 0 2 0v-1.78A3 3 0 0 0 20 16V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zm3.5 1A1.5 1.5 0 1 1 7.5 14a1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM6 11V6h12v5H6z"/></symbol>
+    <symbol id="icon-taxi" viewBox="0 0 24 24"><path d="M18.92 6.01A1.5 1.5 0 0 0 17.5 5H15l-1-2h-4L9 5H6.5a1.5 1.5 0 0 0-1.42 1.01L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8l-2.08-5.99zM6.5 16A1.5 1.5 0 1 1 6.5 13a1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 11l1.5-4.5h11L19 11H5z"/></symbol>
+    <symbol id="icon-other" viewBox="0 0 24 24"><path d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 6H14a4 4 0 0 1 4 4v2h-2v-2a2 2 0 0 0-2-2H8.5V6zM15.5 18H10a4 4 0 0 1-4-4v-2h2v2a2 2 0 0 0 2 2h5.5v2z"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.09 0-7.19 3.72-6.39 7.69L3 9v7h7l-2.87-2.87C6.4 10.04 8.74 7 12 7c1.38 0 2.63.56 3.54 1.46L13 11h7V4l-2.35 2.35zM6.35 17.65C7.8 19.1 9.79 20 12 20c4.09 0 7.19-3.72 6.39-7.69L21 15V8h-7l2.87 2.87C17.6 13.96 15.26 17 12 17c-1.38 0-2.63-.56-3.54-1.46L11 13H4v7l2.35-2.35z"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+  </svg>
+
   <script>
-    window.location.replace(
-      "https://script.google.com/macros/s/AKfycbw5t0AEINS4-qo_8b2MMjzydCu1IUCoDf09uAKOy1O-bAN7WsFs7T9IAObFD9aCn28/exec"
-    );
+    const REFRESH_INTERVAL_MS = 30000;
+    const TIER_META = {
+      1: { label: 'Priority', shortLabel: 'Priority', className: 'zone-urgent', description: 'Guests requiring immediate operational attention' },
+      2: { label: 'Today', shortLabel: 'Today', className: 'zone-today', description: 'Arrivals and departures scheduled today' },
+      3: { label: 'Currently Residing', shortLabel: 'Residing', className: 'zone-current', description: 'Guests who have arrived and have not departed' },
+      4: { label: 'Upcoming', shortLabel: 'Upcoming', className: 'zone-upcoming', description: 'Guests who have not yet arrived' },
+      5: { label: 'Past Guests', shortLabel: 'Past', className: 'zone-past', description: 'Departed guests' }
+    };
+
+    // Matches each tier's existing .zone-title color — kept as JS values too
+    // so the tab bar can set them as an inline custom property per tab.
+    const TIER_ACCENT = {
+      1: '#ff8b84',
+      2: '#6fbaf0',
+      3: 'var(--purple)',
+      4: '#71d99d',
+      5: '#aaa'
+    };
+
+    let activeTier = 1;
+    let allGuests = [];
+    let roomInventory = [];
+    let pendingGuestIds = new Set();
+    let deleteTimeout = null;
+    let isDeleteConfirm = false;
+    let modalIsOpen = false;
+    let modalDirty = false;
+    let closeConfirmArmed = false;
+    let closeConfirmTimeout = null;
+    let searchTimer = null;
+    let roomMetadataMap = new Map();
+    let appTimezone = '';
+    let activeChipQueries = new Set();
+
+    const $ = id => document.getElementById(id);
+
+    // --- Auth / API transport -------------------------------------------
+    // This page is hosted on GitHub Pages, not served by Apps Script, so
+    // there's no google.script.run bridge and no ambient session — every
+    // call proves who's asking with a Google ID token, sent to Code.gs's
+    // doPost() JSON API over a plain fetch().
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2SnSFXU7oEs3wyRLTOXt1V5_eWvT5LR_5ty0cMde-BDzHonSyat0Ih14c-qybb22N/exec';
+    const OAUTH_CLIENT_ID = '829624935079-vvpms6r8gpt6m5uoj6m662abdh3mqhpt.apps.googleusercontent.com';
+
+    let currentIdToken = '';
+    let currentUserEmail = '';
+    let appInitialized = false;
+
+    function decodeJwtPayload(token) {
+      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(
+        atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+      );
+      return JSON.parse(json);
+    }
+
+    // POST as text/plain rather than application/json — Apps Script web apps
+    // can't answer a CORS preflight, and text/plain is a "simple request"
+    // that skips one; the body is still JSON, just parsed manually server-side.
+    function apiCall(action, extra) {
+      return fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ idToken: currentIdToken, action }, extra || {}))
+      })
+        .then(res => res.json())
+        .then(result => {
+          if (result.ok) return result.data;
+          const err = new Error(result.error || 'Unknown error.');
+          err.isAuthError = /verified|token/i.test(err.message);
+          err.isAccessDenied = /access denied/i.test(err.message);
+          throw err;
+        });
+    }
+
+    // Shared by every apiCall .catch() — auth-shaped failures are handled
+    // once, here, so each call site only has to deal with its own ordinary
+    // (non-auth) failure the way it already did with google.script.run.
+    function handleApiError(error, onOtherError) {
+      if (error.isAccessDenied) { showAccessDenied(); return; }
+      if (error.isAuthError) { showSignInGate('Your session expired — please sign in again.'); return; }
+      onOtherError(error);
+    }
+
+    function showSignInGate(message) {
+      currentIdToken = '';
+      const gate = $('signin-gate');
+      gate.classList.remove('denied');
+      gate.style.display = 'flex';
+      $('signin-message').textContent = message || 'Sign in with an authorized Google account to continue.';
+    }
+
+    function showAccessDenied() {
+      const gate = $('signin-gate');
+      gate.classList.add('denied');
+      gate.style.display = 'flex';
+      $('signin-message').innerHTML = `You're signed in as <strong>${currentUserEmail}</strong>, which doesn't have access to this application.<br>If you believe this is a mistake, contact the ashram office to be added, or sign in with a different account below.`;
+    }
+
+    function handleCredentialResponse(response) {
+      currentIdToken = response.credential;
+      currentUserEmail = decodeJwtPayload(currentIdToken).email || '';
+      $('signin-gate').style.display = 'none';
+      if (!appInitialized) {
+        appInitialized = true;
+        initializeApp();
+      } else {
+        // A gate shown mid-session (expired token) just needed a fresh
+        // token — the app is already wired up, so resume instead of
+        // re-running the full initializer and double-binding listeners.
+        loadAppData(true);
+      }
+    }
+
+    function waitForGis() {
+      return new Promise(resolve => {
+        (function check() {
+          if (window.google && window.google.accounts && window.google.accounts.id) resolve();
+          else window.setTimeout(check, 100);
+        })();
+      });
+    }
+
+    window.addEventListener('load', () => {
+      waitForGis().then(() => {
+        google.accounts.id.initialize({ client_id: OAUTH_CLIENT_ID, callback: handleCredentialResponse });
+        google.accounts.id.renderButton($('gsi-button-container'), { theme: 'outline', size: 'large' });
+        // Deliberately no google.accounts.id.prompt() (One Tap auto-prompt) —
+        // it fires immediately on page load rather than waiting for a tap,
+        // and its FedCM-unavailable fallback is what was yanking the whole
+        // tab away to accounts.google.com on mobile. The button alone is
+        // what the working auth-test.html prototype used too.
+      });
+    });
+
+    function initializeApp() {
+      $('search-bar').addEventListener('input', handleSearchInput);
+      $('search-clear-btn').addEventListener('click', () => {
+        $('search-bar').value = '';
+        activeChipQueries.clear();
+        window.clearTimeout(searchTimer);
+        renderApp();
+        $('search-bar').focus();
+      });
+      $('refresh-btn').addEventListener('click', () => loadAppData(false));
+      [...$('quick-filters').querySelectorAll('.filter-chip')].forEach(chip => {
+        chip.addEventListener('click', () => applyQuickFilter(chip.dataset.query));
+      });
+      $('quick-filters-toggle').addEventListener('click', () => setQuickFiltersExpanded(!isQuickFiltersExpanded()));
+      reorderQuickFilters();
+      initSectionNav();
+      initSwipeNavigation();
+      $('room-trigger').addEventListener('click', () => toggleRoomList());
+      document.addEventListener('click', event => {
+        if (!$('room-custom-select').contains(event.target)) closeRoomList();
+      });
+      document.addEventListener('click', event => {
+        // Opening a card is using the search results, not dismissing them —
+        // and once the modal is open, every exit path (overlay click, ×,
+        // Save, Delete) is itself a click inside #modal, so excluding that
+        // covers the whole open-edit-close lifecycle in one place.
+        if (event.target.closest('#search-bar, #search-clear-btn, #quick-filters, #modal, .card')) return;
+        if (!$('search-bar').value && activeChipQueries.size === 0) return;
+        $('search-bar').value = '';
+        activeChipQueries.clear();
+        window.clearTimeout(searchTimer);
+        renderApp();
+      });
+      $('add-btn').addEventListener('click', () => openModal('add'));
+      $('close-btn').addEventListener('click', handleCloseButtonClick);
+      $('modal').addEventListener('input', markModalDirty);
+      $('modal').addEventListener('change', markModalDirty);
+      $('save-btn').addEventListener('click', saveGuestFromModal);
+      $('delete-btn').addEventListener('click', handleDeleteClick);
+      $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
+      $('edit-foreign').addEventListener('change', toggleCForm);
+      $('edit-status').addEventListener('change', toggleRoomField);
+      $('edit-status').addEventListener('change', toggleForeignNationalField);
+      $('edit-arrival-date').addEventListener('input', handleDateChange);
+      $('edit-arrival-time').addEventListener('input', handleDateChange);
+      $('edit-departure-date').addEventListener('input', handleDateChange);
+      $('edit-departure-time').addEventListener('input', handleDateChange);
+      $('edit-pickup-required').addEventListener('change', () => handleTransportRequirementChange('pickup'));
+      $('edit-dropoff-required').addEventListener('change', () => handleTransportRequirementChange('dropoff'));
+      $('edit-pickup-date').addEventListener('input', updateTransportConstraints);
+      $('edit-pickup-time').addEventListener('input', updateTransportConstraints);
+      $('edit-pickup-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('pickup'));
+      $('edit-pickup-details').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-date').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-time').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('dropoff'));
+      $('edit-dropoff-details').addEventListener('input', updateTransportConstraints);
+      $('modal').addEventListener('click', event => {
+        if (event.target === $('modal')) requestCloseModal();
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        if (!$('room-custom-list').hidden) {
+          closeRoomList();
+          return;
+        }
+        if (modalIsOpen) requestCloseModal();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !modalIsOpen && pendingGuestIds.size === 0) loadAppData(true);
+      });
+
+      loadAppData(false);
+      window.setInterval(() => {
+        if (!modalIsOpen && pendingGuestIds.size === 0 && !document.hidden) loadAppData(true);
+      }, REFRESH_INTERVAL_MS);
+    }
+
+    function loadAppData(silent) {
+      const refreshButton = $('refresh-btn');
+      refreshButton.disabled = true;
+      if (!silent && allGuests.length === 0) $('loading').style.display = 'block';
+
+      apiCall('getAppData')
+        .then(data => {
+          refreshButton.disabled = false;
+          applyAppData(data);
+        })
+        .catch(error => handleApiError(error, error => {
+          refreshButton.disabled = false;
+          $('loading').style.display = 'none';
+          const message = getErrorMessage(error);
+          if (allGuests.length === 0) showFatalError(message);
+          else showToast(`Refresh failed: ${message}`, 'error');
+        }));
+    }
+
+    function applyAppData(data) {
+      roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
+      appTimezone = String(data && data.timezone || '');
+      roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
+      allGuests = (Array.isArray(data && data.guests) ? data.guests : [])
+        .map(prepareGuestForDisplay);
+      sortGuestsLocally();
+      pendingGuestIds.clear();
+      buildRoomOptions();
+      $('loading').style.display = 'none';
+      updateLastRefreshed(data && data.generatedAt);
+      renderApp();
+    }
+
+    function prepareGuestForDisplay(guest) {
+      const room = roomMetadataMap.get(guest.Room) || {};
+      const prepared = {
+        ...guest,
+        roomBuilding: guest.roomBuilding || room.building || '',
+        roomNumber: guest.roomNumber || room.room || '',
+        roomCategory: guest.roomCategory || room.category || '',
+        'Pickup Required': resolveTransportRequirement(
+          guest['Pickup Required'],
+          guest['Pickup Cab Time'],
+          guest['Pickup Cab details']
+        ),
+        'Pickup Booking Confirmed': Boolean(guest['Pickup Booking Confirmed']),
+        pickupBookingState: normalizeCabBookingState(
+          guest.pickupBookingState,
+          guest['Pickup Booking Confirmed']
+        ),
+        'Dropoff Required': resolveTransportRequirement(
+          guest['Dropoff Required'],
+          guest['Dropoff Cab Time'],
+          guest['Dropoff Cab details']
+        ),
+        'Dropoff Booking Confirmed': Boolean(guest['Dropoff Booking Confirmed']),
+        dropoffBookingState: normalizeCabBookingState(
+          guest.dropoffBookingState,
+          guest['Dropoff Booking Confirmed']
+        ),
+        travelLegs: (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
+          .map((leg, index) => prepareTravelLegForDisplay(leg, index))
+          .sort((a, b) => a.travelOrder - b.travelOrder)
+      };
+
+      const priority = calculateLocalPriority(prepared);
+      prepared.priorityTier = priority.tier;
+      prepared.priorityLabel = TIER_META[priority.tier].label;
+      prepared.priorityReasons = priority.reasons;
+      prepared.prioritySortMs = priority.sortMs;
+      prepared.searchIndex = buildSearchIndex(prepared);
+      return prepared;
+    }
+
+    function prepareTravelLegForDisplay(leg, index = 0) {
+      const dateValue = String(leg && leg.travelDate || '');
+      const timeValue = String(leg && leg.travelTime || '');
+      const local = localDateInfo(dateValue, timeValue, false);
+      const storedOrder = Number(leg && leg.travelOrder);
+      return {
+        travelId: String(leg && leg.travelId || ''),
+        travelOrder: Number.isFinite(storedOrder) && storedOrder > 0 ? storedOrder : index + 1,
+        direction: String(leg && leg.direction || 'Inbound'),
+        transportType: String(leg && leg.transportType || 'Other'),
+        from: String(leg && leg.from || ''),
+        to: String(leg && leg.to || ''),
+        travelDate: dateValue,
+        travelTime: timeValue,
+        travelDisplay: String(leg && leg.travelDisplay || local.display || ''),
+        travelMs: finiteTimestamp(leg && leg.travelMs) || local.ms,
+        timeConfirmed: Boolean(dateValue && (timeValue || (leg && leg.timeConfirmed))),
+        status: String(leg && leg.status || 'Required'),
+        serviceNumber: String(leg && leg.serviceNumber || ''),
+        bookingReference: String(leg && leg.bookingReference || ''),
+        notes: String(leg && leg.notes || '')
+      };
+    }
+
+    function normalizeCabBookingState(value, confirmed) {
+      const normalized = String(value || '').trim();
+      if (['Requested', 'Confirmed', 'Needs Reconfirmation', 'Needs Rescheduling'].includes(normalized)) {
+        return normalized;
+      }
+      return confirmed ? 'Confirmed' : 'Requested';
+    }
+
+    function resolveTransportRequirement(flagValue, scheduledValue, detailsValue) {
+      if (flagValue !== undefined && flagValue !== null && flagValue !== '') {
+        if (typeof flagValue === 'boolean') return flagValue;
+        return String(flagValue).trim().toLowerCase() === 'true';
+      }
+      return Boolean(scheduledValue || detailsValue);
+    }
+
+    function buildSearchIndex(guest) {
+      const travelLegs = Array.isArray(guest.travelLegs) ? guest.travelLegs : [];
+      const dateValues = [
+        guest.arrivalDate,
+        guest.departureDate,
+        guest.pickupDate,
+        guest.dropoffDate,
+        ...travelLegs.map(leg => leg.travelDate)
+      ].flatMap(buildDateSearchVariants);
+      const travelValues = travelLegs.flatMap(leg => [
+        leg.direction,
+        leg.transportType,
+        leg.from,
+        leg.to,
+        leg.travelDisplay,
+        leg.status,
+        leg.serviceNumber,
+        leg.bookingReference,
+        leg.notes
+      ]);
+
+      return normalizeSearchText([
+        guest.Name,
+        guest.Status,
+        guest.Room,
+        guest.roomBuilding,
+        guest.roomNumber,
+        guest.roomCategory,
+        guest.Arrival,
+        guest.Departure,
+        guest['Pickup Cab Time'],
+        guest['Pickup Cab details'],
+        guest.pickupBookingState,
+        guest['Dropoff Cab Time'],
+        guest['Dropoff Cab details'],
+        guest.dropoffBookingState,
+        guest.priorityLabel,
+        guest['Pickup Required'] ? 'ashram pickup required pickup required' : '',
+        guest['Dropoff Required'] ? 'ashram drop-off required dropoff required' : '',
+        !guest.Departure && hasGuestArrived(guest) ? 'departure tbd currently residing current guest' : '',
+        guest['Foreign National'] ? 'foreign national' : '',
+        guest['C-form complete']
+          ? 'c-form complete'
+          : (guest['Foreign National'] && hasGuestArrived(guest) ? 'c-form pending' : ''),
+        // Ungated variants of the same signals above: the priority reasons
+        // below only fire inside the 72-hour planning window, but these let
+        // the quick-filter chips find "still needs a room / cab" at any time.
+        guest.Status !== 'Visiting Guest' && guest.arrivalDate && !guest.Room
+          ? 'room not assigned unassigned'
+          : '',
+        guest['Pickup Required'] && guest.pickupBookingState === 'Requested'
+          ? 'pickup unconfirmed pending'
+          : '',
+        guest['Dropoff Required'] && guest.dropoffBookingState === 'Requested'
+          ? 'dropoff unconfirmed pending'
+          : '',
+        // Deliberately its own phrase, not "required" alone — pickup/dropoff
+        // already inject "ashram pickup required" style text below, and
+        // "required" by itself would match those too.
+        travelLegs.some(leg => leg.status === 'Required') ? 'travel arrange' : '',
+        ...(guest.priorityReasons || []),
+        ...travelValues,
+        ...dateValues
+      ].filter(Boolean).join(' '));
+    }
+
+    function buildDateSearchVariants(dateValue) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateValue || ''))) return [];
+      const [year, month, day] = dateValue.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 12, 0, 0);
+      return [
+        dateValue,
+        date.toLocaleDateString('en-GB'),
+        date.toLocaleDateString('en-US'),
+        date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }),
+        date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+      ];
+    }
+
+    function normalizeSearchText(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+
+    function handleSearchInput() {
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(renderApp, 180);
+    }
+
+    // Multiple chips can be active at once — activeChipQueries is the
+    // source of truth for which, and the search bar's text is just a
+    // space-joined rendering of it. Combining phrases this way works for
+    // free: matchesSearch() already ANDs every whitespace-separated term,
+    // so "room not assigned" + "foreign national" naturally narrows to
+    // guests matching both, the same as if you'd typed all of it by hand.
+    function applyQuickFilter(query) {
+      const turningOn = !activeChipQueries.has(query);
+      if (turningOn) activeChipQueries.add(query);
+      else activeChipQueries.delete(query);
+
+      $('search-bar').value = [...activeChipQueries].join(' ');
+      window.clearTimeout(searchTimer);
+      renderApp();
+      // Only count it as "used" when the filter is actually being applied,
+      // not when the same chip is clicked again to clear it.
+      if (turningOn) recordQuickFilterUsage(query);
+    }
+
+    function updateQuickFilterActiveState() {
+      [...$('quick-filters').querySelectorAll('.filter-chip')].forEach(chip => {
+        chip.classList.toggle('active', activeChipQueries.has(chip.dataset.query));
+      });
+    }
+
+    function initSectionNav() {
+      const pills = [...$('modal-section-nav').querySelectorAll('.section-nav-pill')];
+      const setActivePill = targetId => {
+        pills.forEach(pill => pill.classList.toggle('active', pill.dataset.target === targetId));
+      };
+
+      // A clicked pill wins immediately — short sections (e.g. an empty
+      // Travel Itinerary) may not have enough content below them to ever
+      // scroll their top into the observer's trigger band, which would
+      // otherwise leave an earlier pill stuck as "active" after a click.
+      let suppressObserverUntil = 0;
+      pills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          setActivePill(pill.dataset.target);
+          suppressObserverUntil = Date.now() + 600;
+          $(pill.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        if (Date.now() < suppressObserverUntil) return;
+        entries.forEach(entry => {
+          if (entry.isIntersecting) setActivePill(entry.target.id);
+        });
+      }, {
+        root: document.querySelector('.modal-content'),
+        rootMargin: '-56px 0px -70% 0px',
+        threshold: 0
+      });
+
+      pills.forEach(pill => observer.observe($(pill.dataset.target)));
+    }
+
+    const QUICK_FILTER_USAGE_KEY = 'ajatanandaQuickFilterUsage';
+
+    function loadQuickFilterUsage() {
+      try {
+        const raw = window.localStorage.getItem(QUICK_FILTER_USAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function recordQuickFilterUsage(query) {
+      const usage = loadQuickFilterUsage();
+      usage[query] = (usage[query] || 0) + 1;
+      try {
+        window.localStorage.setItem(QUICK_FILTER_USAGE_KEY, JSON.stringify(usage));
+      } catch (error) {
+        // Storage unavailable (private browsing, quota) — the chips still
+        // work, they just won't remember usage across sessions.
+      }
+      reorderQuickFilters(usage);
+    }
+
+    // Most-used chips float to the front. Only called right after a chip is
+    // used and once on load — never from renderApp(), so chips don't shuffle
+    // under the user's cursor while they're just typing a search.
+    function reorderQuickFilters(usage) {
+      const container = $('quick-filters');
+      const usageMap = usage || loadQuickFilterUsage();
+      [...container.querySelectorAll('.filter-chip')]
+        .sort((a, b) => (usageMap[b.dataset.query] || 0) - (usageMap[a.dataset.query] || 0))
+        .forEach(chip => container.appendChild(chip));
+      // The toggle isn't a .filter-chip, so the sort above never touches it —
+      // re-append it explicitly so it always lands after the last chip.
+      container.appendChild($('quick-filters-toggle'));
+      applyChipVisibility();
+    }
+
+    const QUICK_FILTER_VISIBLE_COUNT = 7;
+    const QUICK_FILTER_EXPANDED_KEY = 'ajatanandaQuickFiltersExpanded';
+
+    function isQuickFiltersExpanded() {
+      try {
+        return window.localStorage.getItem(QUICK_FILTER_EXPANDED_KEY) === 'true';
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function setQuickFiltersExpanded(expanded) {
+      try {
+        window.localStorage.setItem(QUICK_FILTER_EXPANDED_KEY, String(expanded));
+      } catch (error) {
+        // Storage unavailable — the toggle still works, just resets on reload.
+      }
+      applyChipVisibility();
+    }
+
+    // Only the top QUICK_FILTER_VISIBLE_COUNT chips (by current usage-sorted
+    // order) show by default. The rest are genuinely `hidden`, not just
+    // visually collapsed, so they drop out of tab order until expanded.
+    function applyChipVisibility() {
+      const chips = [...$('quick-filters').querySelectorAll('.filter-chip')];
+      const expanded = isQuickFiltersExpanded();
+      const hiddenCount = Math.max(chips.length - QUICK_FILTER_VISIBLE_COUNT, 0);
+
+      chips.forEach((chip, index) => {
+        chip.hidden = !expanded && index >= QUICK_FILTER_VISIBLE_COUNT;
+      });
+
+      const toggle = $('quick-filters-toggle');
+      if (hiddenCount === 0) {
+        toggle.hidden = true;
+        return;
+      }
+      toggle.hidden = false;
+      toggle.textContent = expanded ? '− Show less' : `+${hiddenCount} more`;
+      toggle.setAttribute('aria-expanded', String(expanded));
+    }
+
+    function updateLastRefreshed(timestamp) {
+      const date = timestamp ? new Date(timestamp) : new Date();
+      $('last-updated').textContent = `Last refreshed ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    }
+
+    function showFatalError(message) {
+      const app = $('app');
+      app.replaceChildren();
+      const error = createElement('div', 'error-state', `Unable to load dashboard: ${message}`);
+      app.appendChild(error);
+    }
+
+    function renderApp() {
+      updateQuickFilterActiveState();
+      $('search-clear-btn').hidden = !$('search-bar').value;
+      const app = $('app');
+      app.replaceChildren();
+
+      const rawQuery = $('search-bar').value.trim();
+      const query = normalizeSearchText(rawQuery);
+      const filteredGuests = allGuests.filter(guest => matchesSearch(guest, query));
+
+      if (query) {
+        // Search is a flat, cross-tier lookup — a genuinely different
+        // intent from browsing one tier at a time, so the tab bar (which
+        // only makes sense as a browsing aid) steps aside while it's active.
+        $('tier-tabs').hidden = true;
+        if (filteredGuests.length === 0) {
+          app.appendChild(createElement('div', 'empty-state', 'No guests match your search.'));
+          return;
+        }
+        app.appendChild(createSearchResults(filteredGuests));
+        return;
+      }
+
+      $('tier-tabs').hidden = false;
+      renderTierTabs();
+      const guests = allGuests.filter(guest => Number(guest.priorityTier) === activeTier);
+      app.appendChild(createZone(activeTier, guests));
+    }
+
+    // Counts always reflect every tier regardless of which is active, so
+    // switching tabs never costs you the at-a-glance totals.
+    function renderTierTabs() {
+      const container = $('tier-tabs');
+      container.replaceChildren();
+      [1, 2, 3, 4, 5].forEach(tier => {
+        const meta = TIER_META[tier];
+        const count = allGuests.filter(guest => Number(guest.priorityTier) === tier).length;
+        const tab = createElement('button', `tier-tab${tier === activeTier ? ' active' : ''}`);
+        tab.type = 'button';
+        tab.style.setProperty('--accent', TIER_ACCENT[tier]);
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(tier === activeTier));
+        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
+        tab.appendChild(createElement('span', 'tier-tab-label', meta.shortLabel));
+        tab.addEventListener('click', () => {
+          if (activeTier === tier) return;
+          activeTier = tier;
+          renderApp();
+        });
+        container.appendChild(tab);
+      });
+    }
+
+    // Touch-only (mouse drags never fire touch events, so desktop is
+    // untouched). Deliberately does no visual follow for an ordinary swipe —
+    // only at a boundary (already on Priority/Past with nowhere further to
+    // go) does the content rubber-band toward the finger and spring back,
+    // the same "there's nothing past this" cue iOS/Android use for
+    // overscroll, so a swipe that goes nowhere still feels intentional
+    // rather than broken.
+    function initSwipeNavigation() {
+      let startX = 0;
+      let startY = 0;
+      let isHorizontal = null;
+      let rubberBanding = false;
+      let pendingDx = null;
+      let rafId = null;
+      const SWIPE_THRESHOLD = 60;
+      const RUBBER_BAND_MAX = 44;
+
+      // #app only wraps the current tier's card list, so when a tier is
+      // empty its box is a few lines tall and stops well short of the
+      // viewport bottom — listening on #app left that lower area dead to
+      // touch. Listening on document instead means the whole screen is
+      // live, at the cost of also seeing drags that start on the header or
+      // search bar; harmless since those still need >60px of mostly-
+      // horizontal motion to do anything.
+      function inertForGesture() {
+        return $('tier-tabs').hidden || $('modal').getAttribute('aria-hidden') === 'false';
+      }
+
+      // Coalesces touchmove's per-event style writes into one per animation
+      // frame — without this, cards in the boundary tiers visibly glitched
+      // as the transform was rewritten faster than the display could paint.
+      function applyPendingTransform() {
+        rafId = null;
+        if (pendingDx === null) return;
+        $('app').style.transform = `translateX(${pendingDx}px)`;
+        pendingDx = null;
+      }
+
+      document.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1 || inertForGesture()) return;
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        isHorizontal = null;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', event => {
+        if (event.touches.length !== 1 || inertForGesture()) return;
+        const dx = event.touches[0].clientX - startX;
+        const dy = event.touches[0].clientY - startY;
+
+        if (isHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+          isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+        }
+        if (!isHorizontal) return;
+
+        const atStart = activeTier === 1 && dx > 0;
+        const atEnd = activeTier === 5 && dx < 0;
+        if (atStart || atEnd) {
+          if (!rubberBanding) {
+            rubberBanding = true;
+            $('app').style.willChange = 'transform';
+          }
+          pendingDx = Math.sign(dx) * Math.min(Math.abs(dx) * 0.3, RUBBER_BAND_MAX);
+          if (rafId === null) rafId = requestAnimationFrame(applyPendingTransform);
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', event => {
+        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        pendingDx = null;
+
+        if (rubberBanding) {
+          const app = $('app');
+          app.style.transition = 'transform 0.2s ease';
+          app.style.transform = '';
+          window.setTimeout(() => {
+            app.style.transition = '';
+            app.style.willChange = '';
+          }, 210);
+          rubberBanding = false;
+        }
+
+        if (isHorizontal) {
+          const dx = event.changedTouches[0].clientX - startX;
+          if (Math.abs(dx) > SWIPE_THRESHOLD) {
+            if (dx < 0 && activeTier < 5) { activeTier += 1; renderApp(); }
+            else if (dx > 0 && activeTier > 1) { activeTier -= 1; renderApp(); }
+          }
+        }
+        isHorizontal = null;
+      });
+    }
+
+    function matchesSearch(guest, query) {
+      if (!query) return true;
+      const terms = query.split(/\s+/).filter(Boolean);
+      return terms.every(term => String(guest.searchIndex || '').includes(term));
+    }
+
+    function createSearchResults(guests) {
+      const container = createElement('section', 'zone zone-today');
+      const header = createElement('div', 'zone-header');
+      header.appendChild(createElement('span', 'zone-title', 'Search Results'));
+      header.appendChild(createElement('span', 'zone-count', String(guests.length)));
+      header.appendChild(createElement('span', 'zone-description', 'Matches across names, rooms, buildings, room types, and dates'));
+      container.appendChild(header);
+
+      const grid = createElement('div', 'card-grid');
+      const fragment = document.createDocumentFragment();
+      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
+      grid.appendChild(fragment);
+      container.appendChild(grid);
+      return container;
+    }
+
+    // Only ever called for the single active tier now — the old
+    // Past-Guests-specific lazy-build-on-expand logic is gone because it's
+    // moot: since exactly one tier renders at a time, Past Guests' cards
+    // are already never built at all unless that tab is the active one.
+    function createZone(tier, guests) {
+      const meta = TIER_META[tier];
+      const container = createElement('section', `zone ${meta.className}`);
+
+      const header = createElement('div', 'zone-header');
+      header.appendChild(createElement('span', 'zone-title', meta.label));
+      header.appendChild(createElement('span', 'zone-count', String(guests.length)));
+      header.appendChild(createElement('span', 'zone-description', meta.description));
+      container.appendChild(header);
+
+      if (guests.length === 0) {
+        container.appendChild(createElement('div', 'zone-empty', `No ${meta.label.toLowerCase()} guests.`));
+        return container;
+      }
+
+      const grid = createElement('div', 'card-grid');
+      const fragment = document.createDocumentFragment();
+      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
+      grid.appendChild(fragment);
+      container.appendChild(grid);
+      return container;
+    }
+
+    function hasGuestArrived(guest) {
+      return Boolean(guest && guest.arrivalMs && guest.arrivalMs <= Date.now());
+    }
+
+    function createGuestCard(guest) {
+      const isPending = pendingGuestIds.has(guest.guestId);
+      const card = createElement('article', `card${isPending ? ' pending' : ''}`);
+
+      if (!isPending) {
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `Edit ${guest.Name || 'guest'}`);
+        card.addEventListener('click', () => openModal('edit', guest.guestId));
+        card.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openModal('edit', guest.guestId);
+          }
+        });
+      } else {
+        card.setAttribute('aria-busy', 'true');
+      }
+
+      card.appendChild(createElement('div', 'guest-name', guest.Name || 'Unnamed Guest'));
+
+      const topBadges = createElement('div', 'badge-row');
+      const statusClass = guest.Status === 'Friend'
+        ? 'badge-blue'
+        : guest.Status === 'Visiting Guest'
+          ? 'badge-purple'
+          : 'badge-salmon';
+      topBadges.appendChild(createBadge(guest.Status || 'Invited Guest', statusClass));
+
+      if (guest.Room && guest.roomCategory) {
+        topBadges.appendChild(createBadge(
+          guest.roomCategory,
+          getRoomCategoryBadgeClass(guest.roomCategory)
+        ));
+      }
+
+      if (guest['Foreign National'] && !guest['C-form complete'] && hasGuestArrived(guest)) {
+        topBadges.appendChild(createBadge('C-form pending', 'badge-pink'));
+      }
+
+      if (isPending) topBadges.appendChild(createBadge('Saving', 'badge-saving'));
+      card.appendChild(topBadges);
+
+      // Major travel that still needs arranging is deliberately shown before
+      // stay, room and cab planning.
+      appendRequiredTravelDetails(card, guest);
+
+      if (!guest.arrivalDate) {
+        const arrivalBadges = createElement('div', 'badge-row');
+        arrivalBadges.appendChild(createBadge('Arrival date not set', 'badge-action'));
+        card.appendChild(arrivalBadges);
+        card.appendChild(createElement(
+          'div',
+          'card-supporting-text',
+          guest.Status === 'Visiting Guest'
+            ? 'Add stay dates to plan transport.'
+            : 'Add stay dates to plan room & transport.'
+        ));
+
+        if (guest.Departure) {
+          card.appendChild(createDetailLine('icon-calendar', `Departs ${guest.Departure}`));
+        }
+      } else {
+        const arrivalLabel = hasGuestArrived(guest) ? 'Arrived' : 'Arrives';
+        card.appendChild(createDetailLine('icon-calendar', `${arrivalLabel} ${guest.Arrival}`));
+
+        if (guest.Departure) {
+          card.appendChild(createDetailLine('icon-calendar', `Departs ${guest.Departure}`));
+        } else if (hasGuestArrived(guest)) {
+          const departureBadges = createElement('div', 'badge-row');
+          departureBadges.appendChild(createBadge('Departure date not set', 'badge-action'));
+          card.appendChild(departureBadges);
+        } else {
+          card.appendChild(createDetailLine('icon-calendar', 'Departure not set'));
+        }
+      }
+
+      appendRoomDetails(card, guest);
+      appendTransportDetails(card, guest);
+      appendConfirmedTravelDetails(card, guest);
+
+      return card;
+    }
+
+    function getRoomCategoryBadgeClass(category) {
+      if (category === 'VVIP') return 'badge-room-vvip';
+      if (category === 'VIP') return 'badge-room-vip';
+      return 'badge-gray';
+    }
+
+    function appendRoomDetails(card, guest) {
+      if (guest.Status === 'Visiting Guest' || !guest.arrivalDate) return;
+
+      if (guest.Room) {
+        card.appendChild(createDetailLine('icon-bed', guest.Room));
+        return;
+      }
+
+      if (hasPriorityReason(guest, 'Room missing')) {
+        const row = createElement('div', 'badge-row');
+        row.appendChild(createBadge('Room not assigned', 'badge-action'));
+        card.appendChild(row);
+      } else {
+        card.appendChild(createDetailLine('icon-bed', 'Room not assigned'));
+      }
+    }
+
+    function appendTransportDetails(card, guest) {
+      const pickupRequired = Boolean(guest['Pickup Required']);
+      const dropoffRequired = Boolean(guest['Dropoff Required']);
+      if (!pickupRequired && !dropoffRequired) return;
+
+      const pickupState = normalizeCabBookingState(
+        guest.pickupBookingState,
+        guest['Pickup Booking Confirmed']
+      );
+      const dropoffState = normalizeCabBookingState(
+        guest.dropoffBookingState,
+        guest['Dropoff Booking Confirmed']
+      );
+      const pickupNeedsAttention = hasPriorityReason(guest, 'Pickup not arranged');
+      const dropoffNeedsAttention = hasPriorityReason(guest, 'Drop-off not arranged');
+
+      const schedules = [];
+      if (guest['Pickup Cab Time'] && pickupState !== 'Requested') {
+        schedules.push(`Pickup: ${guest['Pickup Cab Time']}`);
+      }
+      if (guest['Dropoff Cab Time'] && dropoffState !== 'Requested') {
+        schedules.push(`Drop-off: ${guest['Dropoff Cab Time']}`);
+      }
+      if (schedules.length) card.appendChild(createDetailLine('icon-car', schedules.join(' | ')));
+
+      const cabBadges = createElement('div', 'badge-row');
+
+      if (pickupRequired) {
+        if (pickupState === 'Confirmed') {
+          const past = isSchedulePast(guest.pickupDate, guest.pickupMs, Boolean(guest.pickupTime));
+          cabBadges.appendChild(createBadge(
+            formatConfirmedCabLabel('Pickup', guest.pickupDate, guest.pickupTime),
+            past ? 'badge-gray' : 'badge-pickup'
+          ));
+        } else if (pickupState === 'Needs Rescheduling') {
+          cabBadges.appendChild(createBadge('Pickup needs rescheduling', 'badge-warning'));
+        } else if (pickupState === 'Needs Reconfirmation') {
+          cabBadges.appendChild(createBadge('Pickup needs reconfirmation', 'badge-cab-action'));
+        } else {
+          cabBadges.appendChild(createBadge(
+            formatCabRequestLabel('Pickup', guest.pickupDate, guest.pickupTime),
+            pickupNeedsAttention ? 'badge-action' : 'badge-cab-action'
+          ));
+        }
+      }
+
+      if (dropoffRequired) {
+        if (dropoffState === 'Confirmed') {
+          const past = isSchedulePast(guest.dropoffDate, guest.dropoffMs, Boolean(guest.dropoffTime));
+          cabBadges.appendChild(createBadge(
+            formatConfirmedCabLabel('Drop-off', guest.dropoffDate, guest.dropoffTime),
+            past ? 'badge-gray' : 'badge-dropoff'
+          ));
+        } else if (dropoffState === 'Needs Rescheduling') {
+          cabBadges.appendChild(createBadge('Drop-off needs rescheduling', 'badge-warning'));
+        } else if (dropoffState === 'Needs Reconfirmation') {
+          cabBadges.appendChild(createBadge('Drop-off needs reconfirmation', 'badge-cab-action'));
+        } else {
+          cabBadges.appendChild(createBadge(
+            formatCabRequestLabel('Drop-off', guest.dropoffDate, guest.dropoffTime),
+            dropoffNeedsAttention ? 'badge-action' : 'badge-cab-action'
+          ));
+        }
+      }
+
+      if (cabBadges.childNodes.length) card.appendChild(cabBadges);
+    }
+
+    function formatConfirmedCabLabel(label, dateValue, timeValue) {
+      if (!dateValue) return `${label} arranged — schedule pending`;
+      if (!timeValue) {
+        const moment = localDateInfo(dateValue, '', false);
+        const dateText = String(moment.display || dateValue).replace(/^[A-Za-z]{3},\s*/, '');
+        return `${label} arranged on ${dateText} — time pending`;
+      }
+      return `${label} arranged`;
+    }
+
+    function formatCabRequestLabel(label, dateValue, timeValue) {
+      if (!dateValue) return `${label} requested`;
+
+      const moment = localDateInfo(dateValue, timeValue, false);
+      const display = String(moment.display || dateValue)
+        .replace(/^[A-Za-z]{3},\s*/, '');
+      return `${label} requested on ${display}`;
+    }
+
+    function appendRequiredTravelDetails(card, guest) {
+      const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
+        .filter(leg => leg.status === 'Required');
+      if (!legs.length) return;
+
+      const stack = createElement('div', 'travel-stack');
+      legs.forEach(leg => {
+        const item = createElement('div', 'travel-item');
+        const badgeRow = createElement('div', 'badge-row');
+        const label = `${leg.direction} ${leg.transportType} to arrange`;
+        badgeRow.appendChild(createBadge(
+          label,
+          leg.travelDate ? 'badge-travel-action' : 'badge-travel-critical'
+        ));
+        item.appendChild(badgeRow);
+        item.appendChild(createTravelDetailLine(leg));
+        stack.appendChild(item);
+      });
+      card.appendChild(stack);
+    }
+
+    function appendConfirmedTravelDetails(card, guest) {
+      const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
+        .filter(leg => leg.status === 'Confirmed');
+      if (!legs.length) return;
+
+      const stack = createElement('div', 'travel-stack');
+      legs.forEach(leg => {
+        const item = createElement('div', 'travel-item');
+        const badgeRow = createElement('div', 'badge-row');
+        const past = isSchedulePast(leg.travelDate, leg.travelMs, Boolean(leg.travelTime));
+        badgeRow.appendChild(createBadge(
+          `${leg.direction} ${leg.transportType} confirmed`,
+          past ? 'badge-gray' : 'badge-confirmed'
+        ));
+        item.appendChild(badgeRow);
+        item.appendChild(createTravelDetailLine(leg));
+        stack.appendChild(item);
+      });
+      card.appendChild(stack);
+    }
+
+    function createTravelDetailLine(leg) {
+      const route = [leg.from, leg.to].filter(Boolean).join(' → ');
+      const dateText = leg.travelDisplay || 'Date not set';
+      const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
+      return createDetailLine(
+        getTravelIconId(leg.transportType),
+        `${route || leg.transportType} · ${dateText}${service}`
+      );
+    }
+
+    function getTravelIconId(transportType) {
+      return ({
+        Flight: 'icon-flight',
+        Train: 'icon-train',
+        Bus: 'icon-bus',
+        Taxi: 'icon-taxi',
+        Other: 'icon-other'
+      })[transportType] || 'icon-other';
+    }
+
+    function hasPriorityReason(guest, reason) {
+      return Array.isArray(guest.priorityReasons) && guest.priorityReasons.includes(reason);
+    }
+
+    function joinNaturalLanguage(values) {
+      if (values.length <= 1) return values[0] || '';
+      if (values.length === 2) return `${values[0]} and ${values[1]}`;
+      return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
+    }
+
+    function isSchedulePast(dateValue, timestamp, timeConfirmed) {
+      if (!dateValue) return false;
+      const exactMs = finiteTimestamp(timestamp);
+      if (timeConfirmed && exactMs !== null) return exactMs < Date.now();
+      return String(dateValue) < getAppDateKey(Date.now());
+    }
+
+    function extractTimeForCard(displayValue) {
+      if (!displayValue) return 'TBD';
+      const parts = String(displayValue).split(/\s+at\s+/i);
+      return parts[1] || String(displayValue);
+    }
+
+    function createDetailLine(iconId, text) {
+      const line = createElement('div', 'detail-line');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'icon');
+      svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', `#${iconId}`);
+      svg.appendChild(use);
+      line.appendChild(svg);
+      line.appendChild(document.createTextNode(text));
+      return line;
+    }
+
+    function createBadge(text, className) {
+      return createElement('span', `badge ${className}`, text);
+    }
+
+    function createElement(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    }
+
+    function buildRoomOptions() {
+      const roomSelect = $('edit-room');
+      const selectedValue = roomSelect.value;
+      roomSelect.replaceChildren();
+
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '-- Unassigned --';
+      blank.dataset.baseLabel = '-- Unassigned --';
+      roomSelect.appendChild(blank);
+
+      const grouped = roomInventory.reduce((groups, room) => {
+        if (!groups[room.building]) groups[room.building] = [];
+        groups[room.building].push(room);
+        return groups;
+      }, {});
+
+      Object.keys(grouped).forEach(building => {
+        const group = document.createElement('optgroup');
+        group.label = building;
+        grouped[building].forEach(room => {
+          const option = document.createElement('option');
+          option.value = room.value;
+          option.textContent = `${room.room} (${room.category})`;
+          option.dataset.baseLabel = option.textContent;
+          group.appendChild(option);
+        });
+        roomSelect.appendChild(group);
+      });
+
+      if ([...roomSelect.options].some(option => option.value === selectedValue)) {
+        roomSelect.value = selectedValue;
+      }
+
+      buildCustomRoomList(grouped);
+      updateRoomTriggerLabel();
+      syncCustomRoomList();
+    }
+
+    // The real #edit-room select stays the source of truth for every
+    // existing behavior (availability checks, save-time validation,
+    // payload collection) — this is purely a visual layer that mirrors it,
+    // so none of that logic had to change.
+    function buildCustomRoomList(grouped) {
+      const list = $('room-custom-list');
+      list.replaceChildren();
+      list.appendChild(createCustomRoomOption('', '-- Unassigned --', null));
+      Object.keys(grouped).forEach(building => {
+        list.appendChild(createElement('div', 'custom-select-group-label', building));
+        grouped[building].forEach(room => {
+          list.appendChild(createCustomRoomOption(room.value, room.room, room.category));
+        });
+      });
+    }
+
+    function createCustomRoomOption(value, label, category) {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'custom-select-option';
+      option.setAttribute('role', 'option');
+      option.dataset.value = value;
+      option.appendChild(createElement('span', 'custom-select-option-label', label));
+      if (category) option.appendChild(createBadge(category, getRoomCategoryBadgeClass(category)));
+      option.addEventListener('click', () => selectCustomRoomOption(value));
+      return option;
+    }
+
+    function selectCustomRoomOption(value) {
+      const roomSelect = $('edit-room');
+      const option = [...roomSelect.options].find(opt => opt.value === value);
+      if (option && option.disabled) return;
+      roomSelect.value = value;
+      roomSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      updateRoomTriggerLabel();
+      syncCustomRoomList();
+      closeRoomList();
+    }
+
+    function updateRoomTriggerLabel() {
+      const selected = $('edit-room').selectedOptions[0];
+      $('room-trigger-label').textContent = selected ? (selected.dataset.baseLabel || selected.textContent) : '-- Unassigned --';
+    }
+
+    // Re-reads the real select's current option states (set by
+    // checkRoomAvailability) so the custom list's occupied/selected
+    // styling never drifts out of sync with the data it's mirroring.
+    function syncCustomRoomList() {
+      const roomSelect = $('edit-room');
+      const selectedValue = roomSelect.value;
+      [...$('room-custom-list').querySelectorAll('.custom-select-option')].forEach(optionEl => {
+        const value = optionEl.dataset.value;
+        const realOption = [...roomSelect.options].find(opt => opt.value === value);
+        const occupied = Boolean(realOption && realOption.disabled);
+        optionEl.classList.toggle('occupied', occupied);
+        optionEl.classList.toggle('selected', value === selectedValue);
+        optionEl.setAttribute('aria-selected', String(value === selectedValue));
+        optionEl.disabled = occupied;
+
+        let note = optionEl.querySelector('.custom-select-occupied-note');
+        if (occupied && realOption) {
+          const occupancyText = realOption.textContent.split(' — ')[1] || '';
+          if (!note) {
+            note = createElement('span', 'custom-select-occupied-note');
+            optionEl.appendChild(note);
+          }
+          note.textContent = occupancyText;
+        } else if (note) {
+          note.remove();
+        }
+      });
+    }
+
+    function toggleRoomList(forceOpen) {
+      const list = $('room-custom-list');
+      const isOpen = forceOpen !== undefined ? forceOpen : list.hidden;
+      list.hidden = !isOpen;
+      $('room-trigger').setAttribute('aria-expanded', String(isOpen));
+    }
+
+    function closeRoomList() {
+      toggleRoomList(false);
+    }
+
+    function resetCabBookingEditorState(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const checkbox = $(`edit-${prefix}-booking-confirmed`);
+      checkbox.checked = false;
+      checkbox.disabled = true;
+      checkbox.dataset.originalConfirmed = 'false';
+      checkbox.dataset.originalState = 'Requested';
+      checkbox.dataset.confirmationIntent = 'none';
+      checkbox.dataset.originalFingerprint = '';
+      checkbox.dataset.confirmedFingerprint = '';
+      checkbox.dataset.reconfirmWarned = 'false';
+      $(`${prefix}-booking-label`).textContent = 'Cab booking confirmed';
+      $(`label-${prefix}-booking-confirmed`).classList.add('disabled-label');
+      $(`edit-${prefix}-details`).disabled = true;
+    }
+
+    function initializeCabBookingEditorState(type, guest) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const checkbox = $(`edit-${prefix}-booking-confirmed`);
+      const state = guest
+        ? normalizeCabBookingState(
+          guest[`${prefix}BookingState`],
+          guest[type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed']
+        )
+        : 'Requested';
+      const confirmed = Boolean(guest && guest[
+        type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed'
+      ]);
+      const needsReview = state === 'Needs Reconfirmation' || state === 'Needs Rescheduling';
+      const fingerprint = getCabScheduleFingerprint(type);
+
+      checkbox.dataset.originalConfirmed = String(confirmed);
+      checkbox.dataset.originalState = state;
+      checkbox.dataset.originalFingerprint = fingerprint;
+      checkbox.dataset.confirmedFingerprint = state === 'Confirmed' ? fingerprint : '';
+      checkbox.dataset.confirmationIntent = needsReview && confirmed
+        ? 'preserve'
+        : (confirmed ? 'confirm' : 'none');
+      checkbox.checked = state === 'Confirmed';
+      $(`${prefix}-booking-label`).textContent = needsReview && confirmed
+        ? 'Cab booking reconfirmed'
+        : 'Cab booking confirmed';
+    }
+
+    function getCabScheduleFingerprint(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const stayPrefix = type === 'pickup' ? 'arrival' : 'departure';
+      return [
+        $(`edit-${stayPrefix}-date`).value,
+        $(`edit-${stayPrefix}-time`).value,
+        $(`edit-${prefix}-date`).value,
+        $(`edit-${prefix}-time`).value
+      ].join('|');
+    }
+
+    function cabScheduleChangedFromOriginal(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const checkbox = $(`edit-${prefix}-booking-confirmed`);
+      return getCabScheduleFingerprint(type) !== (checkbox.dataset.originalFingerprint || '');
+    }
+
+    function handleCabBookingConfirmationChange(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const checkbox = $(`edit-${prefix}-booking-confirmed`);
+      if (checkbox.checked) {
+        checkbox.dataset.confirmationIntent = 'confirm';
+        checkbox.dataset.confirmedFingerprint = getCabScheduleFingerprint(type);
+      } else if (checkbox.dataset.originalConfirmed === 'true'
+          && (cabScheduleChangedFromOriginal(type)
+            || checkbox.dataset.originalState === 'Needs Reconfirmation'
+            || checkbox.dataset.originalState === 'Needs Rescheduling')) {
+        checkbox.dataset.confirmationIntent = 'preserve';
+      } else {
+        checkbox.dataset.confirmationIntent = checkbox.dataset.originalConfirmed === 'true'
+          ? 'unconfirm'
+          : 'none';
+      }
+      updateTransportConstraints();
+    }
+
+    function openModal(mode, guestId = '') {
+      resetDeleteButton();
+      resetCloseConfirm();
+      closeRoomList();
+      modalDirty = false;
+      document.querySelector('.modal-content').scrollTop = 0;
+      [...$('modal-section-nav').querySelectorAll('.section-nav-pill')].forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.target === 'sec-guest');
+      });
+      $('modal-mode').value = mode;
+      $('edit-guest-id').value = guestId;
+      $('edit-version').value = '';
+      $('room-warning').textContent = '';
+      $('edit-pickup-required').dataset.originalChecked = 'false';
+      $('edit-dropoff-required').dataset.originalChecked = 'false';
+      $('edit-pickup-details').dataset.originalValue = '';
+      $('edit-dropoff-details').dataset.originalValue = '';
+      resetCabBookingEditorState('pickup');
+      resetCabBookingEditorState('dropoff');
+      $('pickup-warning').textContent = '';
+      $('pickup-warning').classList.remove('info');
+      $('dropoff-warning').textContent = '';
+      $('dropoff-warning').classList.remove('info');
+      $('edit-pickup-required').dataset.locked = 'false';
+      $('edit-dropoff-required').dataset.locked = 'false';
+      $('edit-departure-date').min = '';
+      $('edit-dropoff-date').min = '';
+      $('edit-dropoff-time').min = '';
+
+      if (mode === 'edit') {
+        const guest = allGuests.find(item => item.guestId === guestId);
+        if (!guest || pendingGuestIds.has(guestId)) return;
+
+        $('modal-title').textContent = 'Edit Guest';
+        $('edit-version').value = guest.version || '';
+        $('delete-btn').style.display = 'inline-flex';
+        $('edit-name').value = guest.Name || '';
+        $('edit-status').value = guest.Status || 'Invited Guest';
+        $('edit-foreign').checked = Boolean(guest['Foreign National']);
+        $('edit-cform').checked = Boolean(guest['C-form complete']);
+        $('edit-arrival-date').value = guest.arrivalDate || '';
+        $('edit-arrival-time').value = guest.arrivalTime || '';
+        $('edit-arrival-date').dataset.originalValue = guest.arrivalDate || '';
+        $('edit-arrival-time').dataset.originalValue = guest.arrivalTime || '';
+        $('edit-departure-date').value = guest.departureDate || '';
+        $('edit-departure-time').value = guest.departureTime || '';
+        $('edit-departure-date').dataset.originalValue = guest.departureDate || '';
+        $('edit-departure-time').dataset.originalValue = guest.departureTime || '';
+        $('edit-pickup-required').checked = Boolean(guest['Pickup Required']);
+        $('edit-pickup-required').dataset.originalChecked = String(Boolean(guest['Pickup Required']));
+        $('edit-pickup-date').value = guest.pickupDate || '';
+        $('edit-pickup-time').value = guest.pickupTime || '';
+        $('edit-pickup-date').dataset.originalValue = guest.pickupDate || '';
+        $('edit-pickup-time').dataset.originalValue = guest.pickupTime || '';
+        $('edit-pickup-details').value = guest['Pickup Cab details'] || '';
+        $('edit-pickup-details').dataset.originalValue = guest['Pickup Cab details'] || '';
+        initializeCabBookingEditorState('pickup', guest);
+        $('edit-dropoff-required').checked = Boolean(guest['Dropoff Required']);
+        $('edit-dropoff-required').dataset.originalChecked = String(Boolean(guest['Dropoff Required']));
+        $('edit-dropoff-date').value = guest.dropoffDate || '';
+        $('edit-dropoff-time').value = guest.dropoffTime || '';
+        $('edit-dropoff-date').dataset.originalValue = guest.dropoffDate || '';
+        $('edit-dropoff-time').dataset.originalValue = guest.dropoffTime || '';
+        $('edit-dropoff-details').value = guest['Dropoff Cab details'] || '';
+        $('edit-dropoff-details').dataset.originalValue = guest['Dropoff Cab details'] || '';
+        initializeCabBookingEditorState('dropoff', guest);
+        $('edit-room').value = guest.Room || '';
+        renderTravelLegEditors(guest.travelLegs || []);
+      } else {
+        $('modal-title').textContent = 'Add New Guest';
+        $('delete-btn').style.display = 'none';
+        $('edit-name').value = '';
+        $('edit-status').value = 'Invited Guest';
+        $('edit-foreign').checked = false;
+        $('edit-cform').checked = false;
+        $('edit-arrival-date').value = '';
+        $('edit-arrival-time').value = '';
+        $('edit-arrival-date').dataset.originalValue = '';
+        $('edit-arrival-time').dataset.originalValue = '';
+        $('edit-departure-date').value = '';
+        $('edit-departure-time').value = '';
+        $('edit-departure-date').dataset.originalValue = '';
+        $('edit-departure-time').dataset.originalValue = '';
+        $('edit-pickup-required').checked = false;
+        $('edit-pickup-date').value = '';
+        $('edit-pickup-time').value = '';
+        $('edit-pickup-date').dataset.originalValue = '';
+        $('edit-pickup-time').dataset.originalValue = '';
+        $('edit-pickup-details').value = '';
+        initializeCabBookingEditorState('pickup', null);
+        $('edit-dropoff-required').checked = false;
+        $('edit-dropoff-date').value = '';
+        $('edit-dropoff-time').value = '';
+        $('edit-dropoff-date').dataset.originalValue = '';
+        $('edit-dropoff-time').dataset.originalValue = '';
+        $('edit-dropoff-details').value = '';
+        initializeCabBookingEditorState('dropoff', null);
+        $('edit-room').value = '';
+        renderTravelLegEditors([]);
+      }
+
+      toggleCForm();
+      toggleForeignNationalField();
+      handleDateChange();
+      toggleRoomField();
+      updateTransportConstraints();
+      modalIsOpen = true;
+      $('modal').style.display = 'flex';
+      $('modal').setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => $('edit-name').focus(), 0);
+    }
+
+    function renderTravelLegEditors(legs) {
+      const list = $('travel-leg-list');
+      list.replaceChildren();
+      (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg));
+      updateTravelEmptyState();
+      updateTravelDateConstraints();
+    }
+
+    function addTravelLegEditor(leg = {}) {
+      const list = $('travel-leg-list');
+      const isExistingLeg = Boolean(leg.travelId);
+      const editor = createElement('div', 'travel-leg-editor');
+      editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      editor.innerHTML = `
+        <div class="travel-leg-summary">
+          <div class="travel-leg-summary-text">
+            <svg class="icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+            <span>New travel leg</span>
+          </div>
+          <div class="travel-leg-summary-actions">
+            <button class="travel-remove-btn" type="button" aria-label="Remove travel leg">
+              <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+            </button>
+            <svg class="icon travel-leg-chevron" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+          </div>
+        </div>
+        <div class="travel-leg-details conditional-fields">
+          <div class="travel-leg-grid">
+            <div class="input-group">
+              <label class="input-label">Direction *</label>
+              <select class="edit-input" data-field="direction">
+                <option value="Inbound">Inbound</option>
+                <option value="Outbound">Outbound</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Transport type *</label>
+              <select class="edit-input" data-field="transportType">
+                <option value="Flight">Flight</option>
+                <option value="Train">Train</option>
+                <option value="Bus">Bus</option>
+                <option value="Taxi">Taxi</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label class="input-label">From *</label>
+              <input class="edit-input" data-field="from" type="text" maxlength="500" autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label class="input-label">To *</label>
+              <input class="edit-input" data-field="to" type="text" maxlength="500" autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Travel date — optional</label>
+              <input class="edit-input" data-field="travelDate" type="date">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Travel time — optional</label>
+              <input class="edit-input" data-field="travelTime" type="time">
+            </div>
+            <div class="input-group span-two">
+              <label class="input-label">Status *</label>
+              <select class="edit-input" data-field="status">
+                <option value="Required">To arrange</option>
+                <option value="Confirmed">Booked / confirmed</option>
+              </select>
+            </div>
+          </div>
+          <div class="travel-leg-optional">
+            <span class="travel-leg-optional-label">Optional details</span>
+            <div class="travel-leg-grid">
+              <div class="input-group">
+                <label class="input-label">Service / flight / train number — optional</label>
+                <input class="edit-input" data-field="serviceNumber" type="text" maxlength="500" autocomplete="off">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Booking reference / PNR — optional</label>
+                <input class="edit-input" data-field="bookingReference" type="text" maxlength="500" autocomplete="off">
+              </div>
+              <div class="input-group span-two">
+                <label class="input-label">Notes — optional</label>
+                <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      const setValue = (field, value) => {
+        const input = editor.querySelector(`[data-field="${field}"]`);
+        if (input) input.value = value || '';
+      };
+      setValue('direction', leg.direction || 'Inbound');
+      setValue('transportType', leg.transportType || 'Flight');
+      setValue('from', leg.from);
+      setValue('to', leg.to);
+      setValue('travelDate', leg.travelDate);
+      setValue('travelTime', leg.travelTime);
+      setValue('status', leg.status || 'Required');
+      setValue('serviceNumber', leg.serviceNumber);
+      setValue('bookingReference', leg.bookingReference);
+      setValue('notes', leg.notes);
+
+      editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
+        editor.remove();
+        refreshAllLegSummaries();
+        updateTravelEmptyState();
+        updateTravelDateConstraints();
+      });
+      editor.querySelector('[data-field="travelDate"]').addEventListener('input', updateTravelDateConstraints);
+      ['direction', 'transportType', 'from', 'to', 'travelDate'].forEach(field => {
+        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateLegSummary(editor));
+      });
+
+      const summary = editor.querySelector('.travel-leg-summary');
+      summary.addEventListener('click', event => {
+        if (event.target.closest('button')) return;
+        toggleLegExpanded(editor);
+      });
+
+      list.appendChild(editor);
+      setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExistingLeg);
+      editor.classList.toggle('leg-expanded', !isExistingLeg);
+      updateLegSummary(editor);
+      updateTravelEmptyState();
+      updateTravelDateConstraints();
+    }
+
+    function toggleLegExpanded(editor, expanded) {
+      const details = editor.querySelector('.travel-leg-details');
+      const nextExpanded = expanded !== undefined ? expanded : !details.classList.contains('expanded');
+      setConditionalFieldsExpanded(details, nextExpanded);
+      editor.classList.toggle('leg-expanded', nextExpanded);
+    }
+
+    function updateLegSummary(editor) {
+      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+      const direction = value('direction');
+      const type = value('transportType') || 'Other';
+      const from = value('from');
+      const to = value('to');
+      const dateValue = value('travelDate');
+      const route = [from, to].filter(Boolean).join(' → ');
+      const dateText = dateValue
+        ? String(localDateInfo(dateValue, '', false).display || dateValue).replace(/^[A-Za-z]{3},\s*/, '')
+        : 'date not set';
+
+      const label = editor.querySelector('.travel-leg-summary-text span');
+      label.textContent = route
+        ? `${type} · ${route} · ${dateText}`
+        : `${direction || 'New'} ${type.toLowerCase()} leg`;
+
+      editor.querySelector('.travel-leg-summary-text use').setAttribute('href', `#${getTravelIconId(type)}`);
+    }
+
+    function refreshAllLegSummaries() {
+      [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')].forEach(updateLegSummary);
+    }
+
+    function updateTravelEmptyState() {
+      $('travel-empty').style.display = $('travel-leg-list').children.length ? 'none' : 'block';
+    }
+
+    function updateTravelDateConstraints() {
+      const editors = [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')];
+      editors.forEach((editor, index) => {
+        const dateInput = editor.querySelector('[data-field="travelDate"]');
+        let previousDate = '';
+        let nextDate = '';
+
+        for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
+          const candidate = editors[previousIndex].querySelector('[data-field="travelDate"]').value;
+          if (candidate) {
+            previousDate = candidate;
+            break;
+          }
+        }
+
+        for (let nextIndex = index + 1; nextIndex < editors.length; nextIndex += 1) {
+          const candidate = editors[nextIndex].querySelector('[data-field="travelDate"]').value;
+          if (candidate) {
+            nextDate = candidate;
+            break;
+          }
+        }
+
+        dateInput.min = previousDate;
+        dateInput.max = nextDate;
+
+        const timeInput = editor.querySelector('[data-field="travelTime"]');
+        if (!dateInput.value) timeInput.value = '';
+        timeInput.disabled = !dateInput.value;
+      });
+    }
+
+    function collectTravelLegPayloads() {
+      return [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')].map(editor => {
+        const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+        return {
+          travelId: editor.dataset.travelId || '',
+          direction: value('direction'),
+          transportType: value('transportType'),
+          from: value('from'),
+          to: value('to'),
+          travelDate: value('travelDate'),
+          travelTime: value('travelTime'),
+          status: value('status'),
+          serviceNumber: value('serviceNumber'),
+          bookingReference: value('bookingReference'),
+          notes: value('notes')
+        };
+      });
+    }
+
+    function validateTravelLegEditors() {
+      const editors = [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')];
+      let previousDatedLeg = null;
+
+      for (let index = 0; index < editors.length; index += 1) {
+        const editor = editors[index];
+        const requiredFields = [
+          ['direction', 'direction'],
+          ['transportType', 'transport type'],
+          ['from', 'From'],
+          ['to', 'To'],
+          ['status', 'status']
+        ];
+
+        for (const [field, label] of requiredFields) {
+          const input = editor.querySelector(`[data-field="${field}"]`);
+          if (!input.value.trim()) {
+            showToast(`Travel leg ${index + 1}: ${label} is required.`, 'error');
+            input.focus();
+            return false;
+          }
+        }
+
+        const dateInput = editor.querySelector('[data-field="travelDate"]');
+        const timeInput = editor.querySelector('[data-field="travelTime"]');
+        const dateValue = dateInput.value;
+        const timeValue = timeInput.value;
+
+        if (timeValue && !dateValue) {
+          showToast(`Travel leg ${index + 1}: choose a travel date before entering a time.`, 'error');
+          dateInput.focus();
+          return false;
+        }
+
+        if (!dateValue) continue;
+
+        if (previousDatedLeg) {
+          if (dateValue < previousDatedLeg.dateValue) {
+            showToast(
+              `Travel leg ${index + 1} cannot be earlier than travel leg ${previousDatedLeg.index + 1}.`,
+              'error'
+            );
+            dateInput.focus();
+            return false;
+          }
+
+          if (dateValue === previousDatedLeg.dateValue
+              && timeValue
+              && previousDatedLeg.timeValue
+              && timeValue <= previousDatedLeg.timeValue) {
+            showToast(
+              `Travel leg ${index + 1} must be later than travel leg ${previousDatedLeg.index + 1}.`,
+              'error'
+            );
+            timeInput.focus();
+            return false;
+          }
+        }
+
+        previousDatedLeg = { index, dateValue, timeValue };
+      }
+
+      return true;
+    }
+
+    // The single "actually close" implementation — always closes, no guard.
+    // Called directly (bypassing the guard entirely) after a successful save
+    // or delete, since committing a change is never something to warn about.
+    function closeModal() {
+      resetDeleteButton();
+      resetCloseConfirm();
+      modalDirty = false;
+      modalIsOpen = false;
+      $('modal').style.display = 'none';
+      $('modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function markModalDirty() {
+      modalDirty = true;
+    }
+
+    // Entry point for overlay-click and Escape — triggers most often by
+    // accident, so it's fully blocked while there are unsaved edits rather
+    // than requiring a second click to confirm.
+    function requestCloseModal() {
+      if (modalDirty) {
+        showToast('You have unsaved changes. Use the × button to close and discard them.');
+        return;
+      }
+      closeModal();
+    }
+
+    // Entry point for the × button — a deliberate click, so it gets the
+    // same click-again-to-confirm pattern already used for delete instead
+    // of being blocked outright.
+    function handleCloseButtonClick() {
+      if (modalDirty && !closeConfirmArmed) {
+        armCloseConfirm();
+        return;
+      }
+      closeModal();
+    }
+
+    function armCloseConfirm() {
+      closeConfirmArmed = true;
+      $('close-btn').classList.add('confirm-state');
+      $('close-btn').setAttribute('aria-label', 'Discard unsaved changes? Click again to confirm.');
+      showToast('Unsaved changes — click × again to discard them.');
+      closeConfirmTimeout = window.setTimeout(resetCloseConfirm, 3000);
+    }
+
+    function resetCloseConfirm() {
+      closeConfirmArmed = false;
+      window.clearTimeout(closeConfirmTimeout);
+      $('close-btn').classList.remove('confirm-state');
+      $('close-btn').setAttribute('aria-label', 'Close dialog');
+    }
+
+    function toggleCForm() {
+      const enabled = $('edit-foreign').checked;
+      $('cform-control').hidden = !enabled;
+      $('edit-cform').disabled = !enabled;
+      if (!enabled) $('edit-cform').checked = false;
+    }
+
+    function toggleRoomField() {
+      const isVisiting = $('edit-status').value === 'Visiting Guest';
+      $('room-group').hidden = isVisiting;
+      $('edit-room').disabled = isVisiting;
+      $('room-trigger').disabled = isVisiting;
+      if (isVisiting) {
+        $('edit-room').value = '';
+        $('room-warning').textContent = '';
+        closeRoomList();
+        syncCustomRoomList();
+      } else {
+        checkRoomAvailability();
+      }
+      updateRoomTriggerLabel();
+    }
+
+    // Visiting Guests don't lodge overnight (they don't even get a room —
+    // see toggleRoomField above), so foreign-national/C-form tracking
+    // doesn't apply to them either. Mirrors the same hide-and-clear pattern
+    // used for the room field.
+    function toggleForeignNationalField() {
+      const isVisiting = $('edit-status').value === 'Visiting Guest';
+      $('foreign-cform-row').hidden = isVisiting;
+      $('edit-foreign').disabled = isVisiting;
+      if (isVisiting) {
+        $('edit-foreign').checked = false;
+        $('edit-cform').checked = false;
+      }
+      toggleCForm();
+    }
+
+    function handleDateChange() {
+      const arrivalDate = $('edit-arrival-date').value;
+      const departureDate = $('edit-departure-date');
+
+      departureDate.min = arrivalDate || '';
+      updateTransportConstraints();
+      checkRoomAvailability();
+    }
+
+    function handleTransportRequirementChange(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const required = $(`edit-${prefix}-required`).checked;
+
+      if (!required) {
+        $(`edit-${prefix}-date`).value = '';
+        $(`edit-${prefix}-time`).value = '';
+        $(`edit-${prefix}-details`).value = '';
+        const booking = $(`edit-${prefix}-booking-confirmed`);
+        booking.checked = false;
+        booking.dataset.confirmationIntent = 'none';
+        booking.dataset.confirmedFingerprint = '';
+      }
+      updateTransportConstraints();
+    }
+
+    function restoreTransportOriginals(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const required = $(`edit-${prefix}-required`);
+      const date = $(`edit-${prefix}-date`);
+      const time = $(`edit-${prefix}-time`);
+      const details = $(`edit-${prefix}-details`);
+      const booking = $(`edit-${prefix}-booking-confirmed`);
+      const originalState = booking.dataset.originalState || 'Requested';
+
+      required.checked = required.dataset.originalChecked === 'true';
+      date.value = date.dataset.originalValue || '';
+      time.value = time.dataset.originalValue || '';
+      details.value = details.dataset.originalValue || '';
+      booking.checked = originalState === 'Confirmed';
+      booking.dataset.confirmationIntent = originalState === 'Confirmed'
+        ? 'confirm'
+        : (booking.dataset.originalConfirmed === 'true' ? 'preserve' : 'none');
+      booking.dataset.confirmedFingerprint = originalState === 'Confirmed'
+        ? (booking.dataset.originalFingerprint || '')
+        : '';
+    }
+
+    // Shared by pickup/dropoff fields and each travel leg's detail grid so
+    // conditional reveals ease open/closed instead of snapping via [hidden].
+    // inert (not just visual hiding) keeps collapsed fields out of tab order
+    // and assistive tech while the CSS transition plays.
+    function setConditionalFieldsExpanded(el, expanded) {
+      el.classList.toggle('expanded', expanded);
+      el.inert = !expanded;
+    }
+
+    function setTransportFieldState(type, locked) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const required = $(`edit-${prefix}-required`);
+      const fields = $(`${prefix}-fields`);
+
+      setConditionalFieldsExpanded(fields, required.checked);
+      required.disabled = locked;
+      $(`label-${prefix}-required`).classList.toggle('disabled-label', locked);
+    }
+
+    function applyTransportLockTransition(type, locked) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const required = $(`edit-${prefix}-required`);
+      const wasLocked = required.dataset.locked === 'true';
+
+      if (locked && !wasLocked) restoreTransportOriginals(type);
+      required.dataset.locked = String(locked);
+      setTransportFieldState(type, locked);
+    }
+
+    function setTransportMessage(type, message, isInfo = false) {
+      const element = $(type === 'pickup' ? 'pickup-warning' : 'dropoff-warning');
+      element.textContent = message || '';
+      element.classList.toggle('info', Boolean(message) && isInfo);
+    }
+
+    function evaluateCabSchedule(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const stayPrefix = type === 'pickup' ? 'arrival' : 'departure';
+      const label = type === 'pickup' ? 'Pickup' : 'Drop-off';
+      const stayLabel = type === 'pickup' ? 'arrival' : 'departure';
+      const cabDate = $(`edit-${prefix}-date`).value;
+      const cabTime = $(`edit-${prefix}-time`).value;
+      const stayDate = $(`edit-${stayPrefix}-date`).value;
+      const stayTime = $(`edit-${stayPrefix}-time`).value;
+      if (!cabDate) return null;
+
+      if (!stayDate) {
+        return {
+          code: 'stay-date-missing',
+          message: `Set the ${stayLabel} date before scheduling ${type === 'pickup' ? 'pickup' : 'drop-off'}.`
+        };
+      }
+
+      const today = getAppDateKey(Date.now());
+      const stayMs = getInputTimestamp(stayDate, stayTime, type === 'dropoff');
+      const stayHasPassed = stayMs !== null && stayMs <= Date.now();
+      if (!stayHasPassed && cabDate < today) {
+        return { code: 'past-date', message: `${label} date cannot be earlier than today.` };
+      }
+
+      if (type === 'pickup' && cabDate > stayDate) {
+        return { code: 'after-arrival', message: 'Pickup date cannot be later than the arrival date.' };
+      }
+      if (type === 'dropoff' && cabDate < stayDate) {
+        return { code: 'before-departure', message: 'Drop-off date cannot be earlier than the departure date.' };
+      }
+
+      if (cabDate === stayDate && cabTime && stayTime) {
+        if (type === 'pickup' && cabTime > stayTime) {
+          return { code: 'after-arrival-time', message: 'Pickup time cannot be later than the arrival time.' };
+        }
+        if (type === 'dropoff' && cabTime < stayTime) {
+          return { code: 'before-departure-time', message: 'Drop-off time cannot be earlier than the departure time.' };
+        }
+      }
+
+      return null;
+    }
+
+    function updateCabEditorState(type, locked) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const stayPrefix = type === 'pickup' ? 'arrival' : 'departure';
+      const required = $(`edit-${prefix}-required`);
+      const date = $(`edit-${prefix}-date`);
+      const time = $(`edit-${prefix}-time`);
+      const details = $(`edit-${prefix}-details`);
+      const booking = $(`edit-${prefix}-booking-confirmed`);
+      const bookingLabel = $(`${prefix}-booking-label`);
+      const stayDate = $(`edit-${stayPrefix}-date`).value;
+      const stayTime = $(`edit-${stayPrefix}-time`).value;
+      const currentFingerprint = getCabScheduleFingerprint(type);
+      const originalFingerprint = booking.dataset.originalFingerprint || '';
+      const originalState = booking.dataset.originalState || 'Requested';
+      const originalConfirmed = booking.dataset.originalConfirmed === 'true';
+
+      if (booking.checked
+          && booking.dataset.confirmedFingerprint
+          && booking.dataset.confirmedFingerprint !== currentFingerprint) {
+        if (originalConfirmed) {
+          booking.checked = false;
+          booking.dataset.confirmationIntent = 'preserve';
+        } else {
+          // For a new booking, the checked box confirms the final values in
+          // this unsaved form rather than forcing a second confirmation click.
+          booking.dataset.confirmedFingerprint = currentFingerprint;
+        }
+      }
+
+      // Auto-restore the checkbox only when it was temporarily cleared
+      // because a previously confirmed schedule changed and the user has now
+      // restored that original schedule. A deliberate uncheck uses the
+      // `unconfirm` intent and must remain unchecked.
+      if (!booking.checked
+          && originalState === 'Confirmed'
+          && booking.dataset.confirmationIntent === 'preserve'
+          && currentFingerprint === originalFingerprint) {
+        booking.checked = true;
+        booking.dataset.confirmationIntent = 'confirm';
+        booking.dataset.confirmedFingerprint = currentFingerprint;
+      }
+
+      const issue = evaluateCabSchedule(type);
+      const needsReconfirmation = originalConfirmed
+        && !booking.checked
+        && booking.dataset.confirmationIntent === 'preserve'
+        && !issue;
+      const needsReconfirmationLabel = originalConfirmed && (
+        Boolean(issue)
+        || needsReconfirmation
+        || originalState === 'Needs Reconfirmation'
+        || originalState === 'Needs Rescheduling'
+      );
+
+      bookingLabel.textContent = needsReconfirmationLabel
+        ? 'Cab booking reconfirmed'
+        : 'Cab booking confirmed';
+
+      // Surface the live transition (an edit just knocked a confirmed
+      // booking back to "needs reconfirmation") as a toast, not only the
+      // small passive field-message below — but only once per transition,
+      // not on every keystroke while it stays in that state.
+      if (needsReconfirmation) {
+        if (booking.dataset.reconfirmWarned !== 'true') {
+          booking.dataset.reconfirmWarned = 'true';
+          showToast(
+            `${type === 'pickup' ? 'Pickup' : 'Drop-off'} booking needs reconfirmation because the schedule changed.`
+          );
+        }
+      } else {
+        booking.dataset.reconfirmWarned = 'false';
+      }
+
+      const canSchedule = required.checked && !locked && Boolean(stayDate);
+      date.disabled = !canSchedule;
+      time.disabled = !canSchedule;
+
+      const today = getAppDateKey(Date.now());
+      if (type === 'pickup') {
+        date.min = today;
+        date.max = stayDate || '';
+        time.min = '';
+        time.max = date.value && date.value === stayDate && stayTime ? stayTime : '';
+      } else {
+        date.min = stayDate && stayDate > today ? stayDate : today;
+        date.max = '';
+        time.min = date.value && date.value === stayDate && stayTime ? stayTime : '';
+        time.max = '';
+      }
+
+      const canConfirm = required.checked
+        && !locked
+        && !issue;
+      booking.disabled = !canConfirm;
+      $(`label-${prefix}-booking-confirmed`).classList.toggle('disabled-label', !canConfirm);
+
+      const preservingExistingBooking = booking.dataset.confirmationIntent === 'preserve'
+        && originalConfirmed;
+      details.disabled = locked || !required.checked || (!booking.checked && !preservingExistingBooking);
+
+      if (locked) {
+        setTransportMessage(
+          type,
+          type === 'pickup'
+            ? 'Pickup responsibility and booking are locked because the guest has arrived.'
+            : 'Drop-off responsibility and booking are locked because the guest has departed.',
+          true
+        );
+      } else if (required.checked && !stayDate) {
+        setTransportMessage(
+          type,
+          `Add the ${type === 'pickup' ? 'arrival' : 'departure'} date before scheduling this cab. The request or booking confirmation can still be saved.`,
+          true
+        );
+      } else if (time.value && !date.value) {
+        setTransportMessage(type, `Choose a ${type === 'pickup' ? 'pickup' : 'drop-off'} date before entering a time.`);
+      } else if (issue) {
+        const prefixMessage = originalConfirmed ? `${type === 'pickup' ? 'Pickup' : 'Drop-off'} needs rescheduling. ` : '';
+        setTransportMessage(type, `${prefixMessage}${issue.message}`);
+      } else if (needsReconfirmation) {
+        setTransportMessage(
+          type,
+          `${type === 'pickup' ? 'Pickup' : 'Drop-off'} booking needs reconfirmation after the schedule change.`,
+          true
+        );
+      } else {
+        setTransportMessage(type, '');
+      }
+    }
+
+    function updateTransportConstraints() {
+      const arrivalMs = getInputTimestamp(
+        $('edit-arrival-date').value,
+        $('edit-arrival-time').value,
+        false
+      );
+      const departureMs = getInputTimestamp(
+        $('edit-departure-date').value,
+        $('edit-departure-time').value,
+        true
+      );
+      const pickupLocked = Boolean(arrivalMs && arrivalMs <= Date.now());
+      const dropoffLocked = Boolean(departureMs && departureMs <= Date.now());
+
+      applyTransportLockTransition('pickup', pickupLocked);
+      applyTransportLockTransition('dropoff', dropoffLocked);
+      updateCabEditorState('pickup', pickupLocked);
+      updateCabEditorState('dropoff', dropoffLocked);
+    }
+
+    function getExactInputTimestamp(dateValue, timeValue) {
+      if (!dateValue || !timeValue) return null;
+      const date = new Date(`${dateValue}T${timeValue}:00`);
+      return Number.isNaN(date.getTime()) ? null : date.getTime();
+    }
+
+    function formatDateInput(timestamp) {
+      const date = new Date(timestamp);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatTimeInput(timestamp) {
+      const date = new Date(timestamp);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function checkRoomAvailability() {
+      const roomSelect = $('edit-room');
+      const warning = $('room-warning');
+      warning.textContent = '';
+
+      [...roomSelect.options].forEach(option => {
+        option.disabled = false;
+        option.textContent = option.dataset.baseLabel || option.textContent;
+      });
+
+      if (roomSelect.disabled) {
+        syncCustomRoomList();
+        return;
+      }
+
+      const newArrival = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
+      const newDeparture = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
+      if (!newArrival) {
+        syncCustomRoomList();
+        return;
+      }
+
+      const currentGuestId = $('edit-guest-id').value;
+      const occupiedRooms = new Map();
+      const newEnd = newDeparture || Number.POSITIVE_INFINITY;
+
+      allGuests.forEach(guest => {
+        if (guest.guestId === currentGuestId || !guest.Room || !guest.arrivalMs) return;
+        const otherEnd = guest.departureMs || Number.POSITIVE_INFINITY;
+        if (newArrival < otherEnd && newEnd > guest.arrivalMs) {
+          occupiedRooms.set(guest.Room, {
+            name: guest.Name || 'Unknown guest',
+            openEnded: !guest.departureMs
+          });
+        }
+      });
+
+      [...roomSelect.options].forEach(option => {
+        if (!option.value || !occupiedRooms.has(option.value)) return;
+        const occupancy = occupiedRooms.get(option.value);
+        option.disabled = true;
+        option.textContent = `${option.dataset.baseLabel} — Occupied by ${occupancy.name}${occupancy.openEnded ? ' (departure TBD)' : ''}`;
+      });
+
+      const selected = roomSelect.selectedOptions[0];
+      if (selected && selected.disabled) {
+        warning.textContent = `${selected.value} is occupied during the selected stay.`;
+      }
+      syncCustomRoomList();
+    }
+
+    function getInputTimestamp(dateValue, timeValue, isDeparture) {
+      if (!dateValue) return null;
+      const time = timeValue || (isDeparture ? '23:59:59' : '00:00:00');
+      const date = new Date(`${dateValue}T${time}`);
+      return Number.isNaN(date.getTime()) ? null : date.getTime();
+    }
+
+    function validateCabEditorBeforeSave(type) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      const required = $(`edit-${prefix}-required`).checked;
+      if (!required) return true;
+
+      const date = $(`edit-${prefix}-date`);
+      const time = $(`edit-${prefix}-time`);
+      const booking = $(`edit-${prefix}-booking-confirmed`);
+      const label = type === 'pickup' ? 'Pickup' : 'Drop-off';
+
+      if (time.value && !date.value) {
+        showToast(`Choose a ${prefix === 'pickup' ? 'pickup' : 'drop-off'} date before entering a time.`, 'error');
+        date.focus();
+        return false;
+      }
+
+      const issue = evaluateCabSchedule(type);
+      if (!issue) return true;
+
+      const scheduleUnchanged = $('modal-mode').value === 'edit'
+        && required === ($(`edit-${prefix}-required`).dataset.originalChecked === 'true')
+        && date.value === (date.dataset.originalValue || '')
+        && time.value === (time.dataset.originalValue || '');
+      const preservingExisting = booking.dataset.confirmationIntent !== 'confirm';
+      if (scheduleUnchanged && preservingExisting) return true;
+
+      showToast(issue.message, 'error');
+      date.focus();
+      return false;
+    }
+
+    function saveGuestFromModal() {
+      const name = $('edit-name');
+      if (!name.value.trim()) {
+        name.focus();
+        showToast('Guest name is required.', 'error');
+        return;
+      }
+
+      const arrivalMs = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
+      const departureMs = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
+      if (arrivalMs && departureMs && departureMs < arrivalMs) {
+        showToast('Departure cannot be earlier than arrival.', 'error');
+        return;
+      }
+
+      const pickupRequired = $('edit-pickup-required').checked;
+      const dropoffRequired = $('edit-dropoff-required').checked;
+      const pickupDateValue = pickupRequired ? $('edit-pickup-date').value : '';
+      const pickupTimeValue = pickupRequired ? $('edit-pickup-time').value : '';
+      const dropoffDateValue = dropoffRequired ? $('edit-dropoff-date').value : '';
+      const dropoffTimeValue = dropoffRequired ? $('edit-dropoff-time').value : '';
+
+      const originalPickupRequired = $('edit-pickup-required').dataset.originalChecked === 'true';
+      const originalDropoffRequired = $('edit-dropoff-required').dataset.originalChecked === 'true';
+      const originalPickupDate = $('edit-pickup-date').dataset.originalValue || '';
+      const originalPickupTime = $('edit-pickup-time').dataset.originalValue || '';
+      const originalPickupDetails = $('edit-pickup-details').dataset.originalValue || '';
+      const originalDropoffDate = $('edit-dropoff-date').dataset.originalValue || '';
+      const originalDropoffTime = $('edit-dropoff-time').dataset.originalValue || '';
+      const originalDropoffDetails = $('edit-dropoff-details').dataset.originalValue || '';
+      const pickupBooking = $('edit-pickup-booking-confirmed');
+      const dropoffBooking = $('edit-dropoff-booking-confirmed');
+      const pickupEffectiveConfirmed = pickupBooking.dataset.confirmationIntent === 'preserve'
+        ? pickupBooking.dataset.originalConfirmed === 'true'
+        : pickupBooking.checked;
+      const dropoffEffectiveConfirmed = dropoffBooking.dataset.confirmationIntent === 'preserve'
+        ? dropoffBooking.dataset.originalConfirmed === 'true'
+        : dropoffBooking.checked;
+      const pickupUnchanged = pickupRequired === originalPickupRequired
+        && pickupDateValue === originalPickupDate
+        && pickupTimeValue === originalPickupTime
+        && $('edit-pickup-details').value.trim() === originalPickupDetails
+        && pickupEffectiveConfirmed === (pickupBooking.dataset.originalConfirmed === 'true');
+      const dropoffUnchanged = dropoffRequired === originalDropoffRequired
+        && dropoffDateValue === originalDropoffDate
+        && dropoffTimeValue === originalDropoffTime
+        && $('edit-dropoff-details').value.trim() === originalDropoffDetails
+        && dropoffEffectiveConfirmed === (dropoffBooking.dataset.originalConfirmed === 'true');
+
+      if (!validateCabEditorBeforeSave('pickup') || !validateCabEditorBeforeSave('dropoff')) return;
+
+      if (arrivalMs && arrivalMs <= Date.now() && !pickupUnchanged) {
+        showToast('Pickup responsibility, booking, and details cannot be changed after the guest has arrived.', 'error');
+        return;
+      }
+
+      if (departureMs && departureMs <= Date.now() && !dropoffUnchanged) {
+        showToast('Drop-off responsibility, booking, and details cannot be changed after the guest has departed.', 'error');
+        return;
+      }
+
+      if (!validateTravelLegEditors()) return;
+
+      const selectedRoom = $('edit-room').selectedOptions[0];
+      if (!$('edit-room').disabled && selectedRoom && selectedRoom.disabled) {
+        showToast('The selected room is occupied during those dates.', 'error');
+        return;
+      }
+
+      const payload = collectGuestPayload();
+      const mode = $('modal-mode').value;
+      const snapshot = cloneGuests(allGuests);
+      const optimisticId = mode === 'add' ? `temporary-${Date.now()}` : payload.guestId;
+      const existing = mode === 'edit'
+        ? allGuests.find(guest => guest.guestId === payload.guestId)
+        : null;
+      const optimisticGuest = buildOptimisticGuest(payload, existing, optimisticId);
+
+      pendingGuestIds.add(optimisticId);
+      if (mode === 'edit') {
+        allGuests = allGuests.map(guest => guest.guestId === payload.guestId ? optimisticGuest : guest);
+      } else {
+        allGuests.push(optimisticGuest);
+      }
+      sortGuestsLocally();
+      closeModal();
+      renderApp();
+
+      apiCall('saveGuest', { payload })
+        .then(data => {
+          pendingGuestIds.delete(optimisticId);
+          applyAppData(data);
+          showToast(mode === 'add' ? 'Guest added.' : 'Guest updated.', 'success');
+        })
+        .catch(error => handleApiError(error, error => {
+          pendingGuestIds.delete(optimisticId);
+          allGuests = snapshot;
+          renderApp();
+          showToast(`Save failed: ${getErrorMessage(error)}`, 'error');
+          reopenModalWithPayload_(mode, payload);
+        }));
+    }
+
+    // Re-opens the modal after a failed save (including version conflicts)
+    // and refills it from the payload the user just tried to submit, so a
+    // rejected save doesn't mean retyping the name, dates, room, and travel
+    // legs from scratch. openModal() runs first so the cab-editor's lock and
+    // fingerprint state is correctly re-derived from the current (snapshot-
+    // restored) guest data; the user's actual entries are then overlaid on
+    // top of that correctly-initialized form.
+    function reopenModalWithPayload_(mode, payload) {
+      openModal(mode, mode === 'edit' ? payload.guestId : '');
+
+      $('edit-name').value = payload.name || '';
+      $('edit-status').value = payload.status || 'Invited Guest';
+      $('edit-foreign').checked = Boolean(payload.isForeign);
+      toggleForeignNationalField();
+      if (!$('edit-foreign').disabled) $('edit-cform').checked = Boolean(payload.isForeign && payload.isCformComplete);
+
+      $('edit-arrival-date').value = payload.arrivalDate || '';
+      $('edit-arrival-time').value = payload.arrivalTime || '';
+      $('edit-departure-date').value = payload.departureDate || '';
+      $('edit-departure-time').value = payload.departureTime || '';
+      toggleRoomField();
+      if (!$('edit-room').disabled) $('edit-room').value = payload.room || '';
+
+      $('edit-pickup-required').checked = Boolean(payload.pickupRequired);
+      $('edit-pickup-date').value = payload.pickupDate || '';
+      $('edit-pickup-time').value = payload.pickupTime || '';
+      $('edit-pickup-details').value = payload.pickupDetails || '';
+
+      $('edit-dropoff-required').checked = Boolean(payload.dropoffRequired);
+      $('edit-dropoff-date').value = payload.dropoffDate || '';
+      $('edit-dropoff-time').value = payload.dropoffTime || '';
+      $('edit-dropoff-details').value = payload.dropoffDetails || '';
+
+      renderTravelLegEditors(Array.isArray(payload.travelLegs) ? payload.travelLegs : []);
+      handleDateChange();
+      updateTransportConstraints();
+    }
+
+    function collectGuestPayload() {
+      const pickupRequired = $('edit-pickup-required').checked;
+      const dropoffRequired = $('edit-dropoff-required').checked;
+      return {
+        guestId: $('edit-guest-id').value,
+        version: $('edit-version').value,
+        name: $('edit-name').value.trim(),
+        isForeign: $('edit-foreign').checked,
+        isCformComplete: $('edit-cform').checked,
+        status: $('edit-status').value,
+        room: $('edit-room').disabled ? '' : $('edit-room').value,
+        arrivalDate: $('edit-arrival-date').value,
+        arrivalTime: $('edit-arrival-time').value,
+        departureDate: $('edit-departure-date').value,
+        departureTime: $('edit-departure-time').value,
+        pickupRequired,
+        pickupDate: pickupRequired ? $('edit-pickup-date').value : '',
+        pickupTime: pickupRequired ? $('edit-pickup-time').value : '',
+        pickupDetails: pickupRequired ? $('edit-pickup-details').value.trim() : '',
+        pickupBookingConfirmed: pickupRequired ? $('edit-pickup-booking-confirmed').checked : false,
+        pickupConfirmationIntent: pickupRequired
+          ? ($('edit-pickup-booking-confirmed').dataset.confirmationIntent || 'none')
+          : 'none',
+        dropoffRequired,
+        dropoffDate: dropoffRequired ? $('edit-dropoff-date').value : '',
+        dropoffTime: dropoffRequired ? $('edit-dropoff-time').value : '',
+        dropoffDetails: dropoffRequired ? $('edit-dropoff-details').value.trim() : '',
+        dropoffBookingConfirmed: dropoffRequired ? $('edit-dropoff-booking-confirmed').checked : false,
+        dropoffConfirmationIntent: dropoffRequired
+          ? ($('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none')
+          : 'none',
+        travelLegs: collectTravelLegPayloads()
+      };
+    }
+
+    function resolveOptimisticCabState(type, payload, existing) {
+      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
+      if (!payload[`${prefix}Required`]) return { confirmed: false, state: '' };
+
+      const intent = payload[`${prefix}ConfirmationIntent`] || 'none';
+      const existingConfirmed = Boolean(existing && existing[
+        type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed'
+      ]);
+      if (intent === 'confirm') return { confirmed: true, state: 'Confirmed' };
+      if (intent === 'preserve' && existingConfirmed) {
+        return {
+          confirmed: true,
+          state: evaluateCabSchedule(type) ? 'Needs Rescheduling' : 'Needs Reconfirmation'
+        };
+      }
+      return { confirmed: false, state: 'Requested' };
+    }
+
+    function buildOptimisticGuest(payload, existing, guestId) {
+      const arrival = localDateInfo(payload.arrivalDate, payload.arrivalTime, false);
+      const departure = localDateInfo(payload.departureDate, payload.departureTime, true);
+      const pickup = localDateInfo(payload.pickupDate, payload.pickupTime, false);
+      const dropoff = localDateInfo(payload.dropoffDate, payload.dropoffTime, false);
+      const pickupBooking = resolveOptimisticCabState('pickup', payload, existing);
+      const dropoffBooking = resolveOptimisticCabState('dropoff', payload, existing);
+
+      const guest = {
+        ...(existing || {}),
+        guestId,
+        Name: payload.name,
+        'Foreign National': payload.status === 'Visiting Guest' ? false : payload.isForeign,
+        'C-form complete': payload.status === 'Visiting Guest' ? false : (payload.isForeign && payload.isCformComplete),
+        Status: payload.status,
+        Room: payload.status === 'Visiting Guest' ? '' : payload.room,
+        Arrival: arrival.display,
+        Departure: departure.display,
+        'Pickup Required': Boolean(payload.pickupRequired),
+        'Pickup Cab Time': payload.pickupRequired ? pickup.display : '',
+        'Pickup Cab details': payload.pickupRequired ? payload.pickupDetails : '',
+        'Pickup Booking Confirmed': pickupBooking.confirmed,
+        pickupBookingState: pickupBooking.state,
+        'Dropoff Required': Boolean(payload.dropoffRequired),
+        'Dropoff Cab Time': payload.dropoffRequired ? dropoff.display : '',
+        'Dropoff Cab details': payload.dropoffRequired ? payload.dropoffDetails : '',
+        'Dropoff Booking Confirmed': dropoffBooking.confirmed,
+        dropoffBookingState: dropoffBooking.state,
+        arrivalDate: payload.arrivalDate,
+        arrivalTime: payload.arrivalTime,
+        arrivalMs: arrival.ms,
+        departureDate: payload.departureDate,
+        departureTime: payload.departureTime,
+        departureMs: departure.ms,
+        pickupDate: payload.pickupRequired ? payload.pickupDate : '',
+        pickupTime: payload.pickupRequired ? payload.pickupTime : '',
+        pickupMs: payload.pickupRequired ? pickup.ms : null,
+        dropoffDate: payload.dropoffRequired ? payload.dropoffDate : '',
+        dropoffTime: payload.dropoffRequired ? payload.dropoffTime : '',
+        dropoffMs: payload.dropoffRequired ? dropoff.ms : null,
+        travelLegs: (Array.isArray(payload.travelLegs) ? payload.travelLegs : [])
+          .map((leg, index) => prepareTravelLegForDisplay(leg, index))
+      };
+
+      const priority = calculateLocalPriority(guest);
+      guest.priorityTier = priority.tier;
+      guest.priorityLabel = TIER_META[priority.tier].label;
+      guest.priorityReasons = priority.reasons;
+      guest.prioritySortMs = priority.sortMs;
+      return prepareGuestForDisplay(guest);
+    }
+
+    function localDateInfo(dateValue, timeValue, isDeparture) {
+      if (!dateValue) return { display: '', ms: null };
+      const parts = dateValue.split('-').map(Number);
+      const timeParts = timeValue ? timeValue.split(':').map(Number) : null;
+      const hours = timeParts ? timeParts[0] : (isDeparture ? 23 : 0);
+      const minutes = timeParts ? timeParts[1] : (isDeparture ? 59 : 0);
+      const date = new Date(parts[0], parts[1] - 1, parts[2], hours, minutes, isDeparture && !timeValue ? 59 : 0);
+      const dateText = date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+      const display = timeValue
+        ? `${dateText} at ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+        : dateText;
+      return { display, ms: date.getTime() };
+    }
+
+    function calculateLocalPriority(guest) {
+      const nowMs = Date.now();
+      const in72Hours = nowMs + 72 * 60 * 60 * 1000;
+      const arrivalMs = finiteTimestamp(guest.arrivalMs);
+      const departureMs = finiteTimestamp(guest.departureMs);
+      let tier = 4;
+      const reasons = [];
+
+      const arrivalIsToday = isSameAppDate(arrivalMs, nowMs);
+      const departureIsToday = isSameAppDate(departureMs, nowMs);
+      const isCurrentlyResiding = arrivalMs !== null
+        && arrivalMs <= nowMs
+        && (departureMs === null || departureMs > nowMs);
+
+      if (departureMs !== null && departureMs < nowMs) {
+        tier = 5;
+      } else if (arrivalIsToday || departureIsToday) {
+        tier = 2;
+      } else if (isCurrentlyResiding) {
+        tier = 3;
+      }
+
+      const cformPending = guest['Foreign National']
+        && !guest['C-form complete']
+        && arrivalMs !== null
+        && arrivalMs <= nowMs;
+
+      let nextRequiredTravelMs = null;
+      let hasUndatedRequiredTravel = false;
+      (Array.isArray(guest.travelLegs) ? guest.travelLegs : []).forEach(leg => {
+        if (leg.status !== 'Required') return;
+
+        reasons.push(
+          `${String(leg.direction || '').toLowerCase()} ${String(leg.transportType || 'travel').toLowerCase()} required`.trim()
+        );
+
+        const travelMs = finiteTimestamp(leg.travelMs);
+        if (travelMs === null) {
+          hasUndatedRequiredTravel = true;
+        } else if (nextRequiredTravelMs === null || travelMs < nextRequiredTravelMs) {
+          nextRequiredTravelMs = travelMs;
+        }
+      });
+
+      const pickupState = normalizeCabBookingState(
+        guest.pickupBookingState,
+        guest['Pickup Booking Confirmed']
+      );
+      const dropoffState = normalizeCabBookingState(
+        guest.dropoffBookingState,
+        guest['Dropoff Booking Confirmed']
+      );
+
+      if (pickupState === 'Needs Rescheduling') reasons.push('Pickup needs rescheduling');
+      else if (pickupState === 'Needs Reconfirmation') reasons.push('Pickup needs reconfirmation');
+
+      if (dropoffState === 'Needs Rescheduling') reasons.push('Drop-off needs rescheduling');
+      else if (dropoffState === 'Needs Reconfirmation') reasons.push('Drop-off needs reconfirmation');
+
+      if (!guest.arrivalDate) {
+        reasons.push('Arrival date not set');
+      } else if (arrivalMs !== null && arrivalMs > nowMs && arrivalMs <= in72Hours) {
+        if (guest.Status !== 'Visiting Guest' && !guest.Room) reasons.push('Room missing');
+        if (guest['Pickup Required'] && pickupState === 'Requested') {
+          reasons.push('Pickup not arranged');
+        }
+      }
+
+      if (departureMs !== null && departureMs > nowMs && departureMs <= in72Hours
+          && guest['Dropoff Required'] && dropoffState === 'Requested') {
+        reasons.push('Drop-off not arranged');
+      }
+
+      if (cformPending) reasons.push('C-form pending');
+
+      if (cformPending || reasons.length) tier = 1;
+
+      let sortMs = Number.MAX_SAFE_INTEGER;
+      if (arrivalMs !== null && arrivalMs > nowMs) sortMs = arrivalMs;
+      else if (departureMs !== null) sortMs = departureMs;
+      else if (arrivalMs !== null) sortMs = arrivalMs;
+
+      if (hasUndatedRequiredTravel) sortMs = 0;
+      else if (nextRequiredTravelMs !== null) sortMs = Math.min(sortMs, nextRequiredTravelMs);
+
+      return { tier, reasons, sortMs };
+    }
+
+    function finiteTimestamp(value) {
+      const number = Number(value);
+      return Number.isFinite(number) && number > 0 ? number : null;
+    }
+
+    function isSameAppDate(timestamp, comparisonTimestamp) {
+      if (timestamp === null) return false;
+      return getAppDateKey(timestamp) === getAppDateKey(comparisonTimestamp);
+    }
+
+    function getAppDateKey(timestamp) {
+      const date = new Date(timestamp);
+      if (Number.isNaN(date.getTime())) return '';
+
+      if (appTimezone) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: appTimezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).formatToParts(date);
+          const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+          return `${values.year}-${values.month}-${values.day}`;
+        } catch (error) {
+          // Fall back to the browser's local timezone if the sheet timezone
+          // is unavailable or unsupported by the browser.
+        }
+      }
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function sortGuestsLocally() {
+      allGuests.sort((a, b) => {
+        if (a.priorityTier !== b.priorityTier) return a.priorityTier - b.priorityTier;
+        if (a.prioritySortMs !== b.prioritySortMs) return a.prioritySortMs - b.prioritySortMs;
+        return String(a.Name || '').localeCompare(String(b.Name || ''));
+      });
+    }
+
+    function handleDeleteClick() {
+      if (!isDeleteConfirm) {
+        isDeleteConfirm = true;
+        const button = $('delete-btn');
+        button.textContent = 'Confirm Delete?';
+        button.classList.add('confirm-state');
+        deleteTimeout = window.setTimeout(resetDeleteButton, 3000);
+        return;
+      }
+
+      window.clearTimeout(deleteTimeout);
+      executeDelete();
+    }
+
+    function resetDeleteButton() {
+      const button = $('delete-btn');
+      button.replaceChildren();
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'icon');
+      svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', '#icon-trash');
+      svg.appendChild(use);
+      button.appendChild(svg);
+      button.classList.remove('confirm-state');
+      isDeleteConfirm = false;
+      window.clearTimeout(deleteTimeout);
+    }
+
+    function executeDelete() {
+      const guestId = $('edit-guest-id').value;
+      if (!guestId) return;
+
+      const snapshot = cloneGuests(allGuests);
+      const guest = allGuests.find(item => item.guestId === guestId);
+      const guestName = guest && guest.Name ? guest.Name : 'Guest';
+
+      // Nothing is sent to the server yet — the guest only disappears
+      // locally until the Undo window expires, so Undo never needs to
+      // "re-add" anything: the real deleteGuest() call just never happens.
+      allGuests = allGuests.filter(item => item.guestId !== guestId);
+      closeModal();
+      renderApp();
+      pendingGuestIds.add(guestId);
+
+      const runDelete = () => {
+        apiCall('deleteGuest', { guestId, version: guest && guest.version ? guest.version : null })
+          .then(data => {
+            pendingGuestIds.delete(guestId);
+            applyAppData(data);
+          })
+          .catch(error => handleApiError(error, error => {
+            pendingGuestIds.delete(guestId);
+            allGuests = snapshot;
+            renderApp();
+            showToast(`Delete failed: ${getErrorMessage(error)}`, 'error');
+          }));
+      };
+
+      showToast(`${guestName} deleted.`, 'success', {
+        label: 'Undo',
+        duration: 5000,
+        onClick: () => {
+          pendingGuestIds.delete(guestId);
+          allGuests = snapshot;
+          renderApp();
+        },
+        onExpire: runDelete
+      });
+    }
+
+    function cloneGuests(guests) {
+      return JSON.parse(JSON.stringify(guests));
+    }
+
+    function getErrorMessage(error) {
+      if (!error) return 'Unknown error.';
+      return String(error.message || error).replace(/^Exception:\s*/i, '');
+    }
+
+    function showToast(message, type, action) {
+      const toast = createElement('div', `toast ${type || ''}`);
+      toast.appendChild(document.createTextNode(message));
+
+      let timer = null;
+      const dismiss = () => {
+        window.clearTimeout(timer);
+        toast.remove();
+      };
+
+      if (action) {
+        const button = createElement('button', 'toast-action-btn', action.label);
+        button.type = 'button';
+        button.addEventListener('click', () => {
+          dismiss();
+          action.onClick();
+        });
+        toast.appendChild(button);
+      }
+
+      $('toast-container').appendChild(toast);
+      const duration = action ? (action.duration || 5000) : (type === 'error' ? 7000 : 3500);
+      timer = window.setTimeout(() => {
+        dismiss();
+        if (action && action.onExpire) action.onExpire();
+      }, duration);
+    }
   </script>
 </body>
 </html>
