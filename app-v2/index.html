@@ -1507,6 +1507,13 @@
     function handleCredentialResponse(response, isResume) {
       currentIdToken = response.credential;
       currentUserEmail = decodeJwtPayload(currentIdToken).email || '';
+      // Hidden here unconditionally, not just before a resume call this
+      // function makes itself — Google's own library can invoke this
+      // callback directly for a recognized account (a "quick sign-in" it
+      // triggers on its own, distinct from the prompt()/One Tap flow we
+      // already disabled), and that path never went through our resume
+      // branch at all. Hiding on entry covers every way this can fire.
+      $('gsi-button-container').style.visibility = 'hidden';
       // Gate stays up — and visibly verifying — until applyAppData()
       // confirms the account is actually whitelisted. Hiding it here first
       // showed the empty app shell for a beat even for denied accounts.
@@ -1535,7 +1542,11 @@
     window.addEventListener('load', () => {
       waitForGis().then(() => {
         google.accounts.id.initialize({ client_id: OAUTH_CLIENT_ID, callback: handleCredentialResponse });
-        google.accounts.id.renderButton($('gsi-button-container'), { theme: 'outline', size: 'large' });
+        // shape pinned explicitly (not left to default) — otherwise the
+        // button's initial CSS-only placeholder and the real widget Google
+        // loads in afterward can disagree on corner radius, visible as a
+        // brief shape "pop" once the real one mounts.
+        google.accounts.id.renderButton($('gsi-button-container'), { theme: 'outline', size: 'large', shape: 'rectangular' });
         // Deliberately no google.accounts.id.prompt() (One Tap auto-prompt) —
         // it fires immediately on page load rather than waiting for a tap,
         // and its FedCM-unavailable fallback is what was yanking the whole
@@ -1545,13 +1556,10 @@
         // A reopened app (or a refreshed tab) resumes with whatever
         // still-valid token was saved last time, through the exact same
         // verify-then-reveal path a fresh sign-in uses — no separate resume
-        // logic to keep in sync with handleCredentialResponse. The button
-        // stays hidden (not removed — showSignInGate/showAccessDenied
-        // reveal it again) while this resolves, so it doesn't sit there
-        // inviting a tap while "Signing you back in…" is already running.
+        // logic to keep in sync with handleCredentialResponse (which hides
+        // the button itself on entry, so no need to do it here too).
         const stored = getStoredToken();
         if (stored) {
-          $('gsi-button-container').style.visibility = 'hidden';
           handleCredentialResponse({ credential: stored }, true);
         }
       });
