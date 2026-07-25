@@ -91,12 +91,12 @@
       fill: currentColor;
     }
 
-    #signin-gate.denied .icon { display: inline-block; }
+    #signin-gate.denied .icon { display: block; margin: 0 auto 16px; }
     #signin-gate .icon { display: none; }
 
     #signin-gate h1 {
       margin: 0 0 6px;
-      color: #fff;
+      color: var(--salmon);
       font-size: 1.3rem;
     }
 
@@ -120,6 +120,7 @@
       margin-top: 20px;
       display: flex;
       justify-content: center;
+      min-height: 44px;
     }
 
     #signin-gate.denied #gsi-button-container { margin-top: 16px; }
@@ -1436,6 +1437,23 @@
       return JSON.parse(json);
     }
 
+    // Google ID tokens are short-lived (~1hr) by design, not a substitute
+    // for a real refresh-token flow — persisting the raw token gets a
+    // reopened app back in without a fresh sign-in for that window, not
+    // "signed in forever."
+    const STORED_TOKEN_KEY = 'ashram-app-v2-id-token';
+
+    function getStoredToken() {
+      const token = localStorage.getItem(STORED_TOKEN_KEY);
+      if (!token) return null;
+      try {
+        const claims = decodeJwtPayload(token);
+        if (claims.exp && claims.exp * 1000 > Date.now()) return token;
+      } catch (err) { /* malformed — fall through and clear it below */ }
+      localStorage.removeItem(STORED_TOKEN_KEY);
+      return null;
+    }
+
     // POST as text/plain rather than application/json — Apps Script web apps
     // can't answer a CORS preflight, and text/plain is a "simple request"
     // that skips one; the body is still JSON, just parsed manually server-side.
@@ -1466,6 +1484,7 @@
 
     function showSignInGate(message) {
       currentIdToken = '';
+      localStorage.removeItem(STORED_TOKEN_KEY);
       const gate = $('signin-gate');
       gate.classList.remove('denied');
       gate.style.display = 'flex';
@@ -1473,6 +1492,10 @@
     }
 
     function showAccessDenied() {
+      // Don't keep this token around to silently re-fail on every reopen —
+      // require a deliberate sign-in attempt (possibly with a different
+      // account) rather than repeatedly resuming into the same denial.
+      localStorage.removeItem(STORED_TOKEN_KEY);
       const gate = $('signin-gate');
       gate.classList.add('denied');
       gate.style.display = 'flex';
@@ -1482,7 +1505,11 @@
     function handleCredentialResponse(response) {
       currentIdToken = response.credential;
       currentUserEmail = decodeJwtPayload(currentIdToken).email || '';
-      $('signin-gate').style.display = 'none';
+      // Gate stays up — and visibly "Verifying…" — until applyAppData()
+      // confirms the account is actually whitelisted. Hiding it here first
+      // showed the empty app shell for a beat even for denied accounts.
+      $('signin-gate').classList.remove('denied');
+      $('signin-message').textContent = 'Verifying sign-in…';
       if (!appInitialized) {
         appInitialized = true;
         initializeApp();
@@ -1512,6 +1539,13 @@
         // and its FedCM-unavailable fallback is what was yanking the whole
         // tab away to accounts.google.com on mobile. The button alone is
         // what the working auth-test.html prototype used too.
+
+        // A reopened app (or a refreshed tab) resumes with whatever
+        // still-valid token was saved last time, through the exact same
+        // verify-then-reveal path a fresh sign-in uses — no separate resume
+        // logic to keep in sync with handleCredentialResponse.
+        const stored = getStoredToken();
+        if (stored) handleCredentialResponse({ credential: stored });
       });
     });
 
@@ -1615,6 +1649,15 @@
     }
 
     function applyAppData(data) {
+      // Only reached on a genuinely successful API response, so this is the
+      // one place it's safe to hide the gate — hiding it eagerly in
+      // handleCredentialResponse showed the empty app shell for a beat even
+      // for accounts that turn out not to be whitelisted. Also the right
+      // place to persist the token: it's confirmed valid and whitelisted,
+      // so a reopened app can resume with it instead of demanding sign-in
+      // every single launch.
+      $('signin-gate').style.display = 'none';
+      localStorage.setItem(STORED_TOKEN_KEY, currentIdToken);
       roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
       appTimezone = String(data && data.timezone || '');
       roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
