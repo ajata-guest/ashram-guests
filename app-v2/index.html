@@ -1854,6 +1854,13 @@
       // handleCredentialResponse showed the empty app shell for a beat even
       // for accounts that turn out not to be whitelisted.
       $('signin-gate').style.display = 'none';
+      // Keep the short-lived ID token as a safety net even though session
+      // tokens are the primary mechanism now — if createSession fails below
+      // (backend not yet redeployed, sheet/API hiccup, etc.) this is what
+      // stops a reopen from regressing all the way back to "tap every time."
+      // Blank on a pure session-token resume (resumeWithSession_ never sets
+      // currentIdToken), which is fine — the session token already works.
+      if (currentIdToken) localStorage.setItem(STORED_TOKEN_KEY, currentIdToken);
       // Mint our own long-lived session token the first time we get here
       // without one — either a fresh sign-in, or a resume off the
       // short-lived STORED_TOKEN_KEY fallback — so every later reopen can
@@ -1862,7 +1869,7 @@
       if (!localStorage.getItem(SESSION_TOKEN_KEY)) {
         apiCall('createSession')
           .then(result => localStorage.setItem(SESSION_TOKEN_KEY, result.sessionToken))
-          .catch(() => { /* not fatal — falls back to the short-lived token path next reopen */ });
+          .catch(err => console.error('createSession failed — will retry next reopen, falling back to the ID-token path meanwhile:', err));
       }
       roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
       appTimezone = String(data && data.timezone || '');
