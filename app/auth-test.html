@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign-in prototype</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    background: #121212;
+    color: #e8e8e8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sub { color: #a4a4a4; font-size: 0.85rem; margin: 0 0 24px; }
+  label { display: block; font-size: 0.85rem; color: #a4a4a4; margin: 20px 0 6px; }
+  input[type=text] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #363636;
+    border-radius: 8px;
+    background: #1e1e1e;
+    color: #e8e8e8;
+    font: inherit;
+    font-size: 0.9rem;
+  }
+  button {
+    margin-top: 16px;
+    padding: 11px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: #fa8072;
+    color: #1a1a1a;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button:hover { background: #e96f62; }
+  #gsi-button-container { margin-top: 20px; }
+  .section {
+    margin-top: 22px;
+    padding: 16px;
+    border: 1px solid #363636;
+    border-radius: 10px;
+    background: #1e1e1e;
+  }
+  .section-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-left: 8px;
+  }
+  .pill.pass { background: color-mix(in srgb, #2ecc71 55%, white); color: #0a2a14; }
+  .pill.fail { background: color-mix(in srgb, #e74c3c 72%, black); color: #ffd9d5; }
+  pre {
+    margin: 0;
+    padding: 10px 12px;
+    background: #141414;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sign-in / server-side verification prototype</h1>
+  <p class="sub">Tests whether "Sign in with Google" works on this GitHub Pages page, and whether the Apps Script backend can independently verify the resulting token — the piece the whitelist would run on if the app moves off script.google.com.</p>
+
+  <label for="client-id-input">OAuth Client ID (ends in .apps.googleusercontent.com)</label>
+  <input type="text" id="client-id-input" placeholder="xxxxxxxxxx-xxxx.apps.googleusercontent.com" autocomplete="off">
+
+  <label for="url-input">Apps Script web app URL (the same /exec URL from cors-test)</label>
+  <input type="text" id="url-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+
+  <button id="init-btn" type="button">Initialize sign-in</button>
+  <div id="gsi-button-container"></div>
+
+  <div class="section" id="client-section" style="display:none;">
+    <div class="section-title">Token received (client-side, not yet trusted)</div>
+    <pre id="client-out">—</pre>
+  </div>
+
+  <div class="section" id="server-section" style="display:none;">
+    <div class="section-title">Server verification result <span class="pill" id="server-pill"></span></div>
+    <pre id="server-out">—</pre>
+  </div>
+</div>
+
+<script>
+  const clientIdInput = document.getElementById('client-id-input');
+  const urlInput = document.getElementById('url-input');
+  clientIdInput.value = localStorage.getItem('auth-test-client-id') || '';
+  urlInput.value = localStorage.getItem('cors-test-url') || '';
+
+  function decodeJwtPayload(token) {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    );
+    return JSON.parse(json);
+  }
+
+  async function handleCredentialResponse(response) {
+    const claims = decodeJwtPayload(response.credential);
+    document.getElementById('client-section').style.display = 'block';
+    document.getElementById('client-out').textContent = JSON.stringify(claims, null, 2);
+
+    const url = urlInput.value.trim();
+    const serverSection = document.getElementById('server-section');
+    const serverPill = document.getElementById('server-pill');
+    const serverOut = document.getElementById('server-out');
+    serverSection.style.display = 'block';
+    serverPill.textContent = '';
+    serverOut.textContent = 'Verifying with backend…';
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'verifyToken', idToken: response.credential })
+      });
+      const result = await res.json();
+      serverPill.textContent = result.verified ? 'Pass' : 'Fail';
+      serverPill.className = 'pill ' + (result.verified ? 'pass' : 'fail');
+      serverOut.textContent = JSON.stringify(result, null, 2);
+    } catch (err) {
+      serverPill.textContent = 'Fail';
+      serverPill.className = 'pill fail';
+      serverOut.textContent = 'Threw: ' + err.message;
+    }
+  }
+  window.handleCredentialResponse = handleCredentialResponse;
+
+  document.getElementById('init-btn').addEventListener('click', () => {
+    const clientId = clientIdInput.value.trim();
+    if (!clientId) { alert('Paste the OAuth Client ID first.'); return; }
+    if (!urlInput.value.trim()) { alert('Paste the Apps Script /exec URL first.'); return; }
+    localStorage.setItem('auth-test-client-id', clientId);
+    localStorage.setItem('cors-test-url', urlInput.value.trim());
+
+    if (!window.google || !window.google.accounts) {
+      alert('Google Identity Services script has not loaded yet — wait a moment and try again.');
+      return;
+    }
+    google.accounts.id.initialize({ client_id: clientId, callback: handleCredentialResponse });
+    google.accounts.id.renderButton(document.getElementById('gsi-button-container'), { theme: 'outline', size: 'large' });
+  });
+</script>
+</body>
+</html>
