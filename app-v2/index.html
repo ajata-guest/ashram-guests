@@ -118,9 +118,44 @@
 
     #gsi-button-container {
       margin-top: 20px;
-      display: flex;
-      justify-content: center;
+      display: grid;
+      justify-items: center;
+      align-items: center;
       min-height: 44px;
+    }
+
+    /* Stacked in the same grid cell rather than side by side — only one of
+       the two is ever meant to be visible at a time, driven by a single
+       .verifying flag on #signin-gate (see handleCredentialResponse) so
+       the button and the spinner can never both show, or both hide, by
+       forgetting to update one of several scattered toggles. */
+    #gsi-button-target, #gsi-spinner { grid-area: 1 / 1; }
+
+    #signin-gate.verifying #gsi-button-target { visibility: hidden; }
+
+    #gsi-spinner {
+      display: none;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #signin-gate.verifying #gsi-spinner { display: flex; }
+
+    #gsi-spinner span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--salmon);
+      animation: gsi-bounce 1.2s ease-in-out infinite both;
+    }
+
+    #gsi-spinner span:nth-child(1) { animation-delay: -0.32s; }
+    #gsi-spinner span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes gsi-bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
     }
 
     #signin-gate.denied #gsi-button-container { margin-top: 16px; }
@@ -1130,7 +1165,10 @@
       <h1>Ajatananda Ashram</h1>
       <div class="app-subtitle">Guest Management</div>
       <p id="signin-message">Sign in with an authorized Google account to continue.</p>
-      <div id="gsi-button-container"></div>
+      <div id="gsi-button-container">
+        <div id="gsi-button-target"></div>
+        <div id="gsi-spinner" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
     </div>
   </div>
 
@@ -1486,9 +1524,8 @@
       currentIdToken = '';
       localStorage.removeItem(STORED_TOKEN_KEY);
       const gate = $('signin-gate');
-      gate.classList.remove('denied');
+      gate.classList.remove('denied', 'verifying');
       gate.style.display = 'flex';
-      $('gsi-button-container').style.visibility = 'visible';
       $('signin-message').textContent = message || 'Sign in with an authorized Google account to continue.';
     }
 
@@ -1499,25 +1536,28 @@
       localStorage.removeItem(STORED_TOKEN_KEY);
       const gate = $('signin-gate');
       gate.classList.add('denied');
+      gate.classList.remove('verifying');
       gate.style.display = 'flex';
-      $('gsi-button-container').style.visibility = 'visible';
       $('signin-message').innerHTML = `You're signed in as <strong>${currentUserEmail}</strong>, which doesn't have access to this application.<br>If you believe this is a mistake, contact the ashram office to be added, or sign in with a different account below.`;
     }
 
     function handleCredentialResponse(response, isResume) {
       currentIdToken = response.credential;
       currentUserEmail = decodeJwtPayload(currentIdToken).email || '';
-      // Hidden here unconditionally, not just before a resume call this
-      // function makes itself — Google's own library can invoke this
-      // callback directly for a recognized account (a "quick sign-in" it
-      // triggers on its own, distinct from the prompt()/One Tap flow we
-      // already disabled), and that path never went through our resume
-      // branch at all. Hiding on entry covers every way this can fire.
-      $('gsi-button-container').style.visibility = 'hidden';
+      // .verifying drives both the button-vs-spinner swap and the "denied"
+      // reset via CSS (see #signin-gate.verifying rules) — one flag instead
+      // of separately toggling the button and spinner in three functions,
+      // which is exactly the kind of scattered state that caused the last
+      // bug (one path got missed). Set unconditionally on entry — Google's
+      // own library can invoke this callback directly for a recognized
+      // account, distinct from our own resume branch, so entry is the only
+      // point guaranteed to run no matter what triggered it.
+      const gate = $('signin-gate');
+      gate.classList.remove('denied');
+      gate.classList.add('verifying');
       // Gate stays up — and visibly verifying — until applyAppData()
       // confirms the account is actually whitelisted. Hiding it here first
       // showed the empty app shell for a beat even for denied accounts.
-      $('signin-gate').classList.remove('denied');
       $('signin-message').textContent = isResume ? 'Signing you back in…' : 'Verifying sign-in…';
       if (!appInitialized) {
         appInitialized = true;
@@ -1546,7 +1586,7 @@
         // button's initial CSS-only placeholder and the real widget Google
         // loads in afterward can disagree on corner radius, visible as a
         // brief shape "pop" once the real one mounts.
-        google.accounts.id.renderButton($('gsi-button-container'), { theme: 'outline', size: 'large', shape: 'rectangular' });
+        google.accounts.id.renderButton($('gsi-button-target'), { theme: 'outline', size: 'large', shape: 'rectangular' });
         // Deliberately no google.accounts.id.prompt() (One Tap auto-prompt) —
         // it fires immediately on page load rather than waiting for a tap,
         // and its FedCM-unavailable fallback is what was yanking the whole
