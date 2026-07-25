@@ -1512,11 +1512,15 @@
       return JSON.parse(json);
     }
 
-    // Google ID tokens are short-lived (~1hr) by design, not a substitute
-    // for a real refresh-token flow — persisting the raw token gets a
-    // reopened app back in without a fresh sign-in for that window, not
-    // "signed in forever."
+    // Google ID tokens are short-lived (~1hr) by design — this is only a
+    // fallback path now, for a first-ever sign-in before a session token
+    // exists (see SESSION_TOKEN_KEY below, which is the actual long-lived
+    // credential once established).
     const STORED_TOKEN_KEY = 'ashram-app-v2-id-token';
+    // Our own long-lived credential, minted server-side after a Google
+    // sign-in succeeds (see applyAppData) — this is what actually keeps you
+    // signed in across reopens, not the short-lived Google token above.
+    const SESSION_TOKEN_KEY = 'ashram-app-v2-session-token';
 
     function getStoredToken() {
       const token = localStorage.getItem(STORED_TOKEN_KEY);
@@ -1532,11 +1536,16 @@
     // POST as text/plain rather than application/json — Apps Script web apps
     // can't answer a CORS preflight, and text/plain is a "simple request"
     // that skips one; the body is still JSON, just parsed manually server-side.
+    // A session token, once we have one, is sent instead of the Google ID
+    // token — Code.gs accepts either, but the session token is what actually
+    // avoids re-authenticating every ~hour.
     function apiCall(action, extra) {
+      const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
+      const authField = sessionToken ? { sessionToken } : { idToken: currentIdToken };
       return fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(Object.assign({ idToken: currentIdToken, action }, extra || {}))
+        body: JSON.stringify(Object.assign({}, authField, { action }, extra || {}))
       })
         .then(res => res.json())
         .then(result => {
@@ -1560,6 +1569,7 @@
     function showSignInGate(message) {
       currentIdToken = '';
       localStorage.removeItem(STORED_TOKEN_KEY);
+      localStorage.removeItem(SESSION_TOKEN_KEY);
       const gate = $('signin-gate');
       gate.classList.remove('denied', 'verifying');
       gate.style.display = 'flex';
@@ -1567,15 +1577,21 @@
     }
 
     function showAccessDenied() {
-      // Don't keep this token around to silently re-fail on every reopen —
-      // require a deliberate sign-in attempt (possibly with a different
-      // account) rather than repeatedly resuming into the same denial.
+      // Don't keep either credential around to silently re-fail on every
+      // reopen — require a deliberate sign-in attempt (possibly with a
+      // different account) rather than repeatedly resuming into the same
+      // denial.
       localStorage.removeItem(STORED_TOKEN_KEY);
+      localStorage.removeItem(SESSION_TOKEN_KEY);
       const gate = $('signin-gate');
       gate.classList.add('denied');
       gate.classList.remove('verifying');
       gate.style.display = 'flex';
-      $('signin-message').innerHTML = `You're signed in as <strong>${currentUserEmail}</strong>, which doesn't have access to this application.<br>If you believe this is a mistake, contact the ashram office to be added, or sign in with a different account below.`;
+      // currentUserEmail can be blank here if the denial came from a pure
+      // session-token resume (no Google ID token was ever decoded this
+      // load) — a generic message beats naming a blank "".
+      const whoText = currentUserEmail ? `You're signed in as <strong>${currentUserEmail}</strong>, which doesn't` : 'This Google account doesn\'t';
+      $('signin-message').innerHTML = `${whoText} have access to this application.<br>If you believe this is a mistake, contact the ashram office to be added, or sign in with a different account below.`;
     }
 
     function handleCredentialResponse(response, isResume) {
@@ -1616,6 +1632,24 @@
       });
     }
 
+    // Resumes purely off our own long-lived SESSION_TOKEN_KEY — no Google ID
+    // token involved, so it can't go through handleCredentialResponse (which
+    // requires a credential to decode). apiCall() already prefers a stored
+    // session token over currentIdToken, so getAppData below authenticates
+    // with it automatically.
+    function resumeWithSession_() {
+      const gate = $('signin-gate');
+      gate.classList.remove('denied');
+      gate.classList.add('verifying');
+      $('signin-message').textContent = 'Signing you back in…';
+      if (!appInitialized) {
+        appInitialized = true;
+        initializeApp();
+      } else {
+        loadAppData(true);
+      }
+    }
+
     window.addEventListener('load', () => {
       waitForGis().then(() => {
         google.accounts.id.initialize({ client_id: OAUTH_CLIENT_ID, callback: handleCredentialResponse });
@@ -1630,11 +1664,17 @@
         // tab away to accounts.google.com on mobile. The button alone is
         // what the working auth-test.html prototype used too.
 
-        // A reopened app (or a refreshed tab) resumes with whatever
-        // still-valid token was saved last time, through the exact same
-        // verify-then-reveal path a fresh sign-in uses — no separate resume
-        // logic to keep in sync with handleCredentialResponse (which hides
-        // the button itself on entry, so no need to do it here too).
+        // Our own long-lived session token, once established, is checked
+        // first — that's the entire point of minting one (see
+        // SESSION_TOKEN_KEY above): skip Google, and the ~1hr-expiry token
+        // dance, entirely on reopen. Only fall back to the short-lived
+        // Google ID token — and, failing that, to requiring a fresh sign-in
+        // — when no session token is on file yet.
+        if (localStorage.getItem(SESSION_TOKEN_KEY)) {
+          resumeWithSession_();
+          return;
+        }
+
         const stored = getStoredToken();
         if (stored) {
           handleCredentialResponse({ credential: stored }, true);
@@ -1812,12 +1852,18 @@
       // Only reached on a genuinely successful API response, so this is the
       // one place it's safe to hide the gate — hiding it eagerly in
       // handleCredentialResponse showed the empty app shell for a beat even
-      // for accounts that turn out not to be whitelisted. Also the right
-      // place to persist the token: it's confirmed valid and whitelisted,
-      // so a reopened app can resume with it instead of demanding sign-in
-      // every single launch.
+      // for accounts that turn out not to be whitelisted.
       $('signin-gate').style.display = 'none';
-      localStorage.setItem(STORED_TOKEN_KEY, currentIdToken);
+      // Mint our own long-lived session token the first time we get here
+      // without one — either a fresh sign-in, or a resume off the
+      // short-lived STORED_TOKEN_KEY fallback — so every later reopen can
+      // skip Google entirely via resumeWithSession_() above. Already having
+      // one means we got here by resuming with it, so there's nothing to do.
+      if (!localStorage.getItem(SESSION_TOKEN_KEY)) {
+        apiCall('createSession')
+          .then(result => localStorage.setItem(SESSION_TOKEN_KEY, result.sessionToken))
+          .catch(() => { /* not fatal — falls back to the short-lived token path next reopen */ });
+      }
       roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
       appTimezone = String(data && data.timezone || '');
       roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
