@@ -791,6 +791,13 @@
       gap: 10px;
     }
 
+    /* Side-by-side on desktop, the date field's own label plus the native
+       clock icon on the time input are enough context — this stays hidden
+       there. Only shown once the mobile breakpoint below stacks the time
+       input under the date input, where on its own it otherwise reads as an
+       unlabeled, mysterious empty box. */
+    .date-time-mobile-label { display: none; }
+
     .checkbox-row {
       display: flex;
       margin: -2px 0 16px;
@@ -1186,6 +1193,12 @@
       .date-time-row,
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
+      .date-time-mobile-label {
+        display: block;
+        margin: 2px 0 -4px;
+        color: var(--subtle);
+        font-size: 0.78rem;
+      }
     }
   </style>
 </head>
@@ -1320,6 +1333,7 @@
           <label class="input-label" for="edit-arrival-date">Arrival</label>
           <div class="date-time-row">
             <input type="date" id="edit-arrival-date" class="edit-input">
+            <span class="date-time-mobile-label">Time</span>
             <input type="time" id="edit-arrival-time" class="edit-input" aria-label="Arrival time">
           </div>
         </div>
@@ -1328,6 +1342,7 @@
           <label class="input-label" for="edit-departure-date">Departure</label>
           <div class="date-time-row">
             <input type="date" id="edit-departure-date" class="edit-input">
+            <span class="date-time-mobile-label">Time</span>
             <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
           </div>
         </div>
@@ -1367,6 +1382,7 @@
             <label class="input-label" for="edit-pickup-date">Pickup Cab — Date &amp; Time</label>
             <div class="date-time-row">
               <input type="date" id="edit-pickup-date" class="edit-input">
+              <span class="date-time-mobile-label">Time</span>
               <input type="time" id="edit-pickup-time" class="edit-input" aria-label="Pickup time">
             </div>
             <div id="pickup-warning" class="field-message" aria-live="polite"></div>
@@ -1397,6 +1413,7 @@
             <label class="input-label" for="edit-dropoff-date">Drop-off Cab — Date &amp; Time</label>
             <div class="date-time-row">
               <input type="date" id="edit-dropoff-date" class="edit-input">
+              <span class="date-time-mobile-label">Time</span>
               <input type="time" id="edit-dropoff-time" class="edit-input" aria-label="Drop-off time">
             </div>
             <div id="dropoff-warning" class="field-message" aria-live="polite"></div>
