@@ -3653,17 +3653,16 @@
     }
 
     function updateTransportConstraints() {
-      const arrivalMs = getInputTimestamp(
+      const arrivalLockMs = getArrivalLockTimestamp(
         $('edit-arrival-date').value,
-        $('edit-arrival-time').value,
-        false
+        $('edit-arrival-time').value
       );
       const departureMs = getInputTimestamp(
         $('edit-departure-date').value,
         $('edit-departure-time').value,
         true
       );
-      const pickupLocked = Boolean(arrivalMs && arrivalMs <= Date.now());
+      const pickupLocked = Boolean(arrivalLockMs && arrivalLockMs <= Date.now());
       const dropoffLocked = Boolean(departureMs && departureMs <= Date.now());
 
       applyTransportLockTransition('pickup', pickupLocked);
@@ -3749,6 +3748,18 @@
       return Number.isNaN(date.getTime()) ? null : date.getTime();
     }
 
+    // "Has this guest actually arrived" needs a different default than
+    // arrivalMs elsewhere (residency/sorting/room conflicts, which
+    // intentionally treat the arrival date as starting at midnight) —
+    // locking pickup should only kick in once there's real evidence of
+    // arrival: an explicit time that's passed, or the whole arrival day
+    // having elapsed with no time ever recorded. Reuses getInputTimestamp's
+    // existing "isDeparture" branch purely for its blank-time-defaults-to-
+    // end-of-day behavior, same as Code.gs's arrivalTimeConfirmed-driven fix.
+    function getArrivalLockTimestamp(dateValue, timeValue) {
+      return getInputTimestamp(dateValue, timeValue, true);
+    }
+
     function validateCabEditorBeforeSave(type) {
       const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
       const required = $(`edit-${prefix}-required`).checked;
@@ -3789,6 +3800,7 @@
       }
 
       const arrivalMs = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
+      const arrivalLockMs = getArrivalLockTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value);
       const departureMs = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
       if (arrivalMs && departureMs && departureMs < arrivalMs) {
         showToast('Departure cannot be earlier than arrival.', 'error');
@@ -3831,7 +3843,7 @@
 
       if (!validateCabEditorBeforeSave('pickup') || !validateCabEditorBeforeSave('dropoff')) return;
 
-      if (arrivalMs && arrivalMs <= Date.now() && !pickupUnchanged) {
+      if (arrivalLockMs && arrivalLockMs <= Date.now() && !pickupUnchanged) {
         showToast('Pickup responsibility, booking, and details cannot be changed after the guest has arrived.', 'error');
         return;
       }
