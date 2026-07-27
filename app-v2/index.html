@@ -892,11 +892,12 @@
 
     .custom-select-option {
       display: flex;
+      flex-wrap: wrap;
       width: 100%;
       padding: 8px 10px;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      row-gap: 3px;
+      column-gap: 8px;
       border: 0;
       border-radius: 5px;
       background: transparent;
@@ -919,10 +920,28 @@
     .custom-select-option.occupied:hover { background: transparent; }
     .custom-select-option.occupied .custom-select-option-label { text-decoration: line-through; }
 
+    /* Label takes whatever's left and truncates rather than squeezing the
+       badge — badges use width:max-content (see .badge), which without a
+       shrink guard here would otherwise get crushed down to near-zero width
+       by the flex layout and wrap its text letter by letter. */
+    .custom-select-option-label {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .custom-select-option .badge { flex: 0 0 auto; }
+
+    /* Its own full-width line below the label/badge row (flex-basis: 100%
+       forces the wrap) rather than a third item competing for the same row
+       — that's what was pushing the badge into a sliver of space before. */
     .custom-select-occupied-note {
-      flex: 0 0 auto;
+      flex: 1 0 100%;
       color: #e77d76;
       font-size: 0.72rem;
+      white-space: normal;
     }
 
     .section-divider {
@@ -1091,12 +1110,14 @@
        rooms, or a group label like "Tibetan Monks" needing several) — same
        repeatable-row interaction as the Travel Itinerary list above, just
        with a single field per row instead of a whole leg's worth. */
+    #room-group { margin-top: 5px; }
+
     .room-group-header {
       display: flex;
       gap: 12px;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      margin-bottom: 12px;
     }
 
     .room-group-header .input-label { margin-bottom: 0; }
@@ -1178,6 +1199,76 @@
     }
 
     .toast-action-btn:hover { background: rgba(52, 152, 219, 0.24); }
+
+    /* Long-press-on-a-card context menu (mobile) — a lightweight bottom
+       sheet rather than reusing the full edit modal, since "delete this
+       guest" is the only action it needs to offer. */
+    .card-action-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 210;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .card-action-sheet[hidden] { display: none; }
+
+    .card-action-sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    .card-action-sheet-panel {
+      position: relative;
+      display: flex;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 12px 12px;
+      padding: 14px;
+      gap: 8px;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface-raised);
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-action-sheet-name {
+      margin-bottom: 4px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .card-action-sheet-btn {
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .card-action-sheet-btn:hover { background: var(--surface-hover); }
+
+    .card-action-sheet-btn.destructive {
+      border-color: rgba(231, 76, 60, 0.4);
+      background: rgba(231, 76, 60, 0.12);
+      color: #ef8a82;
+    }
+
+    .card-action-sheet-btn.destructive:hover { background: rgba(231, 76, 60, 0.2); }
 
     .quick-filters {
       display: flex;
@@ -1476,6 +1567,15 @@
   </div>
 
   <div id="toast-container" aria-live="assertive"></div>
+
+  <div id="card-action-sheet" class="card-action-sheet" hidden>
+    <div class="card-action-sheet-backdrop"></div>
+    <div class="card-action-sheet-panel" role="menu">
+      <div class="card-action-sheet-name" id="card-action-sheet-name"></div>
+      <button type="button" class="card-action-sheet-btn destructive" id="card-action-delete-btn">Delete Guest</button>
+      <button type="button" class="card-action-sheet-btn" id="card-action-cancel-btn">Cancel</button>
+    </div>
+  </div>
 
   <svg style="display:none" aria-hidden="true">
     <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></symbol>
@@ -1810,6 +1910,14 @@
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
       });
+      $('card-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeCardActionSheet);
+      $('card-action-cancel-btn').addEventListener('click', closeCardActionSheet);
+      $('card-action-delete-btn').addEventListener('click', () => {
+        const guestId = cardActionSheetGuestId;
+        const guest = allGuests.find(item => item.guestId === guestId);
+        closeCardActionSheet();
+        if (guest) deleteGuestById(guestId, guest.version, guest.Name);
+      });
       document.addEventListener('click', event => {
         // Opening a card is using the search results, not dismissing them —
         // and once the modal is open, every exit path (overlay click, ×,
@@ -1852,6 +1960,10 @@
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
+        if (!$('card-action-sheet').hidden) {
+          closeCardActionSheet();
+          return;
+        }
         if ($('room-list').querySelector('.room-custom-list:not([hidden])')) {
           closeAllRoomRowLists();
           return;
@@ -2461,13 +2573,24 @@
         card.tabIndex = 0;
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `Edit ${guest.Name || 'guest'}`);
-        card.addEventListener('click', () => openModal('edit', guest.guestId));
+        card.addEventListener('click', () => {
+          // A long-press that just opened the action sheet also ends in a
+          // touchend/click on this same card — without this check, tapping
+          // "Delete" would be immediately followed by the edit modal
+          // popping open underneath the (now-closing) action sheet.
+          if (card._longPressTriggered) {
+            card._longPressTriggered = false;
+            return;
+          }
+          openModal('edit', guest.guestId);
+        });
         card.addEventListener('keydown', event => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             openModal('edit', guest.guestId);
           }
         });
+        attachCardLongPress(card, guest.guestId);
       } else {
         card.setAttribute('aria-busy', 'true');
       }
@@ -2558,6 +2681,72 @@
       } else {
         card.appendChild(createDetailLine('icon-bed', 'Room not assigned'));
       }
+    }
+
+    const LONG_PRESS_MS = 550;
+    const LONG_PRESS_MOVE_TOLERANCE = 10;
+
+    // Touch-only by design (there's no equivalent gesture on desktop — the
+    // card is already a click away from the full edit view, which has its
+    // own Delete button). Cancels itself the moment the touch moves more
+    // than a few pixels, so a scroll or the tier swipe gesture never gets
+    // mistaken for a long-press.
+    function attachCardLongPress(card, guestId) {
+      let timer = null;
+      let moved = false;
+      let startX = 0;
+      let startY = 0;
+
+      card.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) return;
+        moved = false;
+        card._longPressTriggered = false;
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          if (moved) return;
+          card._longPressTriggered = true;
+          if (navigator.vibrate) navigator.vibrate(15);
+          showCardActionSheet(guestId);
+        }, LONG_PRESS_MS);
+      }, { passive: true });
+
+      card.addEventListener('touchmove', event => {
+        if (!event.touches.length) return;
+        const dx = Math.abs(event.touches[0].clientX - startX);
+        const dy = Math.abs(event.touches[0].clientY - startY);
+        if (dx > LONG_PRESS_MOVE_TOLERANCE || dy > LONG_PRESS_MOVE_TOLERANCE) {
+          moved = true;
+          window.clearTimeout(timer);
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', event => {
+        window.clearTimeout(timer);
+        // Suppresses the synthetic click this same tap-and-release would
+        // otherwise fire — the click handler's own _longPressTriggered
+        // check is the real safety net (this is just belt-and-suspenders,
+        // since not every browser guarantees preventDefault here skips it).
+        if (card._longPressTriggered) event.preventDefault();
+      });
+
+      card.addEventListener('touchcancel', () => window.clearTimeout(timer));
+    }
+
+    let cardActionSheetGuestId = '';
+
+    function showCardActionSheet(guestId) {
+      const guest = allGuests.find(item => item.guestId === guestId);
+      if (!guest || pendingGuestIds.has(guestId)) return;
+      cardActionSheetGuestId = guestId;
+      $('card-action-sheet-name').textContent = guest.Name || 'Guest';
+      $('card-action-sheet').hidden = false;
+    }
+
+    function closeCardActionSheet() {
+      $('card-action-sheet').hidden = true;
+      cardActionSheetGuestId = '';
     }
 
     function appendTransportDetails(card, guest) {
@@ -4391,21 +4580,28 @@
     function executeDelete() {
       const guestId = $('edit-guest-id').value;
       if (!guestId) return;
+      const guest = allGuests.find(item => item.guestId === guestId);
+      closeModal();
+      deleteGuestById(guestId, guest && guest.version, guest && guest.Name);
+    }
+
+    // Shared by the edit modal's Delete button and the card long-press
+    // action sheet — optimistically removes the guest and offers Undo;
+    // nothing is sent to the server until the Undo window expires, so Undo
+    // never needs to "re-add" anything, the real deleteGuest() call just
+    // never happens.
+    function deleteGuestById(guestId, version, name) {
+      if (!guestId) return;
 
       const snapshot = cloneGuests(allGuests);
-      const guest = allGuests.find(item => item.guestId === guestId);
-      const guestName = guest && guest.Name ? guest.Name : 'Guest';
+      const guestName = name || 'Guest';
 
-      // Nothing is sent to the server yet — the guest only disappears
-      // locally until the Undo window expires, so Undo never needs to
-      // "re-add" anything: the real deleteGuest() call just never happens.
       allGuests = allGuests.filter(item => item.guestId !== guestId);
-      closeModal();
       renderApp();
       pendingGuestIds.add(guestId);
 
       const runDelete = () => {
-        apiCall('deleteGuest', { guestId, version: guest && guest.version ? guest.version : null })
+        apiCall('deleteGuest', { guestId, version: version || null })
           .then(data => {
             pendingGuestIds.delete(guestId);
             applyAppData(data);
