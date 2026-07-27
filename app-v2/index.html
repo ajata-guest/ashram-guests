@@ -1087,6 +1087,34 @@
     .travel-remove-btn:hover { background: rgba(231, 76, 60, 0.16); }
     .travel-add-btn:hover { background: rgba(250, 128, 114, 0.2); }
 
+    /* A card can need more than one room (a named pair split across two
+       rooms, or a group label like "Tibetan Monks" needing several) — same
+       repeatable-row interaction as the Travel Itinerary list above, just
+       with a single field per row instead of a whole leg's worth. */
+    .room-group-header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .room-group-header .input-label { margin-bottom: 0; }
+
+    .room-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .room-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .room-row .custom-select { flex: 1; min-width: 0; }
+
     .travel-empty {
       padding: 12px;
       border: 1px dashed #3a3a3a;
@@ -1348,17 +1376,12 @@
         </div>
 
         <div class="input-group" id="room-group">
-          <label class="input-label" for="room-trigger">Room Allocation</label>
-          <div class="custom-select" id="room-custom-select">
-            <button type="button" class="custom-select-trigger" id="room-trigger" aria-haspopup="listbox" aria-expanded="false">
-              <span id="room-trigger-label">-- Unassigned --</span>
-              <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
-            </button>
-            <div class="custom-select-list" id="room-custom-list" role="listbox" aria-label="Room allocation" hidden></div>
+          <div class="room-group-header">
+            <label class="input-label">Room Allocation</label>
+            <button id="add-room-btn" class="travel-add-btn" type="button">+ Add room</button>
           </div>
-          <select id="edit-room" class="edit-input" hidden>
-            <option value="">-- Unassigned --</option>
-          </select>
+          <div id="room-list" class="room-list"></div>
+          <div id="room-empty" class="travel-empty">-- Unassigned --</div>
           <div id="room-warning" class="field-message" aria-live="polite"></div>
         </div>
       </section>
@@ -1783,9 +1806,9 @@
       reorderQuickFilters();
       initSectionNav();
       initSwipeNavigation();
-      $('room-trigger').addEventListener('click', () => toggleRoomList());
+      $('add-room-btn').addEventListener('click', () => { addRoomRowEditor(); checkRoomAvailability(); });
       document.addEventListener('click', event => {
-        if (!$('room-custom-select').contains(event.target)) closeRoomList();
+        if (!event.target.closest('.room-row')) closeAllRoomRowLists();
       });
       document.addEventListener('click', event => {
         // Opening a card is using the search results, not dismissing them —
@@ -1829,8 +1852,8 @@
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        if (!$('room-custom-list').hidden) {
-          closeRoomList();
+        if ($('room-list').querySelector('.room-custom-list:not([hidden])')) {
+          closeAllRoomRowLists();
           return;
         }
         if (modalIsOpen) requestCloseModal();
@@ -1902,12 +1925,17 @@
     }
 
     function prepareGuestForDisplay(guest) {
-      const room = roomMetadataMap.get(guest.Room) || {};
+      const rooms = Array.isArray(guest.Rooms) ? guest.Rooms : (guest.Room ? [guest.Room] : []);
+      const roomMetas = rooms.map(value => roomMetadataMap.get(value)).filter(Boolean);
+      const uniqueCategories = [...new Set(roomMetas.map(meta => meta.category).filter(Boolean))];
       const prepared = {
         ...guest,
-        roomBuilding: guest.roomBuilding || room.building || '',
-        roomNumber: guest.roomNumber || room.room || '',
-        roomCategory: guest.roomCategory || room.category || '',
+        roomBuilding: guest.roomBuilding || roomMetas.map(meta => meta.building).filter(Boolean).join(' & '),
+        roomNumber: guest.roomNumber || roomMetas.map(meta => meta.room).filter(Boolean).join(' & '),
+        // Only shown/searchable as a single category when every assigned
+        // room shares it — a mixed-category split (rare) just omits the
+        // badge rather than showing a misleadingly specific single one.
+        roomCategory: guest.roomCategory || (uniqueCategories.length === 1 ? uniqueCategories[0] : ''),
         'Pickup Required': resolveTransportRequirement(
           guest['Pickup Required'],
           guest['Pickup Cab Time'],
@@ -2728,62 +2756,74 @@
       return element;
     }
 
+    // Rooms are inventory grouped by building, cached here so each row can
+    // (re)build its own options from it without re-reducing roomInventory
+    // every time.
+    let roomOptionsGrouped = {};
+
     function buildRoomOptions() {
-      const roomSelect = $('edit-room');
-      const selectedValue = roomSelect.value;
-      roomSelect.replaceChildren();
-
-      const blank = document.createElement('option');
-      blank.value = '';
-      blank.textContent = '-- Unassigned --';
-      blank.dataset.baseLabel = '-- Unassigned --';
-      roomSelect.appendChild(blank);
-
-      const grouped = roomInventory.reduce((groups, room) => {
+      roomOptionsGrouped = roomInventory.reduce((groups, room) => {
         if (!groups[room.building]) groups[room.building] = [];
         groups[room.building].push(room);
         return groups;
       }, {});
 
-      Object.keys(grouped).forEach(building => {
+      // Refreshes any rows already in the editor (e.g. inventory reloaded
+      // while the modal happens to be open), preserving each row's current
+      // selection.
+      [...$('room-list').querySelectorAll('.room-row')].forEach(row => populateRoomRowOptions(row));
+    }
+
+    // The row's real <select> stays the source of truth for every existing
+    // behavior (availability checks, save-time validation, payload
+    // collection) — the custom dropdown next to it is purely a visual
+    // mirror, same pattern as the original single-room picker.
+    function populateRoomRowOptions(row) {
+      const select = row.querySelector('.room-select');
+      const selectedValue = select.value;
+      select.replaceChildren();
+
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '-- Select room --';
+      blank.dataset.baseLabel = '-- Select room --';
+      select.appendChild(blank);
+
+      Object.keys(roomOptionsGrouped).forEach(building => {
         const group = document.createElement('optgroup');
         group.label = building;
-        grouped[building].forEach(room => {
+        roomOptionsGrouped[building].forEach(room => {
           const option = document.createElement('option');
           option.value = room.value;
           option.textContent = `${room.room} (${room.category})`;
           option.dataset.baseLabel = option.textContent;
           group.appendChild(option);
         });
-        roomSelect.appendChild(group);
+        select.appendChild(group);
       });
 
-      if ([...roomSelect.options].some(option => option.value === selectedValue)) {
-        roomSelect.value = selectedValue;
+      if ([...select.options].some(option => option.value === selectedValue)) {
+        select.value = selectedValue;
       }
 
-      buildCustomRoomList(grouped);
-      updateRoomTriggerLabel();
-      syncCustomRoomList();
+      buildCustomRoomListFor(row);
+      updateRoomRowTriggerLabel(row);
+      syncRoomRowList(row);
     }
 
-    // The real #edit-room select stays the source of truth for every
-    // existing behavior (availability checks, save-time validation,
-    // payload collection) — this is purely a visual layer that mirrors it,
-    // so none of that logic had to change.
-    function buildCustomRoomList(grouped) {
-      const list = $('room-custom-list');
+    function buildCustomRoomListFor(row) {
+      const list = row.querySelector('.room-custom-list');
       list.replaceChildren();
-      list.appendChild(createCustomRoomOption('', '-- Unassigned --', null));
-      Object.keys(grouped).forEach(building => {
+      list.appendChild(createCustomRoomOption('', '-- Select room --', null, row));
+      Object.keys(roomOptionsGrouped).forEach(building => {
         list.appendChild(createElement('div', 'custom-select-group-label', building));
-        grouped[building].forEach(room => {
-          list.appendChild(createCustomRoomOption(room.value, room.room, room.category));
+        roomOptionsGrouped[building].forEach(room => {
+          list.appendChild(createCustomRoomOption(room.value, room.room, room.category, row));
         });
       });
     }
 
-    function createCustomRoomOption(value, label, category) {
+    function createCustomRoomOption(value, label, category, row) {
       const option = document.createElement('button');
       option.type = 'button';
       option.className = 'custom-select-option';
@@ -2791,35 +2831,38 @@
       option.dataset.value = value;
       option.appendChild(createElement('span', 'custom-select-option-label', label));
       if (category) option.appendChild(createBadge(category, getRoomCategoryBadgeClass(category)));
-      option.addEventListener('click', () => selectCustomRoomOption(value));
+      option.addEventListener('click', () => selectCustomRoomOption(row, value));
       return option;
     }
 
-    function selectCustomRoomOption(value) {
-      const roomSelect = $('edit-room');
-      const option = [...roomSelect.options].find(opt => opt.value === value);
+    function selectCustomRoomOption(row, value) {
+      const select = row.querySelector('.room-select');
+      const option = [...select.options].find(opt => opt.value === value);
       if (option && option.disabled) return;
-      roomSelect.value = value;
-      roomSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      updateRoomTriggerLabel();
-      syncCustomRoomList();
-      closeRoomList();
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      updateRoomRowTriggerLabel(row);
+      closeRoomRowList(row);
+      checkRoomAvailability();
     }
 
-    function updateRoomTriggerLabel() {
-      const selected = $('edit-room').selectedOptions[0];
-      $('room-trigger-label').textContent = selected ? (selected.dataset.baseLabel || selected.textContent) : '-- Unassigned --';
+    function updateRoomRowTriggerLabel(row) {
+      const select = row.querySelector('.room-select');
+      const selected = select.selectedOptions[0];
+      row.querySelector('.room-trigger-label').textContent = selected
+        ? (selected.dataset.baseLabel || selected.textContent)
+        : '-- Select room --';
     }
 
-    // Re-reads the real select's current option states (set by
+    // Re-reads the row's real select's current option states (set by
     // checkRoomAvailability) so the custom list's occupied/selected
     // styling never drifts out of sync with the data it's mirroring.
-    function syncCustomRoomList() {
-      const roomSelect = $('edit-room');
-      const selectedValue = roomSelect.value;
-      [...$('room-custom-list').querySelectorAll('.custom-select-option')].forEach(optionEl => {
+    function syncRoomRowList(row) {
+      const select = row.querySelector('.room-select');
+      const selectedValue = select.value;
+      [...row.querySelectorAll('.custom-select-option')].forEach(optionEl => {
         const value = optionEl.dataset.value;
-        const realOption = [...roomSelect.options].find(opt => opt.value === value);
+        const realOption = [...select.options].find(opt => opt.value === value);
         const occupied = Boolean(realOption && realOption.disabled);
         optionEl.classList.toggle('occupied', occupied);
         optionEl.classList.toggle('selected', value === selectedValue);
@@ -2840,15 +2883,87 @@
       });
     }
 
-    function toggleRoomList(forceOpen) {
-      const list = $('room-custom-list');
+    function toggleRoomRowList(row, forceOpen) {
+      closeAllRoomRowLists(row);
+      const list = row.querySelector('.room-custom-list');
       const isOpen = forceOpen !== undefined ? forceOpen : list.hidden;
       list.hidden = !isOpen;
-      $('room-trigger').setAttribute('aria-expanded', String(isOpen));
+      row.querySelector('.room-trigger').setAttribute('aria-expanded', String(isOpen));
     }
 
-    function closeRoomList() {
-      toggleRoomList(false);
+    function closeRoomRowList(row) {
+      toggleRoomRowList(row, false);
+    }
+
+    // Closes every open room-row dropdown except (optionally) one — used
+    // both for "clicking outside closes whichever one is open" and for
+    // "opening one row's list closes any other row's list left open."
+    function closeAllRoomRowLists(exceptRow) {
+      [...$('room-list').querySelectorAll('.room-row')].forEach(row => {
+        if (row === exceptRow) return;
+        const list = row.querySelector('.room-custom-list');
+        if (!list.hidden) {
+          list.hidden = true;
+          row.querySelector('.room-trigger').setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    function createRoomRow() {
+      const row = createElement('div', 'room-row');
+      row.innerHTML = `
+        <div class="custom-select room-custom-select">
+          <button type="button" class="custom-select-trigger room-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="room-trigger-label">-- Select room --</span>
+            <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+          </button>
+          <div class="custom-select-list room-custom-list" role="listbox" aria-label="Room" hidden></div>
+        </div>
+        <select class="edit-input room-select" hidden></select>
+        <button type="button" class="travel-remove-btn room-remove-btn" aria-label="Remove room">
+          <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        </button>
+      `;
+      return row;
+    }
+
+    function addRoomRowEditor(value = '') {
+      const row = createRoomRow();
+      $('room-list').appendChild(row);
+      populateRoomRowOptions(row);
+      row.querySelector('.room-select').value = value;
+      updateRoomRowTriggerLabel(row);
+      syncRoomRowList(row);
+
+      row.querySelector('.room-trigger').addEventListener('click', () => toggleRoomRowList(row));
+      row.querySelector('.room-remove-btn').addEventListener('click', () => {
+        row.remove();
+        updateRoomEmptyState();
+        checkRoomAvailability();
+      });
+      row.querySelector('.room-select').addEventListener('change', () => {
+        updateRoomRowTriggerLabel(row);
+        checkRoomAvailability();
+      });
+
+      updateRoomEmptyState();
+      return row;
+    }
+
+    function setRoomRows(values) {
+      $('room-list').replaceChildren();
+      (Array.isArray(values) ? values : []).forEach(value => addRoomRowEditor(value));
+      updateRoomEmptyState();
+    }
+
+    function getRoomRowValues() {
+      return [...$('room-list').querySelectorAll('.room-row')]
+        .map(row => row.querySelector('.room-select').value)
+        .filter(Boolean);
+    }
+
+    function updateRoomEmptyState() {
+      $('room-empty').style.display = $('room-list').children.length ? 'none' : 'block';
     }
 
     function resetCabBookingEditorState(type) {
@@ -2934,7 +3049,7 @@
     function openModal(mode, guestId = '') {
       resetDeleteButton();
       resetCloseConfirm();
-      closeRoomList();
+      closeAllRoomRowLists();
       modalDirty = false;
       document.querySelector('.modal-content').scrollTop = 0;
       [...$('modal-section-nav').querySelectorAll('.section-nav-pill')].forEach(pill => {
@@ -2997,7 +3112,7 @@
         $('edit-dropoff-details').value = guest['Dropoff Cab details'] || '';
         $('edit-dropoff-details').dataset.originalValue = guest['Dropoff Cab details'] || '';
         initializeCabBookingEditorState('dropoff', guest);
-        $('edit-room').value = guest.Room || '';
+        setRoomRows(guest.Rooms || []);
         renderTravelLegEditors(guest.travelLegs || []);
       } else {
         $('modal-title').textContent = 'Add New Guest';
@@ -3028,7 +3143,7 @@
         $('edit-dropoff-time').dataset.originalValue = '';
         $('edit-dropoff-details').value = '';
         initializeCabBookingEditorState('dropoff', null);
-        $('edit-room').value = '';
+        setRoomRows([]);
         renderTravelLegEditors([]);
       }
 
@@ -3385,17 +3500,13 @@
     function toggleRoomField() {
       const isVisiting = $('edit-status').value === 'Visiting Guest';
       $('room-group').hidden = isVisiting;
-      $('edit-room').disabled = isVisiting;
-      $('room-trigger').disabled = isVisiting;
+      $('add-room-btn').disabled = isVisiting;
       if (isVisiting) {
-        $('edit-room').value = '';
+        setRoomRows([]);
         $('room-warning').textContent = '';
-        closeRoomList();
-        syncCustomRoomList();
       } else {
         checkRoomAvailability();
       }
-      updateRoomTriggerLabel();
     }
 
     // Visiting Guests don't lodge overnight (they don't even get a room —
@@ -3707,55 +3818,91 @@
       return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
 
+    // Mirrors Code.gs's resolveRoomOccupantName_: when a room is occupied,
+    // name the actual person in it rather than the whole card — only when
+    // that's knowable (the name splits into exactly as many "&"-joined
+    // tokens as that guest has rooms, so position-for-position pairing is
+    // unambiguous). A collective label like "Tibetan Monks" just falls back
+    // to itself, same as the backend does.
+    function resolveRoomOccupantName(name, rooms, room) {
+      const tokens = String(name || '').split('&').map(token => token.trim()).filter(Boolean);
+      if (tokens.length === rooms.length) {
+        const index = rooms.indexOf(room);
+        if (index !== -1 && tokens[index]) return tokens[index];
+      }
+      return name || 'Unknown guest';
+    }
+
     function checkRoomAvailability() {
-      const roomSelect = $('edit-room');
       const warning = $('room-warning');
       warning.textContent = '';
+      const rows = [...$('room-list').querySelectorAll('.room-row')];
+      if (!rows.length) return;
 
-      [...roomSelect.options].forEach(option => {
-        option.disabled = false;
-        option.textContent = option.dataset.baseLabel || option.textContent;
+      rows.forEach(row => {
+        [...row.querySelector('.room-select').options].forEach(option => {
+          option.disabled = false;
+          option.textContent = option.dataset.baseLabel || option.textContent;
+        });
       });
-
-      if (roomSelect.disabled) {
-        syncCustomRoomList();
-        return;
-      }
 
       const newArrival = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
       const newDeparture = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
-      if (!newArrival) {
-        syncCustomRoomList();
-        return;
-      }
-
       const currentGuestId = $('edit-guest-id').value;
       const occupiedRooms = new Map();
-      const newEnd = newDeparture || Number.POSITIVE_INFINITY;
 
-      allGuests.forEach(guest => {
-        if (guest.guestId === currentGuestId || !guest.Room || !guest.arrivalMs) return;
-        const otherEnd = guest.departureMs || Number.POSITIVE_INFINITY;
-        if (newArrival < otherEnd && newEnd > guest.arrivalMs) {
-          occupiedRooms.set(guest.Room, {
-            name: guest.Name || 'Unknown guest',
-            openEnded: !guest.departureMs
-          });
-        }
-      });
-
-      [...roomSelect.options].forEach(option => {
-        if (!option.value || !occupiedRooms.has(option.value)) return;
-        const occupancy = occupiedRooms.get(option.value);
-        option.disabled = true;
-        option.textContent = `${option.dataset.baseLabel} — Occupied by ${occupancy.name}${occupancy.openEnded ? ' (departure TBD)' : ''}`;
-      });
-
-      const selected = roomSelect.selectedOptions[0];
-      if (selected && selected.disabled) {
-        warning.textContent = `${selected.value} is occupied during the selected stay.`;
+      if (newArrival) {
+        const newEnd = newDeparture || Number.POSITIVE_INFINITY;
+        allGuests.forEach(guest => {
+          if (guest.guestId === currentGuestId || !guest.arrivalMs) return;
+          const guestRooms = Array.isArray(guest.Rooms) ? guest.Rooms : [];
+          if (!guestRooms.length) return;
+          const otherEnd = guest.departureMs || Number.POSITIVE_INFINITY;
+          if (newArrival < otherEnd && newEnd > guest.arrivalMs) {
+            guestRooms.forEach(room => {
+              occupiedRooms.set(room, {
+                name: resolveRoomOccupantName(guest.Name, guestRooms, room),
+                openEnded: !guest.departureMs
+              });
+            });
+          }
+        });
       }
-      syncCustomRoomList();
+
+      const warningMessages = [];
+
+      rows.forEach(row => {
+        const select = row.querySelector('.room-select');
+        const ownValue = select.value;
+        // A room already picked by a sibling row on this same card can't be
+        // picked again — mirrors Code.gs's own-card duplicate rejection.
+        const siblingValues = new Set(
+          rows.filter(other => other !== row)
+            .map(other => other.querySelector('.room-select').value)
+            .filter(Boolean)
+        );
+
+        [...select.options].forEach(option => {
+          if (!option.value) return;
+          if (siblingValues.has(option.value) && option.value !== ownValue) {
+            option.disabled = true;
+            option.textContent = `${option.dataset.baseLabel} — already assigned to this guest above`;
+          } else if (occupiedRooms.has(option.value)) {
+            const occupancy = occupiedRooms.get(option.value);
+            option.disabled = true;
+            option.textContent = `${option.dataset.baseLabel} — Occupied by ${occupancy.name}${occupancy.openEnded ? ' (departure TBD)' : ''}`;
+          }
+        });
+
+        const selected = select.selectedOptions[0];
+        if (selected && selected.value && selected.disabled) {
+          warningMessages.push(`${selected.value} is occupied during the selected stay.`);
+        }
+        updateRoomRowTriggerLabel(row);
+        syncRoomRowList(row);
+      });
+
+      warning.textContent = [...new Set(warningMessages)].join(' ');
     }
 
     function getInputTimestamp(dateValue, timeValue, isDeparture) {
@@ -3872,9 +4019,12 @@
 
       if (!validateTravelLegEditors()) return;
 
-      const selectedRoom = $('edit-room').selectedOptions[0];
-      if (!$('edit-room').disabled && selectedRoom && selectedRoom.disabled) {
-        showToast('The selected room is occupied during those dates.', 'error');
+      const hasUnavailableRoomSelection = [...$('room-list').querySelectorAll('.room-row')].some(row => {
+        const selected = row.querySelector('.room-select').selectedOptions[0];
+        return selected && selected.value && selected.disabled;
+      });
+      if (hasUnavailableRoomSelection) {
+        showToast('One of the selected rooms is occupied during those dates.', 'error');
         return;
       }
 
@@ -3933,7 +4083,9 @@
       $('edit-departure-date').value = payload.departureDate || '';
       $('edit-departure-time').value = payload.departureTime || '';
       toggleRoomField();
-      if (!$('edit-room').disabled) $('edit-room').value = payload.room || '';
+      if ($('edit-status').value !== 'Visiting Guest') {
+        setRoomRows(Array.isArray(payload.rooms) ? payload.rooms : []);
+      }
 
       $('edit-pickup-required').checked = Boolean(payload.pickupRequired);
       $('edit-pickup-date').value = payload.pickupDate || '';
@@ -3960,7 +4112,7 @@
         isForeign: $('edit-foreign').checked,
         isCformComplete: $('edit-cform').checked,
         status: $('edit-status').value,
-        room: $('edit-room').disabled ? '' : $('edit-room').value,
+        rooms: $('edit-status').value === 'Visiting Guest' ? [] : getRoomRowValues(),
         arrivalDate: $('edit-arrival-date').value,
         arrivalTime: $('edit-arrival-time').value,
         departureDate: $('edit-departure-date').value,
@@ -4018,7 +4170,8 @@
         'Foreign National': payload.status === 'Visiting Guest' ? false : payload.isForeign,
         'C-form complete': payload.status === 'Visiting Guest' ? false : (payload.isForeign && payload.isCformComplete),
         Status: payload.status,
-        Room: payload.status === 'Visiting Guest' ? '' : payload.room,
+        Rooms: payload.status === 'Visiting Guest' ? [] : (Array.isArray(payload.rooms) ? payload.rooms : []),
+        Room: payload.status === 'Visiting Guest' ? '' : (Array.isArray(payload.rooms) ? payload.rooms.join(' & ') : ''),
         Arrival: arrival.display,
         Departure: departure.display,
         'Pickup Required': Boolean(payload.pickupRequired),
