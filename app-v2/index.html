@@ -1369,20 +1369,20 @@
          what a brand-new device sees first, so the "needs attention" group
          leads, then buildings (injected here by syncBuildingFilterChips),
          then browse-by-attribute. -->
-    <button type="button" class="filter-chip" data-query="room not assigned">Room not assigned</button>
-    <button type="button" class="filter-chip" data-query="cabs arrange">Cabs to arrange</button>
-    <button type="button" class="filter-chip" data-query="travel arrange">Travel to arrange</button>
-    <button type="button" class="filter-chip" data-query="c-form pending">C-form pending</button>
-    <button type="button" class="filter-chip" data-query="no arrival date">No arrival date</button>
-    <button type="button" class="filter-chip" data-query="bookings complete">Booked</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="invited guest">Invited Guest</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="visiting guest">Visiting Guest</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="friend">Friend</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="flight">Flight</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="train">Train</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="bus">Bus</button>
-    <button type="button" class="filter-chip" data-group="browse" data-query="taxi">Taxi</button>
-    <button type="button" id="quick-filters-toggle" class="filter-chip-toggle" aria-expanded="false"></button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="room not assigned">Room not assigned</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="cabs arrange">Cabs to arrange</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="travel arrange">Travel to arrange</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="c-form pending">C-form pending</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="no arrival date">No arrival date</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="bookings complete">Booked</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="invited guest">Invited Guest</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="visiting guest">Visiting Guest</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="friend">Friend</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="flight">Flight</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="train">Train</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="bus">Bus</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="taxi">Taxi</button>
+    <button type="button" id="quick-filters-toggle" class="filter-chip-toggle" aria-controls="quick-filters" aria-expanded="false"></button>
   </div>
 
   <div id="loading">Loading guests...</div>
@@ -1898,6 +1898,11 @@
         activeChipQueries.clear();
         window.clearTimeout(searchTimer);
         renderApp();
+        // Selection is back to zero, same as un-tapping the last chip — so
+        // this is a safe moment to let the usage re-sort land. All three
+        // "cleared everything" paths reorder here, or promotion would look
+        // arbitrary depending on how you happened to clear.
+        reorderQuickFilters();
         $('search-bar').focus();
       });
       $('refresh-btn').addEventListener('click', () => loadAppData(false));
@@ -1939,6 +1944,7 @@
         activeChipQueries.clear();
         window.clearTimeout(searchTimer);
         renderApp();
+        reorderQuickFilters();
       });
       $('add-btn').addEventListener('click', () => openModal('add'));
       $('close-btn').addEventListener('click', handleCloseButtonClick);
@@ -2252,7 +2258,10 @@
 
     function handleSearchInput() {
       window.clearTimeout(searchTimer);
-      searchTimer = window.setTimeout(renderApp, 180);
+      searchTimer = window.setTimeout(() => {
+        syncActiveChipsFromSearchBar();
+        renderApp();
+      }, 180);
     }
 
     // Multiple chips can be active at once — activeChipQueries is the
@@ -2261,23 +2270,58 @@
     // free: matchesSearch() already ANDs every whitespace-separated term,
     // so "room not assigned" + "foreign national" naturally narrows to
     // guests matching both, the same as if you'd typed all of it by hand.
+    // Whatever the user typed by hand, with the active chips' own phrases
+    // stripped back out. Without this, rebuilding the bar from chip state
+    // alone would silently wipe a name someone was midway through typing.
+    function getTypedSearchText() {
+      let text = $('search-bar').value;
+      [...activeChipQueries].forEach(phrase => {
+        text = text.split(phrase).join(' ');
+      });
+      return text.replace(/\s+/g, ' ').trim();
+    }
+
+    // The bar is editable, so it — not the chip set — is the last word on
+    // what's actually being filtered. If someone types over a chip's phrase
+    // or deletes it, that chip has to stop claiming to be active, or it
+    // ends up highlighted while filtering nothing (and un-clicking it would
+    // then wipe whatever they replaced it with).
+    function syncActiveChipsFromSearchBar() {
+      const text = normalizeSearchText($('search-bar').value);
+      [...activeChipQueries].forEach(phrase => {
+        if (!text.includes(normalizeSearchText(phrase))) activeChipQueries.delete(phrase);
+      });
+    }
+
     function applyQuickFilter(query) {
+      const typedText = getTypedSearchText();
       const turningOn = !activeChipQueries.has(query);
       if (turningOn) activeChipQueries.add(query);
       else activeChipQueries.delete(query);
 
-      $('search-bar').value = [...activeChipQueries].join(' ');
+      $('search-bar').value = [...activeChipQueries, typedText].filter(Boolean).join(' ');
       window.clearTimeout(searchTimer);
       renderApp();
       // Only count it as "used" when the filter is actually being applied,
       // not when the same chip is clicked again to clear it.
       if (turningOn) recordQuickFilterUsage(query);
+      // Re-sort only once nothing is selected. Re-sorting on every tap moved
+      // chips out from under the finger mid-selection, so picking a second
+      // filter meant chasing a target that had just jumped position.
+      if (activeChipQueries.size === 0) reorderQuickFilters();
     }
 
     function updateQuickFilterActiveState() {
       [...$('quick-filters').querySelectorAll('.filter-chip')].forEach(chip => {
-        chip.classList.toggle('active', activeChipQueries.has(chip.dataset.query));
+        const isActive = activeChipQueries.has(chip.dataset.query);
+        chip.classList.toggle('active', isActive);
+        // The .active styling (colour + ✕) is invisible to a screen reader;
+        // aria-pressed is what actually announces on/off for a toggle button.
+        chip.setAttribute('aria-pressed', String(isActive));
       });
+      // Visibility depends on which chips are active (see applyChipVisibility),
+      // so it has to be re-evaluated whenever that changes.
+      applyChipVisibility();
     }
 
     function initSectionNav() {
@@ -2334,12 +2378,14 @@
         // Storage unavailable (private browsing, quota) — the chips still
         // work, they just won't remember usage across sessions.
       }
-      reorderQuickFilters(usage);
+      // Deliberately does not reorder — applyQuickFilter holds that back
+      // until the selection is cleared, so the row stays still while chips
+      // are being picked.
     }
 
-    // Most-used chips float to the front. Only called right after a chip is
-    // used and once on load — never from renderApp(), so chips don't shuffle
-    // under the user's cursor while they're just typing a search.
+    // Most-used chips float to the front. Called on load, and once a chip
+    // selection is fully cleared — never from renderApp(), so chips don't
+    // shuffle under the user's cursor while they're just typing a search.
     function reorderQuickFilters(usage) {
       const container = $('quick-filters');
       const usageMap = usage || loadQuickFilterUsage();
@@ -2371,6 +2417,13 @@
         && desired.every(entry => existingQueries.includes(entry.query));
       if (unchanged) return;
 
+      // Captured before the loop below drops the stale building phrases —
+      // getTypedSearchText strips whatever is *currently* active, so it has
+      // to run while those entries are still in the set. Without it, a
+      // background refresh that happens to change the building list would
+      // wipe a name someone was midway through typing.
+      const typedText = getTypedSearchText();
+
       existing.forEach(chip => {
         // A building that no longer exists can't stay in the active filter
         // set — it would silently match nothing and leave the search bar
@@ -2387,12 +2440,13 @@
       desired.forEach(entry => {
         const chip = createElement('button', 'filter-chip', entry.name);
         chip.type = 'button';
+        chip.setAttribute('aria-pressed', 'false');
         chip.dataset.query = entry.query;
         chip.dataset.building = 'true';
         container.insertBefore(chip, firstBrowseChip);
       });
 
-      $('search-bar').value = [...activeChipQueries].join(' ');
+      $('search-bar').value = [...activeChipQueries, typedText].filter(Boolean).join(' ');
       reorderQuickFilters();
     }
 
@@ -2426,14 +2480,22 @@
     function applyChipVisibility() {
       const chips = [...$('quick-filters').querySelectorAll('.filter-chip')];
       const expanded = isQuickFiltersExpanded();
-      const hiddenCount = Math.max(chips.length - QUICK_FILTER_VISIBLE_COUNT, 0);
 
       chips.forEach((chip, index) => {
-        chip.hidden = !expanded && index >= QUICK_FILTER_VISIBLE_COUNT;
+        // An active filter is never hidden, wherever it sorts to. Otherwise
+        // collapsing could leave the list filtered with no visible chip
+        // explaining why and no way to switch it off short of clearing the
+        // whole search.
+        const isActive = activeChipQueries.has(chip.dataset.query);
+        chip.hidden = !expanded && !isActive && index >= QUICK_FILTER_VISIBLE_COUNT;
       });
 
       const toggle = $('quick-filters-toggle');
-      if (hiddenCount === 0) {
+      const hiddenCount = chips.filter(chip => chip.hidden).length;
+      // Two separate questions: "is this row collapsible at all" (below) and
+      // "how many are hidden right now" (the label). When expanded nothing is
+      // hidden, but the toggle has to stay put as the way back to collapsed.
+      if (chips.length <= QUICK_FILTER_VISIBLE_COUNT || (!expanded && hiddenCount === 0)) {
         toggle.hidden = true;
         return;
       }
