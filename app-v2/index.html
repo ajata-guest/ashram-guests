@@ -1364,20 +1364,24 @@
   </header>
 
   <div id="quick-filters" class="quick-filters" role="group" aria-label="Quick filters">
+    <!-- Order here is only the starting point — chips re-sort by how often
+         each one actually gets used (see reorderQuickFilters). It decides
+         what a brand-new device sees first, so the "needs attention" group
+         leads, then buildings (injected here by syncBuildingFilterChips),
+         then browse-by-attribute. -->
     <button type="button" class="filter-chip" data-query="room not assigned">Room not assigned</button>
-    <button type="button" class="filter-chip" data-query="foreign national">Foreign national</button>
-    <button type="button" class="filter-chip" data-query="c-form pending">C-form pending</button>
+    <button type="button" class="filter-chip" data-query="cabs arrange">Cabs to arrange</button>
     <button type="button" class="filter-chip" data-query="travel arrange">Travel to arrange</button>
-    <button type="button" class="filter-chip" data-query="invited guest">Invited Guest</button>
-    <button type="button" class="filter-chip" data-query="visiting guest">Visiting Guest</button>
-    <button type="button" class="filter-chip" data-query="friend">Friend</button>
-    <button type="button" class="filter-chip" data-query="flight">Flight</button>
-    <button type="button" class="filter-chip" data-query="train">Train</button>
-    <button type="button" class="filter-chip" data-query="bus">Bus</button>
-    <button type="button" class="filter-chip" data-query="taxi">Taxi</button>
-    <button type="button" class="filter-chip" data-query="pickup unconfirmed">Pickup unconfirmed</button>
-    <button type="button" class="filter-chip" data-query="dropoff unconfirmed">Drop-off unconfirmed</button>
-    <button type="button" class="filter-chip" data-query="needs reconfirmation">Needs reconfirmation</button>
+    <button type="button" class="filter-chip" data-query="c-form pending">C-form pending</button>
+    <button type="button" class="filter-chip" data-query="no arrival date">No arrival date</button>
+    <button type="button" class="filter-chip" data-query="bookings complete">Booked</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="invited guest">Invited Guest</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="visiting guest">Visiting Guest</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="friend">Friend</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="flight">Flight</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="train">Train</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="bus">Bus</button>
+    <button type="button" class="filter-chip" data-group="browse" data-query="taxi">Taxi</button>
     <button type="button" id="quick-filters-toggle" class="filter-chip-toggle" aria-expanded="false"></button>
   </div>
 
@@ -1899,8 +1903,14 @@
       $('refresh-btn').addEventListener('click', () => loadAppData(false));
       $('notif-btn').addEventListener('click', handleNotifButtonClick);
       updateNotifButtonState();
-      [...$('quick-filters').querySelectorAll('.filter-chip')].forEach(chip => {
-        chip.addEventListener('click', () => applyQuickFilter(chip.dataset.query));
+      // Delegated rather than bound per-chip: the building chips are
+      // generated from the Rooms sheet after this runs (see
+      // syncBuildingFilterChips), so anything bound here directly would miss
+      // them — and re-binding on every refresh would stack duplicate
+      // listeners.
+      $('quick-filters').addEventListener('click', event => {
+        const chip = event.target.closest('.filter-chip');
+        if (chip) applyQuickFilter(chip.dataset.query);
       });
       $('quick-filters-toggle').addEventListener('click', () => setQuickFiltersExpanded(!isQuickFiltersExpanded()));
       reorderQuickFilters();
@@ -2031,6 +2041,7 @@
       sortGuestsLocally();
       pendingGuestIds.clear();
       buildRoomOptions();
+      syncBuildingFilterChips();
       $('loading').style.display = 'none';
       updateLastRefreshed(data && data.generatedAt);
       renderApp();
@@ -2122,6 +2133,20 @@
       return Boolean(scheduledValue || detailsValue);
     }
 
+    // "Everything that needed booking is booked." Requires at least one thing
+    // to have needed booking in the first place — see the 'bookings complete'
+    // token in buildSearchIndex for why an empty itinerary doesn't count.
+    function isFullyBooked(guest, travelLegs) {
+      const needsPickup = Boolean(guest['Pickup Required']);
+      const needsDropoff = Boolean(guest['Dropoff Required']);
+      const hasAnythingToBook = needsPickup || needsDropoff || travelLegs.length > 0;
+      if (!hasAnythingToBook) return false;
+
+      if (needsPickup && guest.pickupBookingState !== 'Confirmed') return false;
+      if (needsDropoff && guest.dropoffBookingState !== 'Confirmed') return false;
+      return travelLegs.every(leg => leg.status === 'Confirmed');
+    }
+
     function buildSearchIndex(guest) {
       const travelLegs = Array.isArray(guest.travelLegs) ? guest.travelLegs : [];
       const dateValues = [
@@ -2182,6 +2207,21 @@
         // already inject "ashram pickup required" style text below, and
         // "required" by itself would match those too.
         travelLegs.some(leg => leg.status === 'Required') ? 'travel arrange' : '',
+        // One chip for every unsettled cab state, not just "Requested" —
+        // "Needs Reconfirmation" and "Needs Rescheduling" (a booking that was
+        // confirmed, then had its schedule moved out from under it) are just
+        // as much a cab you still have to deal with. "cabs" carries the
+        // match; "arrange" alone would also hit the travel token above.
+        (guest['Pickup Required'] && guest.pickupBookingState !== 'Confirmed')
+          || (guest['Dropoff Required'] && guest.dropoffBookingState !== 'Confirmed')
+          ? 'cabs arrange'
+          : '',
+        !guest.arrivalDate ? 'no arrival date' : '',
+        // "Booked" means everything that needed arranging is arranged — so a
+        // guest with nothing to arrange at all is deliberately excluded
+        // (that's "self-arranging", not "booked", and including them would
+        // match most local guests and bury the ones actually confirmed).
+        isFullyBooked(guest, travelLegs) ? 'bookings complete' : '',
         ...(guest.priorityReasons || []),
         ...travelValues,
         ...dateValues
@@ -2312,7 +2352,55 @@
       applyChipVisibility();
     }
 
-    const QUICK_FILTER_VISIBLE_COUNT = 7;
+    // Building chips are generated from the Rooms sheet rather than written
+    // into the page, so adding or renaming a building there updates the
+    // filter row with no code change and no chip left pointing at a building
+    // that no longer exists. Rebuilt only when the set of building names
+    // actually changes — applyAppData runs on every background refresh, and
+    // blindly re-creating these would wipe the active state and re-sort the
+    // row out from under whoever is mid-filter.
+    function syncBuildingFilterChips() {
+      const container = $('quick-filters');
+      const desired = [...new Set(roomInventory.map(room => room.building).filter(Boolean))]
+        .map(name => ({ name, query: normalizeSearchText(name) }))
+        .filter(entry => entry.query);
+
+      const existing = [...container.querySelectorAll('.filter-chip[data-building="true"]')];
+      const existingQueries = existing.map(chip => chip.dataset.query);
+      const unchanged = existing.length === desired.length
+        && desired.every(entry => existingQueries.includes(entry.query));
+      if (unchanged) return;
+
+      existing.forEach(chip => {
+        // A building that no longer exists can't stay in the active filter
+        // set — it would silently match nothing and leave the search bar
+        // holding a phrase with no chip to turn it back off.
+        activeChipQueries.delete(chip.dataset.query);
+        chip.remove();
+      });
+
+      // Inserted ahead of the browse-by-attribute chips rather than appended
+      // last, so an unused device shows them above Flight/Train/Bus/Taxi.
+      // reorderQuickFilters' sort is stable, so this relative order survives
+      // until real usage data starts moving things around.
+      const firstBrowseChip = container.querySelector('.filter-chip[data-group="browse"]');
+      desired.forEach(entry => {
+        const chip = createElement('button', 'filter-chip', entry.name);
+        chip.type = 'button';
+        chip.dataset.query = entry.query;
+        chip.dataset.building = 'true';
+        container.insertBefore(chip, firstBrowseChip);
+      });
+
+      $('search-bar').value = [...activeChipQueries].join(' ');
+      reorderQuickFilters();
+    }
+
+    // Six, so a fresh device's collapsed row is exactly the "needs
+    // attention" group rather than that group plus an arbitrary one or two
+    // buildings. Usage sorting still promotes whatever gets used most, so
+    // this only decides the starting state.
+    const QUICK_FILTER_VISIBLE_COUNT = 6;
     const QUICK_FILTER_EXPANDED_KEY = 'ajatanandaQuickFiltersExpanded';
 
     function isQuickFiltersExpanded() {
