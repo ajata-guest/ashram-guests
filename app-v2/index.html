@@ -1506,6 +1506,11 @@
             <div id="pickup-warning" class="field-message" aria-live="polite"></div>
           </div>
 
+          <div class="input-group">
+            <label class="input-label" for="edit-pickup-from">Pickup From — optional</label>
+            <input type="text" id="edit-pickup-from" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc.">
+          </div>
+
           <div class="transport-requirement cab-confirmation">
             <label class="checkbox-label" id="label-pickup-booking-confirmed" for="edit-pickup-booking-confirmed">
               <input type="checkbox" id="edit-pickup-booking-confirmed" class="checkbox-input">
@@ -1515,7 +1520,7 @@
 
           <div class="input-group">
             <label class="input-label" for="edit-pickup-details">Pickup Cab Details — optional</label>
-            <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." disabled>
+            <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc.">
           </div>
         </div>
 
@@ -1537,6 +1542,11 @@
             <div id="dropoff-warning" class="field-message" aria-live="polite"></div>
           </div>
 
+          <div class="input-group">
+            <label class="input-label" for="edit-dropoff-to">Drop-off To — optional</label>
+            <input type="text" id="edit-dropoff-to" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc.">
+          </div>
+
           <div class="transport-requirement cab-confirmation">
             <label class="checkbox-label" id="label-dropoff-booking-confirmed" for="edit-dropoff-booking-confirmed">
               <input type="checkbox" id="edit-dropoff-booking-confirmed" class="checkbox-input">
@@ -1546,7 +1556,7 @@
 
           <div class="input-group">
             <label class="input-label" for="edit-dropoff-details">Drop-off Cab Details — optional</label>
-            <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." disabled>
+            <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc.">
           </div>
         </div>
       </section>
@@ -2185,6 +2195,8 @@
         guest.Departure,
         guest['Pickup Cab Time'],
         guest['Pickup Cab details'],
+        guest.pickupFrom,
+        guest.dropoffTo,
         guest.pickupBookingState,
         guest['Dropoff Cab Time'],
         guest['Dropoff Cab details'],
@@ -2899,91 +2911,86 @@
       cardActionSheetGuestId = '';
     }
 
+    // Cabs render like travel legs: the badge says what still needs doing,
+    // the line underneath says what the journey actually is. Previously the
+    // date lived in the badge for some states and in a shared line above for
+    // others, which left nowhere consistent to put the From/To location.
     function appendTransportDetails(card, guest) {
       const pickupRequired = Boolean(guest['Pickup Required']);
       const dropoffRequired = Boolean(guest['Dropoff Required']);
       if (!pickupRequired && !dropoffRequired) return;
 
-      const pickupState = normalizeCabBookingState(
-        guest.pickupBookingState,
-        guest['Pickup Booking Confirmed']
-      );
-      const dropoffState = normalizeCabBookingState(
-        guest.dropoffBookingState,
-        guest['Dropoff Booking Confirmed']
-      );
-      const pickupNeedsAttention = hasPriorityReason(guest, 'Pickup not arranged');
-      const dropoffNeedsAttention = hasPriorityReason(guest, 'Drop-off not arranged');
+      const entries = [];
+      if (pickupRequired) entries.push(buildCabCardEntry('pickup', guest));
+      if (dropoffRequired) entries.push(buildCabCardEntry('dropoff', guest));
 
-      const schedules = [];
-      if (guest['Pickup Cab Time'] && pickupState !== 'Requested') {
-        schedules.push(`Pickup: ${guest['Pickup Cab Time']}`);
-      }
-      if (guest['Dropoff Cab Time'] && dropoffState !== 'Requested') {
-        schedules.push(`Drop-off: ${guest['Dropoff Cab Time']}`);
-      }
-      if (schedules.length) card.appendChild(createDetailLine('icon-car', schedules.join(' | ')));
-
-      const cabBadges = createElement('div', 'badge-row');
-
-      if (pickupRequired) {
-        if (pickupState === 'Confirmed') {
-          const past = isSchedulePast(guest.pickupDate, guest.pickupMs, Boolean(guest.pickupTime));
-          cabBadges.appendChild(createBadge(
-            formatConfirmedCabLabel('Pickup', guest.pickupDate, guest.pickupTime),
-            past ? 'badge-gray' : 'badge-pickup'
-          ));
-        } else if (pickupState === 'Needs Rescheduling') {
-          cabBadges.appendChild(createBadge('Pickup needs rescheduling', 'badge-warning'));
-        } else if (pickupState === 'Needs Reconfirmation') {
-          cabBadges.appendChild(createBadge('Pickup needs reconfirmation', 'badge-cab-action'));
-        } else {
-          cabBadges.appendChild(createBadge(
-            formatCabRequestLabel('Pickup', guest.pickupDate, guest.pickupTime),
-            pickupNeedsAttention ? 'badge-action' : 'badge-cab-action'
-          ));
-        }
+      // Nothing scheduled or located on either cab yet — the badges already
+      // say everything there is to say, so keep them side by side on one row
+      // instead of spending a stacked block each to add nothing.
+      if (entries.every(entry => !entry.detail)) {
+        const row = createElement('div', 'badge-row');
+        entries.forEach(entry => row.appendChild(createBadge(entry.label, entry.badgeClass)));
+        card.appendChild(row);
+        return;
       }
 
-      if (dropoffRequired) {
-        if (dropoffState === 'Confirmed') {
-          const past = isSchedulePast(guest.dropoffDate, guest.dropoffMs, Boolean(guest.dropoffTime));
-          cabBadges.appendChild(createBadge(
-            formatConfirmedCabLabel('Drop-off', guest.dropoffDate, guest.dropoffTime),
-            past ? 'badge-gray' : 'badge-dropoff'
-          ));
-        } else if (dropoffState === 'Needs Rescheduling') {
-          cabBadges.appendChild(createBadge('Drop-off needs rescheduling', 'badge-warning'));
-        } else if (dropoffState === 'Needs Reconfirmation') {
-          cabBadges.appendChild(createBadge('Drop-off needs reconfirmation', 'badge-cab-action'));
-        } else {
-          cabBadges.appendChild(createBadge(
-            formatCabRequestLabel('Drop-off', guest.dropoffDate, guest.dropoffTime),
-            dropoffNeedsAttention ? 'badge-action' : 'badge-cab-action'
-          ));
-        }
-      }
-
-      if (cabBadges.childNodes.length) card.appendChild(cabBadges);
+      const stack = createElement('div', 'travel-stack');
+      entries.forEach(entry => {
+        const item = createElement('div', 'travel-item');
+        const row = createElement('div', 'badge-row');
+        row.appendChild(createBadge(entry.label, entry.badgeClass));
+        item.appendChild(row);
+        if (entry.detail) item.appendChild(createDetailLine('icon-car', entry.detail));
+        stack.appendChild(item);
+      });
+      card.appendChild(stack);
     }
 
-    function formatConfirmedCabLabel(label, dateValue, timeValue) {
-      if (!dateValue) return `${label} arranged — schedule pending`;
-      if (!timeValue) {
-        const moment = localDateInfo(dateValue, '', false);
-        const dateText = String(moment.display || dateValue).replace(/^[A-Za-z]{3},\s*/, '');
-        return `${label} arranged on ${dateText} — time pending`;
+    function buildCabCardEntry(type, guest) {
+      const isPickup = type === 'pickup';
+      const name = isPickup ? 'Pickup' : 'Drop-off';
+      const state = normalizeCabBookingState(
+        isPickup ? guest.pickupBookingState : guest.dropoffBookingState,
+        guest[isPickup ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed']
+      );
+      const dateValue = isPickup ? guest.pickupDate : guest.dropoffDate;
+      const timeValue = isPickup ? guest.pickupTime : guest.dropoffTime;
+      const msValue = isPickup ? guest.pickupMs : guest.dropoffMs;
+      const location = (isPickup ? guest.pickupFrom : guest.dropoffTo) || '';
+
+      let label;
+      let badgeClass;
+      if (state === 'Confirmed') {
+        const past = isSchedulePast(dateValue, msValue, Boolean(timeValue));
+        label = `${name} arranged`;
+        badgeClass = past ? 'badge-gray' : (isPickup ? 'badge-pickup' : 'badge-dropoff');
+      } else if (state === 'Needs Rescheduling') {
+        label = `${name} needs rescheduling`;
+        badgeClass = 'badge-warning';
+      } else if (state === 'Needs Reconfirmation') {
+        label = `${name} needs reconfirmation`;
+        badgeClass = 'badge-cab-action';
+      } else {
+        label = `${name} requested`;
+        badgeClass = hasPriorityReason(guest, isPickup ? 'Pickup not arranged' : 'Drop-off not arranged')
+          ? 'badge-action'
+          : 'badge-cab-action';
       }
-      return `${label} arranged`;
+
+      const parts = [];
+      if (location) parts.push(`${isPickup ? 'From' : 'To'} ${location}`);
+      // "Date not set" is only worth saying next to a location — on its own
+      // it just restates a bare "requested" badge.
+      if (dateValue) parts.push(formatCabScheduleText(dateValue, timeValue));
+      else if (location) parts.push('Date not set');
+
+      return { label, badgeClass, detail: parts.join(' · ') };
     }
 
-    function formatCabRequestLabel(label, dateValue, timeValue) {
-      if (!dateValue) return `${label} requested`;
-
-      const moment = localDateInfo(dateValue, timeValue, false);
-      const display = String(moment.display || dateValue)
-        .replace(/^[A-Za-z]{3},\s*/, '');
-      return `${label} requested on ${display}`;
+    function formatCabScheduleText(dateValue, timeValue) {
+      const info = localDateInfo(dateValue, timeValue || '', false);
+      const display = String(info.display || dateValue);
+      return timeValue ? display : `${display} · time not set`;
     }
 
     function appendRequiredTravelDetails(card, guest) {
@@ -3319,6 +3326,7 @@
       $(`${prefix}-booking-label`).textContent = 'Cab booking confirmed';
       $(`label-${prefix}-booking-confirmed`).classList.add('disabled-label');
       $(`edit-${prefix}-details`).disabled = true;
+      $(`edit-${prefix}-${prefix === 'pickup' ? 'from' : 'to'}`).disabled = true;
     }
 
     function initializeCabBookingEditorState(type, guest) {
@@ -3402,6 +3410,8 @@
       $('edit-dropoff-required').dataset.originalChecked = 'false';
       $('edit-pickup-details').dataset.originalValue = '';
       $('edit-dropoff-details').dataset.originalValue = '';
+      $('edit-pickup-from').dataset.originalValue = '';
+      $('edit-dropoff-to').dataset.originalValue = '';
       resetCabBookingEditorState('pickup');
       resetCabBookingEditorState('dropoff');
       $('pickup-warning').textContent = '';
@@ -3441,6 +3451,8 @@
         $('edit-pickup-time').dataset.originalValue = guest.pickupTime || '';
         $('edit-pickup-details').value = guest['Pickup Cab details'] || '';
         $('edit-pickup-details').dataset.originalValue = guest['Pickup Cab details'] || '';
+        $('edit-pickup-from').value = guest.pickupFrom || '';
+        $('edit-pickup-from').dataset.originalValue = guest.pickupFrom || '';
         initializeCabBookingEditorState('pickup', guest);
         $('edit-dropoff-required').checked = Boolean(guest['Dropoff Required']);
         $('edit-dropoff-required').dataset.originalChecked = String(Boolean(guest['Dropoff Required']));
@@ -3450,6 +3462,8 @@
         $('edit-dropoff-time').dataset.originalValue = guest.dropoffTime || '';
         $('edit-dropoff-details').value = guest['Dropoff Cab details'] || '';
         $('edit-dropoff-details').dataset.originalValue = guest['Dropoff Cab details'] || '';
+        $('edit-dropoff-to').value = guest.dropoffTo || '';
+        $('edit-dropoff-to').dataset.originalValue = guest.dropoffTo || '';
         initializeCabBookingEditorState('dropoff', guest);
         setRoomRows(guest.Rooms || []);
         renderTravelLegEditors(guest.travelLegs || []);
@@ -3474,6 +3488,7 @@
         $('edit-pickup-date').dataset.originalValue = '';
         $('edit-pickup-time').dataset.originalValue = '';
         $('edit-pickup-details').value = '';
+        $('edit-pickup-from').value = '';
         initializeCabBookingEditorState('pickup', null);
         $('edit-dropoff-required').checked = false;
         $('edit-dropoff-date').value = '';
@@ -3481,6 +3496,7 @@
         $('edit-dropoff-date').dataset.originalValue = '';
         $('edit-dropoff-time').dataset.originalValue = '';
         $('edit-dropoff-details').value = '';
+        $('edit-dropoff-to').value = '';
         initializeCabBookingEditorState('dropoff', null);
         setRoomRows([]);
         renderTravelLegEditors([]);
@@ -3880,6 +3896,7 @@
         $(`edit-${prefix}-date`).value = '';
         $(`edit-${prefix}-time`).value = '';
         $(`edit-${prefix}-details`).value = '';
+        $(`edit-${prefix}-${prefix === 'pickup' ? 'from' : 'to'}`).value = '';
         const booking = $(`edit-${prefix}-booking-confirmed`);
         booking.checked = false;
         booking.dataset.confirmationIntent = 'none';
@@ -3897,10 +3914,12 @@
       const booking = $(`edit-${prefix}-booking-confirmed`);
       const originalState = booking.dataset.originalState || 'Requested';
 
+      const location = $(`edit-${prefix}-${type === 'pickup' ? 'from' : 'to'}`);
       required.checked = required.dataset.originalChecked === 'true';
       date.value = date.dataset.originalValue || '';
       time.value = time.dataset.originalValue || '';
       details.value = details.dataset.originalValue || '';
+      location.value = location.dataset.originalValue || '';
       booking.checked = originalState === 'Confirmed';
       booking.dataset.confirmationIntent = originalState === 'Confirmed'
         ? 'confirm'
@@ -4085,9 +4104,14 @@
       booking.disabled = !canConfirm;
       $(`label-${prefix}-booking-confirmed`).classList.toggle('disabled-label', !canConfirm);
 
-      const preservingExistingBooking = booking.dataset.confirmationIntent === 'preserve'
-        && originalConfirmed;
-      details.disabled = locked || !required.checked || (!booking.checked && !preservingExistingBooking);
+      // Details and the From/To location are notes you gather *while*
+      // arranging — you learn the driver's name and the terminal on the
+      // phone call that hasn't produced a confirmed booking yet. Gating them
+      // behind the confirm tick (as details used to be) inverted the real
+      // order of events, so both are editable as soon as the cab is required.
+      const canAnnotate = !locked && required.checked;
+      details.disabled = !canAnnotate;
+      $(`edit-${prefix}-${type === 'pickup' ? 'from' : 'to'}`).disabled = !canAnnotate;
 
       if (locked) {
         setTransportMessage(
@@ -4325,6 +4349,8 @@
       const originalDropoffDate = $('edit-dropoff-date').dataset.originalValue || '';
       const originalDropoffTime = $('edit-dropoff-time').dataset.originalValue || '';
       const originalDropoffDetails = $('edit-dropoff-details').dataset.originalValue || '';
+      const originalPickupFrom = $('edit-pickup-from').dataset.originalValue || '';
+      const originalDropoffTo = $('edit-dropoff-to').dataset.originalValue || '';
       const pickupBooking = $('edit-pickup-booking-confirmed');
       const dropoffBooking = $('edit-dropoff-booking-confirmed');
       const pickupEffectiveConfirmed = pickupBooking.dataset.confirmationIntent === 'preserve'
@@ -4337,11 +4363,13 @@
         && pickupDateValue === originalPickupDate
         && pickupTimeValue === originalPickupTime
         && $('edit-pickup-details').value.trim() === originalPickupDetails
+        && $('edit-pickup-from').value.trim() === originalPickupFrom
         && pickupEffectiveConfirmed === (pickupBooking.dataset.originalConfirmed === 'true');
       const dropoffUnchanged = dropoffRequired === originalDropoffRequired
         && dropoffDateValue === originalDropoffDate
         && dropoffTimeValue === originalDropoffTime
         && $('edit-dropoff-details').value.trim() === originalDropoffDetails
+        && $('edit-dropoff-to').value.trim() === originalDropoffTo
         && dropoffEffectiveConfirmed === (dropoffBooking.dataset.originalConfirmed === 'true');
 
       if (!validateCabEditorBeforeSave('pickup') || !validateCabEditorBeforeSave('dropoff')) return;
@@ -4430,11 +4458,13 @@
       $('edit-pickup-date').value = payload.pickupDate || '';
       $('edit-pickup-time').value = payload.pickupTime || '';
       $('edit-pickup-details').value = payload.pickupDetails || '';
+      $('edit-pickup-from').value = payload.pickupFrom || '';
 
       $('edit-dropoff-required').checked = Boolean(payload.dropoffRequired);
       $('edit-dropoff-date').value = payload.dropoffDate || '';
       $('edit-dropoff-time').value = payload.dropoffTime || '';
       $('edit-dropoff-details').value = payload.dropoffDetails || '';
+      $('edit-dropoff-to').value = payload.dropoffTo || '';
 
       renderTravelLegEditors(Array.isArray(payload.travelLegs) ? payload.travelLegs : []);
       handleDateChange();
@@ -4460,6 +4490,7 @@
         pickupDate: pickupRequired ? $('edit-pickup-date').value : '',
         pickupTime: pickupRequired ? $('edit-pickup-time').value : '',
         pickupDetails: pickupRequired ? $('edit-pickup-details').value.trim() : '',
+        pickupFrom: pickupRequired ? $('edit-pickup-from').value.trim() : '',
         pickupBookingConfirmed: pickupRequired ? $('edit-pickup-booking-confirmed').checked : false,
         pickupConfirmationIntent: pickupRequired
           ? ($('edit-pickup-booking-confirmed').dataset.confirmationIntent || 'none')
@@ -4468,6 +4499,7 @@
         dropoffDate: dropoffRequired ? $('edit-dropoff-date').value : '',
         dropoffTime: dropoffRequired ? $('edit-dropoff-time').value : '',
         dropoffDetails: dropoffRequired ? $('edit-dropoff-details').value.trim() : '',
+        dropoffTo: dropoffRequired ? $('edit-dropoff-to').value.trim() : '',
         dropoffBookingConfirmed: dropoffRequired ? $('edit-dropoff-booking-confirmed').checked : false,
         dropoffConfirmationIntent: dropoffRequired
           ? ($('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none')
@@ -4516,11 +4548,13 @@
         'Pickup Required': Boolean(payload.pickupRequired),
         'Pickup Cab Time': payload.pickupRequired ? pickup.display : '',
         'Pickup Cab details': payload.pickupRequired ? payload.pickupDetails : '',
+        pickupFrom: payload.pickupRequired ? payload.pickupFrom : '',
         'Pickup Booking Confirmed': pickupBooking.confirmed,
         pickupBookingState: pickupBooking.state,
         'Dropoff Required': Boolean(payload.dropoffRequired),
         'Dropoff Cab Time': payload.dropoffRequired ? dropoff.display : '',
         'Dropoff Cab details': payload.dropoffRequired ? payload.dropoffDetails : '',
+        dropoffTo: payload.dropoffRequired ? payload.dropoffTo : '',
         'Dropoff Booking Confirmed': dropoffBooking.confirmed,
         dropoffBookingState: dropoffBooking.state,
         arrivalDate: payload.arrivalDate,
