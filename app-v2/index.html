@@ -512,6 +512,11 @@
     .badge-blue { background: rgba(41, 128, 185, 0.2); color: #6fbaf0; }
     .badge-purple { background: rgba(155, 89, 182, 0.2); color: var(--purple); }
     .badge-gray { background: rgba(149, 165, 166, 0.18); color: #bdc3c7; }
+    /* Silver, for the "Others" status. Carries a border and a brighter, cooler
+       tone than badge-gray above — the two are both grey-family and can land
+       on the same card (an "Others" guest whose cab has already passed), so
+       they need to stay tellable apart. */
+    .badge-silver { border: 1px solid rgba(203, 213, 225, 0.45); background: rgba(203, 213, 225, 0.16); color: #dfe6ee; }
     .badge-pink { border: 1px solid rgba(255, 118, 117, 0.3); background: rgba(255, 118, 117, 0.14); color: var(--pink); }
     /* Room tiers share --purple with the Visiting Guest status badge, kept
        collision-free by construction — see the --purple-light/deep comment
@@ -1120,14 +1125,19 @@
        rooms, or a group label like "Tibetan Monks" needing several) — same
        repeatable-row interaction as the Travel Itinerary list above, just
        with a single field per row instead of a whole leg's worth. */
-    #room-group { margin-top: 5px; }
+    /* This block sits between two ordinary fields, and its "+ Add room"
+       button is 34px tall against an 18px label — with only the default
+       spacing the button crowded both the field above and the room list
+       below. The margin-top has to beat the previous field's 15px bottom
+       margin, since adjacent siblings collapse to the larger of the two. */
+    #room-group { margin-top: 22px; }
 
     .room-group-header {
       display: flex;
       gap: 12px;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
     .room-group-header .input-label { margin-bottom: 0; }
@@ -1390,6 +1400,7 @@
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="invited guest">Invited Guest</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="visiting guest">Visiting Guest</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="friend">Friend</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="others">Others</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="flight">Flight</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="train">Train</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="bus">Bus</button>
@@ -1443,6 +1454,7 @@
             <option value="Invited Guest">Invited Guest</option>
             <option value="Friend">Friend</option>
             <option value="Visiting Guest">Visiting Guest</option>
+            <option value="Others">Others</option>
           </select>
         </div>
 
@@ -2768,11 +2780,11 @@
       card.appendChild(createElement('div', 'guest-name', guest.Name || 'Unnamed Guest'));
 
       const topBadges = createElement('div', 'badge-row');
-      const statusClass = guest.Status === 'Friend'
-        ? 'badge-blue'
-        : guest.Status === 'Visiting Guest'
-          ? 'badge-purple'
-          : 'badge-salmon';
+      const statusClass = ({
+        Friend: 'badge-blue',
+        'Visiting Guest': 'badge-purple',
+        Others: 'badge-silver'
+      })[guest.Status] || 'badge-salmon';
       topBadges.appendChild(createBadge(guest.Status || 'Invited Guest', statusClass));
 
       if (guest.Room && guest.roomCategory) {
