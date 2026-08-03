@@ -754,7 +754,10 @@
     }
 
     .conditional-fields.expanded {
-      max-height: 600px;
+      /* Only a ceiling for the open/close transition, never a real limit —
+         but it clips silently if content ever outgrows it, so there's
+         deliberate headroom over the ~390px the tallest block currently uses. */
+      max-height: 900px;
       opacity: 1;
     }
 
@@ -790,13 +793,6 @@
       grid-template-columns: minmax(0, 1fr) minmax(120px, 0.65fr);
       gap: 10px;
     }
-
-    /* Side-by-side on desktop, the date field's own label plus the native
-       clock icon on the time input are enough context — this stays hidden
-       there. Only shown once the mobile breakpoint below stacks the time
-       input under the date input, where on its own it otherwise reads as an
-       unlabeled, mysterious empty box. */
-    .date-time-mobile-label { display: none; }
 
     .checkbox-row {
       display: flex;
@@ -945,9 +941,23 @@
     }
 
     .section-divider {
-      margin: 20px 0;
-      padding-top: 17px;
+      margin: 14px 0;
+      padding-top: 14px;
       border-top: 1px solid #404040;
+    }
+
+    /* The From/To location is part of the schedule above it, not a preamble
+       to the confirmation below — so it hugs the date row and takes a
+       deliberate break before the checkbox. */
+    .cab-schedule-group { margin-bottom: 9px; }
+    .cab-location-group { margin-bottom: 20px; }
+
+    /* Reserved height stops the form jumping when a validation message
+       appears — but only earns that space once there's a message. Empty, it
+       was wedging 24px between a schedule and the field that belongs to it. */
+    .field-message:empty {
+      min-height: 0;
+      margin-top: 0;
     }
 
     .field-message {
@@ -1309,14 +1319,16 @@
       .zone-description { display: none; }
       .modal-content { padding: 20px 16px; }
       .modal-section-nav::before { left: -16px; right: -16px; }
-      .date-time-row,
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
-      .date-time-mobile-label {
-        display: block;
-        margin: 2px 0 -4px;
-        color: var(--subtle);
-        font-size: 0.78rem;
+      /* Date and time stay side by side rather than stacking — stacking cost
+         125px a row against 64px here, and with four such rows that was most
+         of the modal's scroll. The pair reads as date-then-time on its own
+         (the time field carries a clock icon), same as desktop, so neither
+         needs its own caption. Verified no clipping down to 320px. */
+      .date-time-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
       }
     }
   </style>
@@ -1455,8 +1467,7 @@
         <div class="input-group">
           <label class="input-label" for="edit-arrival-date">Arrival</label>
           <div class="date-time-row">
-            <input type="date" id="edit-arrival-date" class="edit-input">
-            <span class="date-time-mobile-label">Time</span>
+            <input type="date" id="edit-arrival-date" class="edit-input" aria-label="Arrival date">
             <input type="time" id="edit-arrival-time" class="edit-input" aria-label="Arrival time">
           </div>
         </div>
@@ -1464,8 +1475,7 @@
         <div class="input-group">
           <label class="input-label" for="edit-departure-date">Departure</label>
           <div class="date-time-row">
-            <input type="date" id="edit-departure-date" class="edit-input">
-            <span class="date-time-mobile-label">Time</span>
+            <input type="date" id="edit-departure-date" class="edit-input" aria-label="Departure date">
             <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
           </div>
         </div>
@@ -1496,31 +1506,30 @@
         </div>
 
         <div id="pickup-fields" class="conditional-fields">
-          <div class="input-group">
-            <label class="input-label" for="edit-pickup-date">Pickup Cab — Date &amp; Time</label>
+          <div class="input-group cab-schedule-group">
+            <label class="input-label" for="edit-pickup-date">Cab</label>
             <div class="date-time-row">
-              <input type="date" id="edit-pickup-date" class="edit-input">
-              <span class="date-time-mobile-label">Time</span>
+              <input type="date" id="edit-pickup-date" class="edit-input" aria-label="Pickup date">
               <input type="time" id="edit-pickup-time" class="edit-input" aria-label="Pickup time">
             </div>
             <div id="pickup-warning" class="field-message" aria-live="polite"></div>
           </div>
 
-          <div class="input-group">
-            <label class="input-label" for="edit-pickup-from">Pickup From — optional</label>
-            <input type="text" id="edit-pickup-from" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc.">
+          <div class="input-group cab-location-group">
+            <label class="input-label" for="edit-pickup-from">From</label>
+            <input type="text" id="edit-pickup-from" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc." aria-label="Pickup from">
           </div>
 
           <div class="transport-requirement cab-confirmation">
             <label class="checkbox-label" id="label-pickup-booking-confirmed" for="edit-pickup-booking-confirmed">
               <input type="checkbox" id="edit-pickup-booking-confirmed" class="checkbox-input">
-              <span id="pickup-booking-label">Cab booking confirmed</span>
+              <span id="pickup-booking-label">Pickup booking confirmed</span>
             </label>
           </div>
 
           <div class="input-group">
-            <label class="input-label" for="edit-pickup-details">Pickup Cab Details — optional</label>
-            <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc.">
+            <label class="input-label" for="edit-pickup-details">Details</label>
+            <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Pickup details">
           </div>
         </div>
 
@@ -1532,31 +1541,30 @@
         </div>
 
         <div id="dropoff-fields" class="conditional-fields">
-          <div class="input-group">
-            <label class="input-label" for="edit-dropoff-date">Drop-off Cab — Date &amp; Time</label>
+          <div class="input-group cab-schedule-group">
+            <label class="input-label" for="edit-dropoff-date">Cab</label>
             <div class="date-time-row">
-              <input type="date" id="edit-dropoff-date" class="edit-input">
-              <span class="date-time-mobile-label">Time</span>
+              <input type="date" id="edit-dropoff-date" class="edit-input" aria-label="Drop-off date">
               <input type="time" id="edit-dropoff-time" class="edit-input" aria-label="Drop-off time">
             </div>
             <div id="dropoff-warning" class="field-message" aria-live="polite"></div>
           </div>
 
-          <div class="input-group">
-            <label class="input-label" for="edit-dropoff-to">Drop-off To — optional</label>
-            <input type="text" id="edit-dropoff-to" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc.">
+          <div class="input-group cab-location-group">
+            <label class="input-label" for="edit-dropoff-to">To</label>
+            <input type="text" id="edit-dropoff-to" class="edit-input" maxlength="500" placeholder="Airport, station, hotel, etc." aria-label="Drop-off to">
           </div>
 
           <div class="transport-requirement cab-confirmation">
             <label class="checkbox-label" id="label-dropoff-booking-confirmed" for="edit-dropoff-booking-confirmed">
               <input type="checkbox" id="edit-dropoff-booking-confirmed" class="checkbox-input">
-              <span id="dropoff-booking-label">Cab booking confirmed</span>
+              <span id="dropoff-booking-label">Drop-off booking confirmed</span>
             </label>
           </div>
 
           <div class="input-group">
-            <label class="input-label" for="edit-dropoff-details">Drop-off Cab Details — optional</label>
-            <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc.">
+            <label class="input-label" for="edit-dropoff-details">Details</label>
+            <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Drop-off details">
           </div>
         </div>
       </section>
@@ -3323,10 +3331,18 @@
       checkbox.dataset.originalFingerprint = '';
       checkbox.dataset.confirmedFingerprint = '';
       checkbox.dataset.reconfirmWarned = 'false';
-      $(`${prefix}-booking-label`).textContent = 'Cab booking confirmed';
+      $(`${prefix}-booking-label`).textContent = cabBookingLabelText(type, false);
       $(`label-${prefix}-booking-confirmed`).classList.add('disabled-label');
       $(`edit-${prefix}-details`).disabled = true;
       $(`edit-${prefix}-${prefix === 'pickup' ? 'from' : 'to'}`).disabled = true;
+    }
+
+    // Named per direction rather than a generic "Cab booking confirmed" —
+    // both cabs carry this checkbox, and once the section header has scrolled
+    // off there was nothing on screen saying which one you were ticking.
+    function cabBookingLabelText(type, needsReconfirmation) {
+      const name = type === 'pickup' ? 'Pickup' : 'Drop-off';
+      return `${name} booking ${needsReconfirmation ? 'reconfirmed' : 'confirmed'}`;
     }
 
     function initializeCabBookingEditorState(type, guest) {
@@ -3352,9 +3368,7 @@
         ? 'preserve'
         : (confirmed ? 'confirm' : 'none');
       checkbox.checked = state === 'Confirmed';
-      $(`${prefix}-booking-label`).textContent = needsReview && confirmed
-        ? 'Cab booking reconfirmed'
-        : 'Cab booking confirmed';
+      $(`${prefix}-booking-label`).textContent = cabBookingLabelText(type, needsReview && confirmed);
     }
 
     function getCabScheduleFingerprint(type) {
@@ -4062,9 +4076,7 @@
         || originalState === 'Needs Rescheduling'
       );
 
-      bookingLabel.textContent = needsReconfirmationLabel
-        ? 'Cab booking reconfirmed'
-        : 'Cab booking confirmed';
+      bookingLabel.textContent = cabBookingLabelText(type, needsReconfirmationLabel);
 
       // Surface the live transition (an edit just knocked a confirmed
       // booking back to "needs reconfirmation") as a toast, not only the
