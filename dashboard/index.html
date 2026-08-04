@@ -18,28 +18,32 @@
       margin: 0;
       padding: 0;
       background: #121212;
-      color: #eeeeee;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
     }
-    .loading {
-      display: flex;
+    iframe {
+      display: block;
       width: 100%;
-      height: 100%;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.95rem;
+      height: 100vh;
+      border: 0;
     }
-    a { color: #69b7ed; }
   </style>
 </head>
 <body>
-  <div class="loading">
-    <noscript><a href="https://script.google.com/macros/s/AKfycbxQqYa--L7DTNXONCxwDXpjJ7KoY4CnuHJVWJE67JfvZX9glEI62VKmPvE_ZkVwNIyq/exec">Open Guest Dashboard</a></noscript>
-  </div>
-  <script>
-    window.location.replace(
-      "https://script.google.com/macros/s/AKfycbxQqYa--L7DTNXONCxwDXpjJ7KoY4CnuHJVWJE67JfvZX9glEI62VKmPvE_ZkVwNIyq/exec"
-    );
-  </script>
+  <!-- Embedded rather than redirected to on purpose. A redirect makes
+       script.google.com the top-level page, which falls outside this app's
+       manifest scope — the browser then shows an address bar and Apps Script
+       adds its "created by a Google Apps Script user" banner, so the
+       installed app stops looking like an app. Keeping it in an iframe holds
+       the top-level document on this origin and avoids both.
+
+       The full app has to use a redirect instead, because Google refuses to
+       render its sign-in inside a third-party iframe. That does not apply
+       here: this dashboard is public and never asks anyone to sign in. If it
+       ever gains a sign-in requirement, this must go back to a redirect. -->
+  <iframe
+    src="https://script.google.com/macros/s/AKfycbxQqYa--L7DTNXONCxwDXpjJ7KoY4CnuHJVWJE67JfvZX9glEI62VKmPvE_ZkVwNIyq/exec"
+    title="Ajatananda Ashram Guest Viewer"
+    allow="clipboard-write"
+  ></iframe>
 </body>
 </html>
