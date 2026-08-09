@@ -589,7 +589,7 @@
       fill: currentColor;
     }
 
-    #modal {
+    #modal, #seva-teams-modal {
       display: none;
       position: fixed;
       z-index: 100;
@@ -728,7 +728,7 @@
        of partially behind it — the browser has no built-in awareness that
        a pinned sticky sibling will cover the first ~54px of whatever
        scrolls to the very top. */
-    #sec-guest, #sec-stay, #sec-cabs, #sec-travel {
+    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-cabs, #sec-travel {
       scroll-margin-top: 76px;
     }
 
@@ -822,6 +822,47 @@
     }
 
     .checkbox-label.disabled-label { color: #5f5f5f; cursor: not-allowed; }
+
+    /* Vertical, not the horizontal-wrap .checkbox-row — team names and their
+       status/date text run too long to sit side by side comfortably, and
+       the list length varies with how many teams exist. */
+    .seva-team-checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .seva-team-checkbox-list .checkbox-label {
+      align-items: flex-start;
+    }
+
+    .seva-team-checkbox-label-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .seva-team-checkbox-meta {
+      color: var(--subtle);
+      font-size: 0.78rem;
+    }
+
+    .seva-team-roster {
+      display: flex;
+      margin: 2px 0 10px;
+      gap: 6px;
+      flex-direction: column;
+    }
+
+    .seva-team-roster-item {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .seva-team-row-actions {
+      display: flex;
+      gap: 8px;
+    }
 
     .checkbox-input {
       width: 16px;
@@ -1395,6 +1436,9 @@
         <input type="search" id="search-bar" placeholder="Search guests, rooms, travel, or dates..." aria-label="Search guests">
         <button id="search-clear-btn" class="search-clear-btn" type="button" aria-label="Clear search" hidden>&times;</button>
       </div>
+      <button id="seva-teams-btn" class="icon-button" type="button" aria-label="Manage Seva Teams" title="Manage Seva Teams">
+        <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
+      </button>
       <button id="notif-btn" class="icon-button" type="button" aria-label="Enable notifications" title="Enable notifications">
         <svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
       </button>
@@ -1457,6 +1501,7 @@
         <button type="button" class="section-nav-pill active" data-target="sec-guest">Guest</button>
         <button type="button" class="section-nav-pill" data-target="sec-stay">Stay</button>
         <button type="button" class="section-nav-pill" data-target="sec-accommodation">Accommodation</button>
+        <button type="button" class="section-nav-pill" data-target="sec-seva">Seva</button>
         <button type="button" class="section-nav-pill" data-target="sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="sec-travel">Travel</button>
       </div>
@@ -1495,6 +1540,42 @@
             <input type="checkbox" id="edit-cform" class="checkbox-input">
             C-form complete
           </label>
+        </div>
+
+        <div id="invited-purpose-group" class="conditional-fields">
+          <div class="input-group">
+            <label class="input-label">Purpose</label>
+            <div class="checkbox-row">
+              <label class="checkbox-label" for="edit-purpose-discourse">
+                <input type="checkbox" id="edit-purpose-discourse" class="checkbox-input purpose-checkbox" data-purpose="Discourse">
+                Discourse
+              </label>
+              <label class="checkbox-label" for="edit-purpose-kirtan">
+                <input type="checkbox" id="edit-purpose-kirtan" class="checkbox-input purpose-checkbox" data-purpose="Kirtan/Music">
+                Kirtan/Music
+              </label>
+              <label class="checkbox-label" for="edit-purpose-interreligious">
+                <input type="checkbox" id="edit-purpose-interreligious" class="checkbox-input purpose-checkbox" data-purpose="Interreligious Presence">
+                Interreligious Presence
+              </label>
+              <label class="checkbox-label" for="edit-purpose-official">
+                <input type="checkbox" id="edit-purpose-official" class="checkbox-input purpose-checkbox" data-purpose="Official/Diplomatic">
+                Official/Diplomatic
+              </label>
+              <label class="checkbox-label" for="edit-purpose-other">
+                <input type="checkbox" id="edit-purpose-other" class="checkbox-input purpose-checkbox" data-purpose="Other">
+                Other
+              </label>
+            </div>
+            <input type="text" id="edit-purpose-other-text" class="edit-input" maxlength="500" placeholder="Describe the purpose" aria-label="Other purpose description" autocomplete="off" hidden>
+          </div>
+        </div>
+
+        <div id="event-staff-assignment-group" class="conditional-fields">
+          <div class="input-group">
+            <label class="input-label" for="edit-staff-assignment">Assignment</label>
+            <input type="text" id="edit-staff-assignment" class="edit-input" maxlength="500" placeholder="Cook, Sound Technician, Driver, etc." autocomplete="off">
+          </div>
         </div>
       </section>
 
@@ -1567,6 +1648,18 @@
             <label class="input-label" for="edit-self-arranged-staying-at">Staying at</label>
             <input type="text" id="edit-self-arranged-staying-at" class="edit-input" maxlength="500" placeholder="Optional" autocomplete="off">
           </div>
+        </div>
+      </section>
+
+      <section class="form-section" id="sec-seva" aria-labelledby="seva-section-title">
+        <h3 id="seva-section-title" class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-people"></use></svg>
+          Seva
+        </h3>
+        <div class="input-group">
+          <label class="input-label">Seva Team membership</label>
+          <div id="guest-seva-teams-list" class="seva-team-checkbox-list"></div>
+          <div id="guest-seva-teams-empty" class="travel-empty">No Seva Teams have been created yet.</div>
         </div>
       </section>
 
@@ -1667,6 +1760,51 @@
     </div>
   </div>
 
+  <div id="seva-teams-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seva-teams-modal-title">
+      <div class="modal-header">
+        <h2 id="seva-teams-modal-title">Seva Teams</h2>
+        <div class="modal-header-actions">
+          <button id="seva-teams-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="seva-team-form" class="form-section" hidden>
+        <input type="hidden" id="edit-seva-team-id">
+        <div class="input-group">
+          <label class="input-label" for="edit-seva-team-name">Event/Programme Name</label>
+          <input type="text" id="edit-seva-team-name" class="edit-input" maxlength="500" autocomplete="off">
+        </div>
+        <div class="input-group">
+          <div class="date-time-row">
+            <div>
+              <label class="input-label" for="edit-seva-team-start">Start date</label>
+              <input type="date" id="edit-seva-team-start" class="edit-input">
+            </div>
+            <div>
+              <label class="input-label" for="edit-seva-team-end">End date</label>
+              <input type="date" id="edit-seva-team-end" class="edit-input">
+            </div>
+          </div>
+        </div>
+        <div id="seva-team-form-message" class="field-message" aria-live="polite"></div>
+        <div class="seva-team-row-actions">
+          <button id="seva-team-save-btn" type="button">Save Team</button>
+          <button id="seva-team-cancel-btn" type="button" class="travel-remove-btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="travel-section-header">
+        <h3 class="travel-section-title">Teams</h3>
+        <button id="add-seva-team-btn" class="travel-add-btn" type="button">+ Add Seva Team</button>
+      </div>
+      <div id="seva-teams-list" class="travel-leg-list"></div>
+      <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
+    </div>
+  </div>
+
   <div id="toast-container" aria-live="assertive"></div>
 
   <div id="card-action-sheet" class="card-action-sheet" hidden>
@@ -1700,6 +1838,7 @@
     <symbol id="icon-other" viewBox="0 0 24 24"><path d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 6H14a4 4 0 0 1 4 4v2h-2v-2a2 2 0 0 0-2-2H8.5V6zM15.5 18H10a4 4 0 0 1-4-4v-2h2v2a2 2 0 0 0 2 2h5.5v2z"/></symbol>
     <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.09 0-7.19 3.72-6.39 7.69L3 9v7h7l-2.87-2.87C6.4 10.04 8.74 7 12 7c1.38 0 2.63.56 3.54 1.46L13 11h7V4l-2.35 2.35zM6.35 17.65C7.8 19.1 9.79 20 12 20c4.09 0 7.19-3.72 6.39-7.69L21 15V8h-7l2.87 2.87C17.6 13.96 15.26 17 12 17c-1.38 0-2.63-.56-3.54-1.46L11 13H4v7l2.35-2.35z"/></symbol>
     <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
+    <symbol id="icon-people" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></symbol>
     <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
@@ -1733,6 +1872,7 @@
 
     let activeTier = 1;
     let allGuests = [];
+    let allSevaTeams = [];
     let roomInventory = [];
     let pendingGuestIds = new Set();
     let deleteTimeout = null;
@@ -2074,6 +2214,12 @@
       $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
       $('edit-foreign').addEventListener('change', toggleCForm);
       $('edit-accommodation').addEventListener('change', toggleAccommodationFields);
+      $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
+      $('edit-person-type').addEventListener('change', toggleCabTravelSections);
+      $('edit-person-type').addEventListener('change', toggleSevaSectionVisibility);
+      [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
+        box.addEventListener('change', updatePurposeOtherVisibility);
+      });
       $('edit-arrival-date').addEventListener('input', handleDateChange);
       $('edit-arrival-time').addEventListener('input', handleDateChange);
       $('edit-departure-date').addEventListener('input', handleDateChange);
@@ -2092,6 +2238,15 @@
         if (event.target === $('modal')) requestCloseModal();
       });
 
+      $('seva-teams-btn').addEventListener('click', openSevaTeamsModal);
+      $('seva-teams-close-btn').addEventListener('click', closeSevaTeamsModal);
+      $('seva-teams-modal').addEventListener('click', event => {
+        if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
+      });
+      $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
+      $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
+      $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
+
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
         if (!$('card-action-sheet').hidden) {
@@ -2104,6 +2259,10 @@
         }
         if ($('room-list').querySelector('.room-custom-list:not([hidden])')) {
           closeAllRoomRowLists();
+          return;
+        }
+        if ($('seva-teams-modal').style.display === 'flex') {
+          closeSevaTeamsModal();
           return;
         }
         if (modalIsOpen) requestCloseModal();
@@ -2164,6 +2323,7 @@
       roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
       appTimezone = String(data && data.timezone || '');
       roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
+      allSevaTeams = Array.isArray(data && data.sevaTeams) ? data.sevaTeams : [];
       allGuests = (Array.isArray(data && data.guests) ? data.guests : [])
         .map(prepareGuestForDisplay);
       sortGuestsLocally();
@@ -2173,6 +2333,218 @@
       $('loading').style.display = 'none';
       updateLastRefreshed(data && data.generatedAt);
       renderApp();
+      // The Seva Teams screen is a separate surface from the guest cards —
+      // if it's open when a refresh lands (e.g. right after saving a team),
+      // reflect the new data there too instead of leaving it stale until
+      // the next manual open.
+      if ($('seva-teams-modal').style.display === 'flex') renderSevaTeamsList();
+    }
+
+    // ============================================================
+    // Seva Teams — a shared entity, managed from its own screen rather than
+    // per-guest. Membership itself is set from the guest edit modal (see
+    // renderGuestSevaTeamCheckboxes below); this block only owns the teams
+    // themselves (create/edit/delete/roster).
+    // ============================================================
+
+    function computeSevaTeamStatus(team, nowMs) {
+      const startMs = finiteTimestamp(team.startMs);
+      const endMs = finiteTimestamp(team.endMs);
+      if (startMs !== null && nowMs < startMs) return 'Seva not started';
+      if (endMs !== null && nowMs > endMs) return 'Seva completed';
+      return 'Seva active';
+    }
+
+    // Never stored — recomputed on every render from whoever currently lists
+    // this team in their own sevaTeamIds, same live-derivation pattern as
+    // findRoomSharingPartners.
+    function getSevaTeamMembers(teamId) {
+      return allGuests.filter(guest => Array.isArray(guest.sevaTeamIds) && guest.sevaTeamIds.includes(teamId));
+    }
+
+    function openSevaTeamsModal() {
+      closeSevaTeamForm();
+      renderSevaTeamsList();
+      $('seva-teams-modal').style.display = 'flex';
+      $('seva-teams-modal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeSevaTeamsModal() {
+      $('seva-teams-modal').style.display = 'none';
+      $('seva-teams-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function renderSevaTeamsList() {
+      const list = $('seva-teams-list');
+      list.replaceChildren();
+      const sorted = allSevaTeams.slice().sort((a, b) => {
+        const aMs = finiteTimestamp(a.startMs);
+        const bMs = finiteTimestamp(b.startMs);
+        if (aMs === null && bMs === null) return 0;
+        if (aMs === null) return 1;
+        if (bMs === null) return -1;
+        return aMs - bMs;
+      });
+      sorted.forEach(team => list.appendChild(createSevaTeamRow(team)));
+      $('seva-teams-empty').hidden = sorted.length > 0;
+    }
+
+    function createSevaTeamRow(team) {
+      const nowMs = Date.now();
+      const status = computeSevaTeamStatus(team, nowMs);
+      const members = getSevaTeamMembers(team.teamId);
+      const dateRange = [team.startDate, team.endDate].filter(Boolean).join(' – ');
+
+      const row = createElement('div', 'travel-leg-editor');
+      row.dataset.teamId = team.teamId;
+
+      const summary = createElement('div', 'travel-leg-summary');
+      const summaryText = createElement('div', 'travel-leg-summary-text');
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('class', 'icon');
+      icon.setAttribute('aria-hidden', 'true');
+      const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      iconUse.setAttribute('href', '#icon-people');
+      icon.appendChild(iconUse);
+      summaryText.appendChild(icon);
+      const memberCountText = `${members.length} member${members.length === 1 ? '' : 's'}`;
+      summaryText.appendChild(createElement('span', '', `${team.name} · ${dateRange || 'dates TBD'} · ${status} · ${memberCountText}`));
+
+      const summaryActions = createElement('div', 'travel-leg-summary-actions');
+      const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      chevron.setAttribute('class', 'icon travel-leg-chevron');
+      chevron.setAttribute('aria-hidden', 'true');
+      const chevronUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      chevronUse.setAttribute('href', '#icon-chevron-down');
+      chevron.appendChild(chevronUse);
+      summaryActions.appendChild(chevron);
+
+      summary.appendChild(summaryText);
+      summary.appendChild(summaryActions);
+
+      const details = createElement('div', 'travel-leg-details conditional-fields');
+      const roster = createElement('div', 'seva-team-roster');
+      if (members.length) {
+        members.forEach(guest => roster.appendChild(createElement('div', 'seva-team-roster-item', guest.Name || 'Unnamed Guest')));
+      } else {
+        roster.appendChild(createElement('div', 'seva-team-roster-item', 'No members yet.'));
+      }
+
+      const actions = createElement('div', 'seva-team-row-actions');
+      const editBtn = createElement('button', 'travel-add-btn', 'Edit');
+      editBtn.type = 'button';
+      editBtn.addEventListener('click', () => openSevaTeamForm(team));
+      const deleteBtn = createElement('button', 'travel-remove-btn', 'Delete');
+      deleteBtn.type = 'button';
+      deleteBtn.addEventListener('click', () => deleteSevaTeamRow(team.teamId, team.name));
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+
+      details.appendChild(roster);
+      details.appendChild(actions);
+
+      summary.addEventListener('click', event => {
+        if (event.target.closest('button')) return;
+        toggleLegExpanded(row);
+      });
+
+      row.appendChild(summary);
+      row.appendChild(details);
+      return row;
+    }
+
+    function openSevaTeamForm(team) {
+      $('edit-seva-team-id').value = team ? team.teamId : '';
+      $('edit-seva-team-name').value = team ? team.name : '';
+      $('edit-seva-team-start').value = team ? team.startDate : '';
+      $('edit-seva-team-end').value = team ? team.endDate : '';
+      $('seva-team-form-message').textContent = '';
+      $('seva-team-form').hidden = false;
+      window.setTimeout(() => $('edit-seva-team-name').focus(), 0);
+    }
+
+    function closeSevaTeamForm() {
+      $('seva-team-form').hidden = true;
+      $('seva-team-form-message').textContent = '';
+    }
+
+    function saveSevaTeamFromForm() {
+      const name = $('edit-seva-team-name').value.trim();
+      if (!name) {
+        $('seva-team-form-message').textContent = 'Event/Programme name is required.';
+        return;
+      }
+      const startDate = $('edit-seva-team-start').value;
+      const endDate = $('edit-seva-team-end').value;
+      if (startDate && endDate && endDate < startDate) {
+        $('seva-team-form-message').textContent = 'End date cannot be earlier than start date.';
+        return;
+      }
+
+      const payload = { teamId: $('edit-seva-team-id').value, name, startDate, endDate };
+
+      $('seva-team-save-btn').disabled = true;
+      apiCall('saveSevaTeam', { payload })
+        .then(data => {
+          $('seva-team-save-btn').disabled = false;
+          applyAppData(data);
+          closeSevaTeamForm();
+          renderSevaTeamsList();
+          showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
+        })
+        .catch(error => handleApiError(error, error => {
+          $('seva-team-save-btn').disabled = false;
+          $('seva-team-form-message').textContent = getErrorMessage(error);
+        }));
+    }
+
+    function deleteSevaTeamRow(teamId, name) {
+      if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+      apiCall('deleteSevaTeam', { teamId })
+        .then(data => {
+          applyAppData(data);
+          renderSevaTeamsList();
+          showToast('Seva Team deleted.', 'success');
+        })
+        .catch(error => handleApiError(error, error => {
+          showToast(`Delete failed: ${getErrorMessage(error)}`, 'error');
+        }));
+    }
+
+    // Rendered fresh from allSevaTeams every time the guest modal opens,
+    // since the team list itself can change over time (unlike the fixed
+    // Purpose checkboxes) — a stale cached checkbox list could offer a team
+    // that was since deleted, or hide one just created.
+    function renderGuestSevaTeamCheckboxes(selectedTeamIds) {
+      const container = $('guest-seva-teams-list');
+      container.replaceChildren();
+      const selected = new Set(Array.isArray(selectedTeamIds) ? selectedTeamIds : []);
+      const nowMs = Date.now();
+
+      allSevaTeams.forEach(team => {
+        const label = createElement('label', 'checkbox-label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'checkbox-input guest-seva-team-checkbox';
+        input.dataset.teamId = team.teamId;
+        input.checked = selected.has(team.teamId);
+        label.appendChild(input);
+
+        const textWrap = createElement('span', 'seva-team-checkbox-label-text');
+        textWrap.appendChild(createElement('span', '', team.name));
+        const dateRange = [team.startDate, team.endDate].filter(Boolean).join(' – ');
+        const status = team.status || computeSevaTeamStatus(team, nowMs);
+        textWrap.appendChild(createElement('span', 'seva-team-checkbox-meta', `${dateRange || 'dates TBD'} · ${status}`));
+        label.appendChild(textWrap);
+
+        container.appendChild(label);
+      });
+
+      $('guest-seva-teams-empty').hidden = allSevaTeams.length > 0;
+    }
+
+    function getSelectedGuestSevaTeamIds() {
+      return [...document.querySelectorAll('.guest-seva-team-checkbox:checked')].map(box => box.dataset.teamId);
     }
 
     function prepareGuestForDisplay(guest) {
@@ -2265,6 +2637,7 @@
     // to have needed booking in the first place — see the 'bookings complete'
     // token in buildSearchIndex for why an empty itinerary doesn't count.
     function isFullyBooked(guest, travelLegs) {
+      if (!isCabTravelEligible(guest.personType)) return false;
       const needsPickup = Boolean(guest['Pickup Required']);
       const needsDropoff = Boolean(guest['Dropoff Required']);
       const hasAnythingToBook = needsPickup || needsDropoff || travelLegs.length > 0;
@@ -2276,12 +2649,18 @@
     }
 
     function buildSearchIndex(guest) {
-      const travelLegs = Array.isArray(guest.travelLegs) ? guest.travelLegs : [];
+      // A Visitor's Cabs/Travel sections are hidden entirely, so none of
+      // their fields (even stale data left over from before a Person Type
+      // change) should be searchable or power a quick-filter chip either —
+      // otherwise "cabs arrange" or a typed transport type could surface a
+      // guest whose card shows no cab/travel UI at all.
+      const cabTravelEligible = isCabTravelEligible(guest.personType);
+      const travelLegs = cabTravelEligible && Array.isArray(guest.travelLegs) ? guest.travelLegs : [];
       const dateValues = [
         guest.arrivalDate,
         guest.departureDate,
-        guest.pickupDate,
-        guest.dropoffDate,
+        cabTravelEligible ? guest.pickupDate : '',
+        cabTravelEligible ? guest.dropoffDate : '',
         ...travelLegs.map(leg => leg.travelDate)
       ].flatMap(buildDateSearchVariants);
       const travelValues = travelLegs.flatMap(leg => [
@@ -2306,17 +2685,17 @@
         guest.roomCategory,
         guest.Arrival,
         guest.Departure,
-        guest['Pickup Cab Time'],
-        guest['Pickup Cab details'],
-        guest.pickupFrom,
-        guest.dropoffTo,
-        guest.pickupBookingState,
-        guest['Dropoff Cab Time'],
-        guest['Dropoff Cab details'],
-        guest.dropoffBookingState,
+        cabTravelEligible ? guest['Pickup Cab Time'] : '',
+        cabTravelEligible ? guest['Pickup Cab details'] : '',
+        cabTravelEligible ? guest.pickupFrom : '',
+        cabTravelEligible ? guest.dropoffTo : '',
+        cabTravelEligible ? guest.pickupBookingState : '',
+        cabTravelEligible ? guest['Dropoff Cab Time'] : '',
+        cabTravelEligible ? guest['Dropoff Cab details'] : '',
+        cabTravelEligible ? guest.dropoffBookingState : '',
         guest.priorityLabel,
-        guest['Pickup Required'] ? 'ashram pickup required pickup required' : '',
-        guest['Dropoff Required'] ? 'ashram drop-off required dropoff required' : '',
+        cabTravelEligible && guest['Pickup Required'] ? 'ashram pickup required pickup required' : '',
+        cabTravelEligible && guest['Dropoff Required'] ? 'ashram drop-off required dropoff required' : '',
         !guest.Departure && hasGuestArrived(guest) ? 'departure tbd currently residing current guest' : '',
         guest['Foreign National'] ? 'foreign national' : '',
         guest['C-form complete']
@@ -2328,23 +2707,25 @@
         requiresAshramRoom(guest) && guest.arrivalDate && !guest.Room
           ? 'room not assigned unassigned'
           : '',
-        guest['Pickup Required'] && guest.pickupBookingState === 'Requested'
+        cabTravelEligible && guest['Pickup Required'] && guest.pickupBookingState === 'Requested'
           ? 'pickup unconfirmed pending'
           : '',
-        guest['Dropoff Required'] && guest.dropoffBookingState === 'Requested'
+        cabTravelEligible && guest['Dropoff Required'] && guest.dropoffBookingState === 'Requested'
           ? 'dropoff unconfirmed pending'
           : '',
         // Deliberately its own phrase, not "required" alone — pickup/dropoff
         // already inject "ashram pickup required" style text below, and
         // "required" by itself would match those too.
-        travelLegs.some(leg => leg.status === 'Required') ? 'travel arrange' : '',
+        cabTravelEligible && travelLegs.some(leg => leg.status === 'Required') ? 'travel arrange' : '',
         // One chip for every unsettled cab state, not just "Requested" —
         // "Needs Reconfirmation" and "Needs Rescheduling" (a booking that was
         // confirmed, then had its schedule moved out from under it) are just
         // as much a cab you still have to deal with. "cabs" carries the
         // match; "arrange" alone would also hit the travel token above.
-        (guest['Pickup Required'] && guest.pickupBookingState !== 'Confirmed')
+        cabTravelEligible && (
+          (guest['Pickup Required'] && guest.pickupBookingState !== 'Confirmed')
           || (guest['Dropoff Required'] && guest.dropoffBookingState !== 'Confirmed')
+        )
           ? 'cabs arrange'
           : '',
         !guest.arrivalDate ? 'no arrival date' : '',
@@ -3068,6 +3449,7 @@
     // date lived in the badge for some states and in a shared line above for
     // others, which left nowhere consistent to put the From/To location.
     function appendTransportDetails(card, guest) {
+      if (!isCabTravelEligible(guest.personType)) return;
       const pickupRequired = Boolean(guest['Pickup Required']);
       const dropoffRequired = Boolean(guest['Dropoff Required']);
       if (!pickupRequired && !dropoffRequired) return;
@@ -3146,6 +3528,7 @@
     }
 
     function appendRequiredTravelDetails(card, guest) {
+      if (!isCabTravelEligible(guest.personType)) return;
       const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
         .filter(leg => leg.status === 'Required');
       if (!legs.length) return;
@@ -3167,6 +3550,7 @@
     }
 
     function appendConfirmedTravelDetails(card, guest) {
+      if (!isCabTravelEligible(guest.personType)) return;
       const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
         .filter(leg => leg.status === 'Confirmed');
       if (!legs.length) return;
@@ -3619,6 +4003,11 @@
         $('edit-outside-accommodation-details').value = guest.outsideAccommodationDetails || '';
         $('edit-outside-accommodation-confirmed').checked = Boolean(guest.outsideAccommodationConfirmed);
         $('edit-self-arranged-staying-at').value = guest.selfArrangedStayingAt || '';
+        setPurposeCheckboxes(guest.invitedPurpose || []);
+        $('edit-purpose-other-text').value = guest.invitedPurposeOther || '';
+        $('edit-staff-assignment').value = guest.staffAssignment || '';
+        updatePurposeOtherVisibility();
+        renderGuestSevaTeamCheckboxes(guest.sevaTeamIds || []);
         $('edit-foreign').checked = Boolean(guest['Foreign National']);
         $('edit-cform').checked = Boolean(guest['C-form complete']);
         $('edit-arrival-date').value = guest.arrivalDate || '';
@@ -3667,6 +4056,11 @@
         $('edit-outside-accommodation-details').value = '';
         $('edit-outside-accommodation-confirmed').checked = false;
         $('edit-self-arranged-staying-at').value = '';
+        setPurposeCheckboxes([]);
+        $('edit-purpose-other-text').value = '';
+        $('edit-staff-assignment').value = '';
+        updatePurposeOtherVisibility();
+        renderGuestSevaTeamCheckboxes([]);
         $('edit-foreign').checked = false;
         $('edit-cform').checked = false;
         $('edit-arrival-date').value = '';
@@ -3701,6 +4095,9 @@
       toggleCForm();
       handleDateChange();
       toggleAccommodationFields();
+      togglePurposeAssignmentFields();
+      toggleCabTravelSections();
+      toggleSevaSectionVisibility();
       updateTransportConstraints();
       modalIsOpen = true;
       $('modal').style.display = 'flex';
@@ -4089,6 +4486,72 @@
 
       $('outside-arranged-fields').hidden = !isOutsideArranged;
       $('self-arranged-fields').hidden = !isSelfArranged;
+    }
+
+    function isInvitedGuestPurposeApplicable(personType) {
+      return personType === 'Invited Guest';
+    }
+
+    function isEventStaffAssignmentApplicable(personType) {
+      return personType === 'Event Staff';
+    }
+
+    // Purpose/Assignment are preserved-but-hidden, same as the accommodation
+    // sub-fields — switching Person Type away and back never loses what was
+    // already entered, since only visibility changes here, not values.
+    function togglePurposeAssignmentFields() {
+      const personType = $('edit-person-type').value;
+      $('invited-purpose-group').hidden = !isInvitedGuestPurposeApplicable(personType);
+      $('event-staff-assignment-group').hidden = !isEventStaffAssignmentApplicable(personType);
+    }
+
+    function updatePurposeOtherVisibility() {
+      $('edit-purpose-other-text').hidden = !$('edit-purpose-other').checked;
+    }
+
+    function isCabTravelEligible(personType) {
+      return personType !== 'Visitor';
+    }
+
+    function isSevaTeamEligible(personType) {
+      return ['Friend', 'Visitor', 'Other'].includes(personType);
+    }
+
+    // Purely presentational, like every other Person-Type-driven toggle
+    // here — cab/travel data is never cleared by this, so a Visitor
+    // reclassified back to an eligible type gets their prior data back
+    // untouched.
+    function toggleCabTravelSections() {
+      const eligible = isCabTravelEligible($('edit-person-type').value);
+      $('sec-cabs').hidden = !eligible;
+      $('sec-travel').hidden = !eligible;
+      const cabsPill = document.querySelector('.section-nav-pill[data-target="sec-cabs"]');
+      const travelPill = document.querySelector('.section-nav-pill[data-target="sec-travel"]');
+      if (cabsPill) cabsPill.hidden = !eligible;
+      if (travelPill) travelPill.hidden = !eligible;
+    }
+
+    // Presentational only, same as every other Person-Type-driven toggle —
+    // if a save is later rejected because the checked memberships conflict
+    // with an ineligible Person Type, the backend's error message is what
+    // tells the admin to go remove them (see validateGuestSevaTeamMembership_).
+    function toggleSevaSectionVisibility() {
+      const eligible = isSevaTeamEligible($('edit-person-type').value);
+      $('sec-seva').hidden = !eligible;
+      const sevaPill = document.querySelector('.section-nav-pill[data-target="sec-seva"]');
+      if (sevaPill) sevaPill.hidden = !eligible;
+    }
+
+    function setPurposeCheckboxes(purposes) {
+      const selected = new Set(Array.isArray(purposes) ? purposes : []);
+      [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
+        box.checked = selected.has(box.dataset.purpose);
+      });
+      updatePurposeOtherVisibility();
+    }
+
+    function getSelectedPurposes() {
+      return [...document.querySelectorAll('.purpose-checkbox:checked')].map(box => box.dataset.purpose);
     }
 
     function handleDateChange() {
@@ -4731,6 +5194,14 @@
       $('edit-outside-accommodation-details').value = payload.outsideAccommodationDetails || '';
       $('edit-outside-accommodation-confirmed').checked = Boolean(payload.outsideAccommodationConfirmed);
       $('edit-self-arranged-staying-at').value = payload.selfArrangedStayingAt || '';
+      setPurposeCheckboxes(Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : []);
+      $('edit-purpose-other-text').value = payload.invitedPurposeOther || '';
+      $('edit-staff-assignment').value = payload.staffAssignment || '';
+      updatePurposeOtherVisibility();
+      renderGuestSevaTeamCheckboxes(Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : []);
+      togglePurposeAssignmentFields();
+      toggleCabTravelSections();
+      toggleSevaSectionVisibility();
       $('edit-foreign').checked = Boolean(payload.isForeign);
       $('edit-cform').checked = Boolean(payload.isForeign && payload.isCformComplete);
       toggleCForm();
@@ -4777,6 +5248,10 @@
         outsideAccommodationDetails: $('edit-outside-accommodation-details').value.trim(),
         outsideAccommodationConfirmed: $('edit-outside-accommodation-confirmed').checked,
         selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
+        invitedPurpose: getSelectedPurposes(),
+        invitedPurposeOther: $('edit-purpose-other-text').value.trim(),
+        staffAssignment: $('edit-staff-assignment').value.trim(),
+        sevaTeamIds: getSelectedGuestSevaTeamIds(),
         rooms: requiresRoom ? getRoomRowValues() : [],
         sharedRoomAcks: requiresRoom ? (sharedRoomAcks || []) : [],
         arrivalDate: $('edit-arrival-date').value,
@@ -4842,6 +5317,10 @@
         outsideAccommodationDetails: payload.outsideAccommodationDetails,
         outsideAccommodationConfirmed: Boolean(payload.outsideAccommodationConfirmed),
         selfArrangedStayingAt: payload.selfArrangedStayingAt,
+        invitedPurpose: Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : [],
+        invitedPurposeOther: payload.invitedPurposeOther,
+        staffAssignment: payload.staffAssignment,
+        sevaTeamIds: Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : [],
         Rooms: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms : []) : [],
         Room: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms.join(' & ') : '') : '',
         Arrival: arrival.display,
@@ -4934,37 +5413,45 @@
         && arrivalMs !== null
         && arrivalMs <= nowMs;
 
+      // Skipped entirely for a Visitor — Cabs/Travel don't apply to them, so
+      // stale pickup/dropoff/leg data (if any survives a Person Type change)
+      // must never surface as a warning.
+      const cabTravelEligible = isCabTravelEligible(guest.personType);
       let nextRequiredTravelMs = null;
       let hasUndatedRequiredTravel = false;
-      (Array.isArray(guest.travelLegs) ? guest.travelLegs : []).forEach(leg => {
-        if (leg.status !== 'Required') return;
+      let pickupState = 'Requested';
+      let dropoffState = 'Requested';
+      if (cabTravelEligible) {
+        (Array.isArray(guest.travelLegs) ? guest.travelLegs : []).forEach(leg => {
+          if (leg.status !== 'Required') return;
 
-        reasons.push(
-          `${String(leg.direction || '').toLowerCase()} ${String(leg.transportType || 'travel').toLowerCase()} required`.trim()
+          reasons.push(
+            `${String(leg.direction || '').toLowerCase()} ${String(leg.transportType || 'travel').toLowerCase()} required`.trim()
+          );
+
+          const travelMs = finiteTimestamp(leg.travelMs);
+          if (travelMs === null) {
+            hasUndatedRequiredTravel = true;
+          } else if (nextRequiredTravelMs === null || travelMs < nextRequiredTravelMs) {
+            nextRequiredTravelMs = travelMs;
+          }
+        });
+
+        pickupState = normalizeCabBookingState(
+          guest.pickupBookingState,
+          guest['Pickup Booking Confirmed']
+        );
+        dropoffState = normalizeCabBookingState(
+          guest.dropoffBookingState,
+          guest['Dropoff Booking Confirmed']
         );
 
-        const travelMs = finiteTimestamp(leg.travelMs);
-        if (travelMs === null) {
-          hasUndatedRequiredTravel = true;
-        } else if (nextRequiredTravelMs === null || travelMs < nextRequiredTravelMs) {
-          nextRequiredTravelMs = travelMs;
-        }
-      });
+        if (pickupState === 'Needs Rescheduling') reasons.push('Pickup needs rescheduling');
+        else if (pickupState === 'Needs Reconfirmation') reasons.push('Pickup needs reconfirmation');
 
-      const pickupState = normalizeCabBookingState(
-        guest.pickupBookingState,
-        guest['Pickup Booking Confirmed']
-      );
-      const dropoffState = normalizeCabBookingState(
-        guest.dropoffBookingState,
-        guest['Dropoff Booking Confirmed']
-      );
-
-      if (pickupState === 'Needs Rescheduling') reasons.push('Pickup needs rescheduling');
-      else if (pickupState === 'Needs Reconfirmation') reasons.push('Pickup needs reconfirmation');
-
-      if (dropoffState === 'Needs Rescheduling') reasons.push('Drop-off needs rescheduling');
-      else if (dropoffState === 'Needs Reconfirmation') reasons.push('Drop-off needs reconfirmation');
+        if (dropoffState === 'Needs Rescheduling') reasons.push('Drop-off needs rescheduling');
+        else if (dropoffState === 'Needs Reconfirmation') reasons.push('Drop-off needs reconfirmation');
+      }
 
       if (!guest.arrivalDate) {
         reasons.push('Arrival date not set');
@@ -4972,12 +5459,12 @@
         if (missingRoom) reasons.push('Room missing');
         if (accommodationNotDecided) reasons.push('Accommodation not decided');
         if (outsideAccommodationUnconfirmed) reasons.push('Outside accommodation not confirmed');
-        if (guest['Pickup Required'] && pickupState === 'Requested') {
+        if (cabTravelEligible && guest['Pickup Required'] && pickupState === 'Requested') {
           reasons.push('Pickup not arranged');
         }
       }
 
-      if (departureMs !== null && departureMs > nowMs && departureMs <= in72Hours
+      if (cabTravelEligible && departureMs !== null && departureMs > nowMs && departureMs <= in72Hours
           && guest['Dropoff Required'] && dropoffState === 'Requested') {
         reasons.push('Drop-off not arranged');
       }
