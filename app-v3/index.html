@@ -1533,6 +1533,9 @@
       <button id="seva-teams-btn" class="icon-button" type="button" aria-label="Manage Seva Teams" title="Manage Seva Teams">
         <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
       </button>
+      <button id="data-audit-btn" class="icon-button" type="button" aria-label="Data Integrity Audit" title="Data Integrity Audit">
+        <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+      </button>
       <button id="notif-btn" class="icon-button" type="button" aria-label="Enable notifications" title="Enable notifications">
         <svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
       </button>
@@ -1966,6 +1969,26 @@
     </div>
   </div>
 
+  <div id="data-audit-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="data-audit-modal-title">
+      <div class="modal-header">
+        <h2 id="data-audit-modal-title">Data Integrity Audit</h2>
+        <div class="modal-header-actions">
+          <button id="data-audit-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="travel-section-header">
+        <h3 class="travel-section-title">Report</h3>
+        <button id="data-audit-run-btn" class="travel-add-btn" type="button">Run Audit</button>
+      </div>
+      <div id="data-audit-status" class="field-message info" aria-live="polite">Not yet run.</div>
+      <div id="data-audit-results"></div>
+    </div>
+  </div>
+
   <div id="toast-container" aria-live="assertive"></div>
 
   <div id="card-action-sheet" class="card-action-sheet" hidden>
@@ -2005,6 +2028,7 @@
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></symbol>
   </svg>
 
   <script>
@@ -2410,6 +2434,9 @@
       });
 
       $('seva-teams-btn').addEventListener('click', openSevaTeamsModal);
+      $('data-audit-btn').addEventListener('click', openDataAuditModal);
+      $('data-audit-close-btn').addEventListener('click', closeDataAuditModal);
+      $('data-audit-run-btn').addEventListener('click', runDataAuditReport);
       $('seva-teams-close-btn').addEventListener('click', closeSevaTeamsModal);
       $('seva-teams-modal').addEventListener('click', event => {
         if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
@@ -2557,6 +2584,82 @@
     function closeSevaTeamsModal() {
       $('seva-teams-modal').style.display = 'none';
       $('seva-teams-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    // Phase A — minimal admin-readable view for auditDataIntegrity_impl_'s
+    // report. Read-only: this screen never fixes anything, it only shows
+    // what the backend found, same as the backend function it calls.
+    function openDataAuditModal() {
+      $('data-audit-modal').style.display = 'flex';
+      $('data-audit-modal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDataAuditModal() {
+      $('data-audit-modal').style.display = 'none';
+      $('data-audit-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function runDataAuditReport() {
+      const statusEl = $('data-audit-status');
+      const resultsEl = $('data-audit-results');
+      statusEl.className = 'field-message info';
+      statusEl.textContent = 'Running audit...';
+      resultsEl.replaceChildren();
+      apiCall('runDataAudit')
+        .then(report => {
+          statusEl.className = 'field-message info';
+          statusEl.textContent = 'Generated ' + new Date(report.generatedAt).toLocaleString();
+          renderDataAuditResults(report);
+        })
+        .catch(error => handleApiError(error, () => {
+          statusEl.className = 'field-message';
+          statusEl.textContent = 'Audit failed: ' + error.message;
+        }));
+    }
+
+    // [report key, section label, one-line formatter] — one entry per check
+    // auditDataIntegrity_impl_ runs, in the same order the backend runs them.
+    const DATA_AUDIT_SECTIONS_ = [
+      ['duplicateGuestIds', 'Duplicate Guest IDs',
+        item => `Guest ID ${item.guestId} appears in rows ${item.rowNumbers.join(', ')}`],
+      ['missingChildIds', 'Missing child-record IDs',
+        item => `${item.sheet}, row ${item.rowNumber} (Guest ${item.guestId})`],
+      ['orphanedChildRows', 'Orphaned child rows (unknown Guest ID)',
+        item => `${item.sheet}, row ${item.rowNumber}: Guest ID ${item.guestId} not found`],
+      ['duplicateMealEntries', 'Duplicate meal entries (same guest, date, and meal)',
+        item => `Guest ${item.guestId}, ${item.date} ${item.meal} — rows ${item.rowNumbers.join(', ')}`],
+      ['membershipsMissingTeam', 'Memberships referencing a missing Seva Team',
+        item => `Guest ${item.guestId}, Team ${item.teamId}, row ${item.rowNumber}`],
+      ['ineligibleSevaMemberships', 'Ineligible Seva Team memberships',
+        item => `${item.name || item.guestId} (${item.personType}) — team(s): ${item.teamIds.join(', ')}`],
+      ['visitorsWithCabTravel', 'Visitors with active Cab/Travel records',
+        item => `${item.name || item.guestId} — ${item.reasons.join(', ')}`],
+      ['possibleGroupNames', 'Possible group/collective names (flagged only, never auto-split)',
+        item => `${item.name || item.guestId} — matched "${item.matchedKeyword}"`]
+    ];
+
+    function renderDataAuditResults(report) {
+      const container = $('data-audit-results');
+      container.replaceChildren();
+
+      DATA_AUDIT_SECTIONS_.forEach(([key, label, formatLine]) => {
+        const items = report[key] || [];
+
+        const header = createElement('div', 'travel-section-header');
+        header.appendChild(createElement('h3', 'travel-section-title', `${label} (${items.length})`));
+        container.appendChild(header);
+
+        if (!items.length) {
+          container.appendChild(createElement('div', 'travel-empty', 'None found.'));
+          return;
+        }
+
+        const stack = createElement('div', 'travel-stack');
+        items.forEach(item => {
+          stack.appendChild(createElement('div', 'travel-item', formatLine(item)));
+        });
+        container.appendChild(stack);
+      });
     }
 
     function renderSevaTeamsList() {
