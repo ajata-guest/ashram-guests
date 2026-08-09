@@ -447,6 +447,37 @@
       font-size: 0.88rem;
     }
 
+    /* Tier 3 only — splits "Currently Residing" (date-active, any
+       Accommodation) into who's actually an Ashram resident vs who's just
+       staying elsewhere during the same window. A step down from
+       .zone-header, since it's a sub-grouping within one already-labeled
+       zone, not a zone of its own. */
+    .residency-subgroup { margin-bottom: 26px; }
+    .residency-subgroup:last-child { margin-bottom: 0; }
+
+    .residency-subgroup-header {
+      display: flex;
+      margin-bottom: 12px;
+      gap: 9px;
+      align-items: center;
+      color: #ddd;
+      font-weight: 700;
+      font-size: 0.94rem;
+    }
+
+    .residency-subgroup-count {
+      display: inline-flex;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 6px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #303030;
+      color: #ccc;
+      font-size: 0.72rem;
+    }
+
     .card-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
@@ -728,7 +759,7 @@
        of partially behind it — the browser has no built-in awareness that
        a pinned sticky sibling will cover the first ~54px of whatever
        scrolls to the very top. */
-    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-meals, #sec-cabs, #sec-travel {
+    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-meals, #sec-meetings, #sec-cabs, #sec-travel {
       scroll-margin-top: 76px;
     }
 
@@ -1524,6 +1555,8 @@
     <button type="button" class="filter-chip" aria-pressed="false" data-query="cabs arrange">Cabs to arrange</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-query="travel arrange">Travel to arrange</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-query="c-form pending">C-form pending</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="accommodation undecided">Accommodation TBD</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-query="outside accommodation unconfirmed">Outside accommodation to arrange</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-query="no arrival date">No arrival date</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-query="bookings complete">Booked</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="invited guest">Invited Guest</button>
@@ -1531,6 +1564,22 @@
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="friend">Friend</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="event staff">Event Staff</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="other">Other</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="currently residing">Currently Residing</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="ashram exclusively">Ashram Stay</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="ashram arranged">Outside — Ashram Arranged</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="self arranged">Self-arranged</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="no overnight">No Overnight Stay</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="discourse">Discourse</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="kirtan">Kirtan/Music</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="interreligious">Interreligious Presence</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="official diplomatic">Official/Diplomatic</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva team member">Seva Team</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="specific seva">Specific Seva</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva active">Active Seva</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva upcoming">Upcoming Seva</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva completed">Completed Seva</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="meals today">Meals Today</button>
+    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="swamiji today">Meetings with Swamiji Today</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="flight">Flight</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="train">Train</button>
     <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="bus">Bus</button>
@@ -1566,6 +1615,7 @@
         <button type="button" class="section-nav-pill" data-target="sec-accommodation">Accommodation</button>
         <button type="button" class="section-nav-pill" data-target="sec-seva">Seva</button>
         <button type="button" class="section-nav-pill" data-target="sec-meals">Meals</button>
+        <button type="button" class="section-nav-pill" data-target="sec-meetings">Meetings</button>
         <button type="button" class="section-nav-pill" data-target="sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="sec-travel">Travel</button>
       </div>
@@ -1760,6 +1810,18 @@
           <div id="meal-add-list" class="meal-add-list"></div>
           <div id="meal-add-empty" class="travel-empty">No meals added.</div>
         </div>
+      </section>
+
+      <section class="form-section" id="sec-meetings" aria-labelledby="meetings-section-title">
+        <div class="travel-section-header">
+          <h3 id="meetings-section-title" class="travel-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+            Meetings with Swamiji
+          </h3>
+          <button id="add-meeting-btn" class="travel-add-btn" type="button">+ Add Meeting with Swamiji</button>
+        </div>
+        <div id="meeting-list" class="travel-leg-list"></div>
+        <div id="meeting-empty" class="travel-empty">No meetings with Swamiji added.</div>
       </section>
 
       <section class="form-section" id="sec-cabs" aria-labelledby="cab-section-title">
@@ -2355,6 +2417,7 @@
       $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
       $('add-specific-seva-btn').addEventListener('click', () => addSpecificSevaEditor());
       $('add-meal-btn').addEventListener('click', () => addMealRow());
+      $('add-meeting-btn').addEventListener('click', () => addMeetingEditor());
       $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
 
@@ -2461,6 +2524,17 @@
     function computeSevaTeamStatus(team, nowMs) {
       const startMs = finiteTimestamp(team.startMs);
       const endMs = finiteTimestamp(team.endMs);
+      if (startMs !== null && nowMs < startMs) return 'Seva not started';
+      if (endMs !== null && nowMs > endMs) return 'Seva completed';
+      return 'Seva active';
+    }
+
+    // The one difference from computeSevaTeamStatus: a Specific Seva entry
+    // can have no dates at all, which a shared Seva Team never can.
+    function computeSpecificSevaStatus(entry, nowMs) {
+      const startMs = finiteTimestamp(entry.startMs);
+      const endMs = finiteTimestamp(entry.endMs);
+      if (startMs === null && endMs === null) return 'Seva dates TBD';
       if (startMs !== null && nowMs < startMs) return 'Seva not started';
       if (endMs !== null && nowMs > endMs) return 'Seva completed';
       return 'Seva active';
@@ -2765,6 +2839,118 @@
       });
     }
 
+    // ============================================================
+    // Meetings with Swamiji — no Person Type eligibility gate (applies to
+    // everyone), independent of every other dimension. Same collapsible-row
+    // pattern as Specific Seva/Travel Legs.
+    // ============================================================
+
+    function renderMeetingEditors(list) {
+      const container = $('meeting-list');
+      container.replaceChildren();
+      (Array.isArray(list) ? list : []).forEach(entry => addMeetingEditor(entry));
+      updateMeetingEmptyState();
+    }
+
+    function addMeetingEditor(entry = {}) {
+      const list = $('meeting-list');
+      const isExisting = Boolean(entry.meetingId);
+      const editor = createElement('div', 'travel-leg-editor');
+      editor.dataset.meetingId = String(entry.meetingId || `meeting-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      editor.innerHTML = `
+        <div class="travel-leg-summary">
+          <div class="travel-leg-summary-text">
+            <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+            <span>New meeting</span>
+          </div>
+          <div class="travel-leg-summary-actions">
+            <button class="travel-remove-btn" type="button" aria-label="Remove meeting">
+              <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+            </button>
+            <svg class="icon travel-leg-chevron" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+          </div>
+        </div>
+        <div class="travel-leg-details conditional-fields">
+          <div class="travel-leg-grid">
+            <div class="input-group">
+              <label class="input-label">Date</label>
+              <input class="edit-input" data-field="date" type="date">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Time — optional</label>
+              <input class="edit-input" data-field="time" type="time">
+            </div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Notes — optional</label>
+            <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
+          </div>
+        </div>`;
+
+      const setValue = (field, value) => {
+        const input = editor.querySelector(`[data-field="${field}"]`);
+        if (input) input.value = value || '';
+      };
+      setValue('date', entry.date);
+      setValue('time', entry.time);
+      setValue('notes', entry.notes);
+
+      editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
+        editor.remove();
+        updateMeetingEmptyState();
+      });
+      ['date', 'time', 'notes'].forEach(field => {
+        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateMeetingSummary(editor));
+      });
+
+      const summary = editor.querySelector('.travel-leg-summary');
+      summary.addEventListener('click', event => {
+        if (event.target.closest('button')) return;
+        toggleLegExpanded(editor);
+      });
+
+      list.appendChild(editor);
+      setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExisting);
+      editor.classList.toggle('leg-expanded', !isExisting);
+      updateMeetingSummary(editor);
+      updateMeetingEmptyState();
+    }
+
+    function updateMeetingSummary(editor) {
+      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+      const dateValue = value('date');
+      const timeValue = value('time');
+      const label = editor.querySelector('.travel-leg-summary-text span');
+
+      if (!dateValue) {
+        label.textContent = 'New meeting';
+        return;
+      }
+      const dateText = String(localDateInfo(dateValue, '', false).display || dateValue).replace(/^[A-Za-z]{3},\s*/, '');
+      if (!timeValue) {
+        label.textContent = `Meeting with Swamiji · ${dateText}`;
+        return;
+      }
+      const timeText = localDateInfo(dateValue, timeValue, false).display.split(' at ')[1] || timeValue;
+      label.textContent = `Meeting with Swamiji · ${dateText} · ${timeText}`;
+    }
+
+    function updateMeetingEmptyState() {
+      $('meeting-empty').style.display = $('meeting-list').children.length ? 'none' : 'block';
+    }
+
+    function collectMeetingPayloads() {
+      return [...$('meeting-list').querySelectorAll('.travel-leg-editor')].map(editor => {
+        const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+        return {
+          meetingId: editor.dataset.meetingId || '',
+          date: value('date'),
+          time: value('time'),
+          notes: value('notes')
+        };
+      });
+    }
+
     function prepareGuestForDisplay(guest) {
       const rooms = Array.isArray(guest.Rooms) ? guest.Rooms : (guest.Room ? [guest.Room] : []);
       const roomMetas = rooms.map(value => roomMetadataMap.get(value)).filter(Boolean);
@@ -2893,6 +3079,22 @@
         leg.notes
       ]);
 
+      const nowMsForSeva = Date.now();
+      const guestSevaTeams = (Array.isArray(guest.sevaTeamIds) ? guest.sevaTeamIds : [])
+        .map(teamId => allSevaTeams.find(team => team.teamId === teamId))
+        .filter(Boolean);
+      const guestSpecificSeva = Array.isArray(guest.specificSeva) ? guest.specificSeva : [];
+      const allSevaStatuses = [
+        ...guestSevaTeams.map(team => computeSevaTeamStatus(team, nowMsForSeva)),
+        ...guestSpecificSeva.map(entry => computeSpecificSevaStatus(entry, nowMsForSeva))
+      ];
+
+      const todayKey = getAppDateKey(Date.now());
+      const mealOverridesForGuest = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
+      const mealsIncludedToday = ALLOWED_MEALS.filter(meal => resolveMealInclusion(guest, todayKey, meal, mealOverridesForGuest));
+      const hasMeetingToday = (Array.isArray(guest.swamijiMeetings) ? guest.swamijiMeetings : [])
+        .some(meeting => meeting.date === todayKey);
+
       return normalizeSearchText([
         guest.Name,
         guest.personType,
@@ -2914,7 +3116,40 @@
         guest.priorityLabel,
         cabTravelEligible && guest['Pickup Required'] ? 'ashram pickup required pickup required' : '',
         cabTravelEligible && guest['Dropoff Required'] ? 'ashram drop-off required dropoff required' : '',
-        !guest.Departure && hasGuestArrived(guest) ? 'departure tbd currently residing current guest' : '',
+        // Accommodation-aware, unlike the pre-V3 version of this token — a
+        // Visitor/Outside guest with no departure set was never actually
+        // "residing" anywhere the Ashram is responsible for.
+        requiresAshramRoom(guest) && !guest.Departure && hasGuestArrived(guest)
+          ? 'departure tbd currently residing current guest'
+          : '',
+        // The precise §17 definition (Accommodation=Ashram AND today falls
+        // within the stay), independent of the tier-3 tab's own grouping.
+        isCurrentlyResidingGuest(guest, nowMsForSeva) ? 'currently residing ashram now' : '',
+        ({
+          Ashram: 'accommodation ashram exclusively',
+          'Outside - Arranged by Ashram': 'outside ashram arranged accommodation',
+          'Outside - Self-arranged': 'outside self arranged accommodation',
+          'No overnight stay': 'no overnight stay accommodation',
+          TBD: 'accommodation tbd not decided undecided'
+        })[guest.accommodation] || '',
+        guest.accommodation === 'Outside - Arranged by Ashram' && !guest.outsideAccommodationConfirmed
+          ? 'outside accommodation not confirmed unconfirmed arrange'
+          : '',
+        Array.isArray(guest.invitedPurpose) ? guest.invitedPurpose.join(' ') : '',
+        guest.invitedPurposeOther,
+        guest.staffAssignment,
+        guestSevaTeams.length ? 'seva team member' : '',
+        guestSevaTeams.map(team => team.name).join(' '),
+        guestSpecificSeva.length ? 'specific seva assigned' : '',
+        guestSpecificSeva.map(entry => entry.description).join(' '),
+        allSevaStatuses.includes('Seva active') ? 'seva active' : '',
+        allSevaStatuses.includes('Seva not started') ? 'seva upcoming not started' : '',
+        allSevaStatuses.includes('Seva completed') ? 'seva completed' : '',
+        mealsIncludedToday.length ? 'meals today included' : '',
+        mealsIncludedToday.includes('Breakfast') ? 'breakfast today' : '',
+        mealsIncludedToday.includes('Lunch') ? 'lunch today' : '',
+        mealsIncludedToday.includes('Dinner') ? 'dinner today' : '',
+        hasMeetingToday ? 'meeting swamiji today' : '',
         guest['Foreign National'] ? 'foreign national' : '',
         guest['C-form complete']
           ? 'c-form complete'
@@ -3427,12 +3662,46 @@
         return container;
       }
 
+      // Tier 3 alone gets split — "Currently Residing" now covers anyone
+      // date-active regardless of Accommodation (see isCurrentlyActiveStay),
+      // but only an Ashram resident is actually "residing" anywhere the
+      // Ashram is responsible for. Splitting here keeps that distinction
+      // visible without inventing a whole extra tier.
+      if (tier === 3) {
+        const nowMs = Date.now();
+        const residents = guests.filter(guest => isCurrentlyResidingGuest(guest, nowMs));
+        const stayingOutside = guests.filter(guest => !isCurrentlyResidingGuest(guest, nowMs));
+        container.appendChild(createResidencySubgroup('Residing in Ashram', residents));
+        container.appendChild(createResidencySubgroup('Non-resident / Staying Outside', stayingOutside));
+        return container;
+      }
+
       const grid = createElement('div', 'card-grid');
       const fragment = document.createDocumentFragment();
       guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
       grid.appendChild(fragment);
       container.appendChild(grid);
       return container;
+    }
+
+    function createResidencySubgroup(label, guests) {
+      const section = createElement('div', 'residency-subgroup');
+      const header = createElement('div', 'residency-subgroup-header');
+      header.appendChild(createElement('span', null, label));
+      header.appendChild(createElement('span', 'residency-subgroup-count', String(guests.length)));
+      section.appendChild(header);
+
+      if (!guests.length) {
+        section.appendChild(createElement('div', 'zone-empty', `No ${label.toLowerCase()} guests.`));
+        return section;
+      }
+
+      const grid = createElement('div', 'card-grid');
+      const fragment = document.createDocumentFragment();
+      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
+      grid.appendChild(fragment);
+      section.appendChild(grid);
+      return section;
     }
 
     function hasGuestArrived(guest) {
@@ -3481,6 +3750,22 @@
             Other: 'badge-silver'
           })[guest.personType] || 'badge-salmon';
       topBadges.appendChild(createBadge(guest.personType || 'Invited Guest', personTypeClass));
+
+      // Purpose is identity/role — why this Invited Guest is here at all —
+      // not logistics, so it earns a badge alongside Person Type rather
+      // than an info line, per the card-redesign principle.
+      if (isInvitedGuestPurposeApplicable(guest.personType) && Array.isArray(guest.invitedPurpose)) {
+        guest.invitedPurpose.forEach(purpose => {
+          topBadges.appendChild(createBadge(purpose, 'badge-gray'));
+        });
+      }
+
+      // Membership in a Seva Team is identity/role too ("this is a seva
+      // volunteer") — which team, and its dates/status, is logistics and
+      // belongs in an info line below, not a second badge per team.
+      if (Array.isArray(guest.sevaTeamIds) && guest.sevaTeamIds.length) {
+        topBadges.appendChild(createBadge('Seva Team', 'badge-teal'));
+      }
 
       if (guest.Room && guest.roomCategory) {
         topBadges.appendChild(createBadge(
@@ -3532,6 +3817,11 @@
       }
 
       appendRoomDetails(card, guest);
+      appendOutsideAccommodationDetails(card, guest);
+      appendAssignmentDetails(card, guest);
+      appendSevaDetails(card, guest);
+      appendMealsDetails(card, guest);
+      appendMeetingDetails(card, guest);
       appendTransportDetails(card, guest);
       appendConfirmedTravelDetails(card, guest);
 
@@ -3545,10 +3835,11 @@
     }
 
     function appendRoomDetails(card, guest) {
-      // Non-Ashram accommodation gets its own info lines in a later phase —
-      // for now this only ever shows/warns about a room for guests who
-      // actually need an Ashram one, so nobody self-arranged or non-resident
-      // can ever see a false "Room not assigned" warning.
+      // Non-Ashram accommodation gets its own info lines from
+      // appendOutsideAccommodationDetails below — this only ever
+      // shows/warns about a room for guests who actually need an Ashram
+      // one, so nobody self-arranged or non-resident can ever see a false
+      // "Room not assigned" warning.
       if (!requiresAshramRoom(guest) || !guest.arrivalDate) return;
 
       if (guest.Room) {
@@ -3567,6 +3858,131 @@
       } else {
         card.appendChild(createDetailLine('icon-bed', 'Room not assigned'));
       }
+    }
+
+    // The non-Ashram counterpart to appendRoomDetails above — one line per
+    // Accommodation value, warning badges only for the two states that are
+    // an actual operational problem (TBD, or an unconfirmed outside
+    // booking), matching Room missing's own badge-vs-line split.
+    function appendOutsideAccommodationDetails(card, guest) {
+      if (requiresAshramRoom(guest)) return;
+
+      if (guest.accommodation === 'Outside - Arranged by Ashram') {
+        if (!guest.outsideAccommodationConfirmed && hasPriorityReason(guest, 'Outside accommodation not confirmed')) {
+          const row = createElement('div', 'badge-row');
+          row.appendChild(createBadge('Outside accommodation not confirmed', 'badge-action'));
+          card.appendChild(row);
+        }
+        const details = guest.outsideAccommodationDetails
+          ? `Outside · ${guest.outsideAccommodationDetails}`
+          : 'Outside · Arranged by Ashram';
+        card.appendChild(createDetailLine('icon-bed', guest.outsideAccommodationConfirmed ? `${details} · Confirmed` : details));
+        return;
+      }
+
+      if (guest.accommodation === 'Outside - Self-arranged') {
+        const details = guest.selfArrangedStayingAt
+          ? `Outside · Self-arranged · ${guest.selfArrangedStayingAt}`
+          : 'Outside · Self-arranged';
+        card.appendChild(createDetailLine('icon-bed', details));
+        return;
+      }
+
+      if (guest.accommodation === 'No overnight stay') {
+        card.appendChild(createDetailLine('icon-bed', 'No overnight stay'));
+        return;
+      }
+
+      if (guest.accommodation === 'TBD') {
+        if (hasPriorityReason(guest, 'Accommodation not decided')) {
+          const row = createElement('div', 'badge-row');
+          row.appendChild(createBadge('Accommodation not decided', 'badge-action'));
+          card.appendChild(row);
+        } else {
+          card.appendChild(createDetailLine('icon-bed', 'Accommodation: TBD'));
+        }
+      }
+    }
+
+    function appendAssignmentDetails(card, guest) {
+      if (isEventStaffAssignmentApplicable(guest.personType) && guest.staffAssignment) {
+        card.appendChild(createDetailLine('icon-user', guest.staffAssignment));
+      }
+      if (isInvitedGuestPurposeApplicable(guest.personType)
+          && Array.isArray(guest.invitedPurpose) && guest.invitedPurpose.includes('Other')
+          && guest.invitedPurposeOther) {
+        card.appendChild(createDetailLine('icon-user', guest.invitedPurposeOther));
+      }
+    }
+
+    function formatSevaDateRange(startDate, endDate) {
+      if (startDate && endDate) {
+        return startDate === endDate
+          ? formatDateKeyDisplay(startDate)
+          : `${formatDateKeyDisplay(startDate)} – ${formatDateKeyDisplay(endDate)}`;
+      }
+      return formatDateKeyDisplay(startDate || endDate || '');
+    }
+
+    // Team membership shows as a badge (identity); which team, and its live
+    // status, is logistics and belongs here as an info line — one per
+    // membership, since a person can be on several teams at once. Specific
+    // Seva entries get no badge at all (per the card-redesign principle,
+    // an individual task is logistics, not identity), just their own lines.
+    function appendSevaDetails(card, guest) {
+      const nowMs = Date.now();
+
+      (Array.isArray(guest.sevaTeamIds) ? guest.sevaTeamIds : []).forEach(teamId => {
+        const team = allSevaTeams.find(t => t.teamId === teamId);
+        if (!team) return;
+        const status = computeSevaTeamStatus(team, nowMs);
+        let statusText = status;
+        if (status === 'Seva active' && team.endDate) statusText = `Seva active · until ${formatDateKeyDisplay(team.endDate)}`;
+        else if (status === 'Seva not started' && team.startDate) statusText = `Seva not started · from ${formatDateKeyDisplay(team.startDate)}`;
+        card.appendChild(createDetailLine('icon-people', `${team.name} · ${statusText}`));
+      });
+
+      (Array.isArray(guest.specificSeva) ? guest.specificSeva : []).forEach(entry => {
+        const status = computeSpecificSevaStatus(entry, nowMs);
+        const dateText = status === 'Seva dates TBD' ? 'dates TBD' : formatSevaDateRange(entry.startDate, entry.endDate);
+        card.appendChild(createDetailLine('icon-people', `${entry.description}${dateText ? ` · ${dateText}` : ''}`));
+      });
+    }
+
+    // Residents get one compact line (their whole stay defaults to
+    // included, so there's nothing to list day-by-day here); non-residents
+    // get one line per explicit invite, since for them each one is a
+    // deliberate addition rather than a default.
+    function appendMealsDetails(card, guest) {
+      const overrides = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
+
+      if (requiresAshramRoom(guest)) {
+        const exclusions = overrides.filter(entry => entry.included === false);
+        card.appendChild(createDetailLine(
+          'icon-meal',
+          exclusions.length
+            ? `Meals during stay · ${exclusions.length} exception${exclusions.length > 1 ? 's' : ''}`
+            : 'Meals included during stay'
+        ));
+        return;
+      }
+
+      overrides
+        .filter(entry => entry.included !== false)
+        .forEach(entry => {
+          card.appendChild(createDetailLine('icon-meal', `${entry.meal} · ${formatDateKeyDisplay(entry.date)}`));
+        });
+    }
+
+    function appendMeetingDetails(card, guest) {
+      (Array.isArray(guest.swamijiMeetings) ? guest.swamijiMeetings : []).forEach(meeting => {
+        if (!meeting.date) return;
+        const dateText = formatDateKeyDisplay(meeting.date);
+        const text = meeting.time
+          ? `Meeting with Swamiji · ${dateText} · ${meeting.time}`
+          : `Meeting with Swamiji · ${dateText}`;
+        card.appendChild(createDetailLine('icon-calendar', text));
+      });
     }
 
     // Never stored — recomputed on every render from whoever else currently
@@ -4228,6 +4644,7 @@
         renderGuestSevaTeamCheckboxes(guest.sevaTeamIds || []);
         renderSpecificSevaEditors(guest.specificSeva || []);
         modalMealOverrides = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
+        renderMeetingEditors(guest.swamijiMeetings || []);
         $('edit-foreign').checked = Boolean(guest['Foreign National']);
         $('edit-cform').checked = Boolean(guest['C-form complete']);
         $('edit-arrival-date').value = guest.arrivalDate || '';
@@ -4283,6 +4700,7 @@
         renderGuestSevaTeamCheckboxes([]);
         renderSpecificSevaEditors([]);
         modalMealOverrides = [];
+        renderMeetingEditors([]);
         $('edit-foreign').checked = false;
         $('edit-cform').checked = false;
         $('edit-arrival-date').value = '';
@@ -4685,6 +5103,18 @@
         && arrivalMs !== null
         && arrivalMs <= nowMs
         && (departureMs === null || departureMs > nowMs);
+    }
+
+    // Accommodation-agnostic — the broader population that lands in tier 3
+    // at all (the pre-V3 "arrived, not departed" definition). Deliberately
+    // distinct from isCurrentlyResidingGuest, which narrows that same tier
+    // down to specifically who's an Ashram resident, for the tier-3
+    // sub-grouping and the "Currently Residing" search chip. Mirrors
+    // isCurrentlyActiveStay_ in Code-V3.gs.
+    function isCurrentlyActiveStay(guest, nowMs) {
+      const arrivalMs = finiteTimestamp(guest.arrivalMs);
+      const departureMs = finiteTimestamp(guest.departureMs);
+      return arrivalMs !== null && arrivalMs <= nowMs && (departureMs === null || departureMs > nowMs);
     }
 
     // Only Ashram room assignment is force-cleared when hidden — it's a
@@ -5614,6 +6044,7 @@
       updatePurposeOtherVisibility();
       renderGuestSevaTeamCheckboxes(Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : []);
       renderSpecificSevaEditors(Array.isArray(payload.specificSeva) ? payload.specificSeva : []);
+      renderMeetingEditors(Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : []);
       togglePurposeAssignmentFields();
       toggleCabTravelSections();
       toggleSevaSectionVisibility();
@@ -5671,6 +6102,7 @@
         sevaTeamIds: getSelectedGuestSevaTeamIds(),
         specificSeva: collectSpecificSevaPayloads(),
         mealOverrides: collectMealOverridesPayload(),
+        swamijiMeetings: collectMeetingPayloads(),
         rooms: requiresRoom ? getRoomRowValues() : [],
         sharedRoomAcks: requiresRoom ? (sharedRoomAcks || []) : [],
         arrivalDate: $('edit-arrival-date').value,
@@ -5742,6 +6174,7 @@
         sevaTeamIds: Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : [],
         specificSeva: Array.isArray(payload.specificSeva) ? payload.specificSeva : [],
         mealOverrides: Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [],
+        swamijiMeetings: Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : [],
         Rooms: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms : []) : [],
         Room: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms.join(' & ') : '') : '',
         Arrival: arrival.display,
@@ -5811,13 +6244,13 @@
 
       const arrivalIsToday = isSameAppDate(arrivalMs, nowMs);
       const departureIsToday = isSameAppDate(departureMs, nowMs);
-      const residing = isCurrentlyResidingGuest(guest, nowMs);
+      const activeStay = isCurrentlyActiveStay(guest, nowMs);
 
       if (departureMs !== null && departureMs < nowMs) {
         tier = 5;
       } else if (arrivalIsToday || departureIsToday) {
         tier = 2;
-      } else if (residing) {
+      } else if (activeStay) {
         tier = 3;
       }
 
