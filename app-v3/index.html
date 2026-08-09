@@ -1702,6 +1702,16 @@
           Stay
         </h3>
 
+        <!-- V3 Operational Workspaces Architecture — Phase B. Arrival/departure
+             now belong to a Visit, not the Guest — edited from the
+             Accommodation & Travel workspace (Phase E) once it exists. The
+             fields below are kept in the DOM (hidden, never populated into
+             the save payload — see collectGuestPayload) rather than removed,
+             so nothing that still references their element IDs breaks; they
+             go away outright once Phase E ships. -->
+        <div class="travel-empty">Stay dates are now managed in the Accommodation &amp; Travel workspace.</div>
+
+        <div hidden>
         <div class="input-group">
           <label class="input-label" for="edit-arrival-date">Arrival</label>
           <div class="date-time-row">
@@ -1717,6 +1727,7 @@
             <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
           </div>
         </div>
+        </div>
 
       </section>
 
@@ -1726,6 +1737,11 @@
           Accommodation
         </h3>
 
+        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
+             the Stay section above: hidden, not removed. -->
+        <div class="travel-empty">Accommodation and room allocation are now managed in the Accommodation &amp; Travel workspace.</div>
+
+        <div hidden>
         <div class="input-group">
           <label class="input-label" for="edit-accommodation">Accommodation</label>
           <select id="edit-accommodation" class="edit-input">
@@ -1765,6 +1781,7 @@
             <label class="input-label" for="edit-self-arranged-staying-at">Staying at</label>
             <input type="text" id="edit-self-arranged-staying-at" class="edit-input" maxlength="500" placeholder="Optional" autocomplete="off">
           </div>
+        </div>
         </div>
       </section>
 
@@ -1832,6 +1849,12 @@
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-car"></use></svg>
           Ashram Cabs
         </h3>
+
+        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
+             the Stay/Accommodation sections above: hidden, not removed. -->
+        <div class="travel-empty">Cabs are now managed in the Accommodation &amp; Travel workspace.</div>
+
+        <div hidden>
         <p class="form-section-description">Only add local pickup or drop-off that the ashram is responsible for.</p>
 
         <div class="transport-requirement">
@@ -1903,14 +1926,21 @@
             <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Drop-off details" autocomplete="off">
           </div>
         </div>
+        </div>
       </section>
 
       <section class="form-section" id="sec-travel" aria-labelledby="travel-section-title">
+        <h3 id="travel-section-title" class="travel-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+          Travel Itinerary
+        </h3>
+
+        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
+             the other sections above: hidden, not removed. -->
+        <div class="travel-empty">Travel itinerary is now managed in the Accommodation &amp; Travel workspace.</div>
+
+        <div hidden>
         <div class="travel-section-header">
-          <h3 id="travel-section-title" class="travel-section-title">
-            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
-            Travel Itinerary
-          </h3>
           <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
@@ -1918,6 +1948,7 @@
         </p>
         <div id="travel-leg-list" class="travel-leg-list"></div>
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
+        </div>
       </section>
 
       <button id="save-btn" type="button">Save Changes</button>
@@ -6183,131 +6214,53 @@
       updateTransportConstraints();
     }
 
-    function collectGuestPayload(sharedRoomAcks) {
-      const pickupRequired = $('edit-pickup-required').checked;
-      const dropoffRequired = $('edit-dropoff-required').checked;
-      const accommodation = $('edit-accommodation').value;
-      const requiresRoom = accommodation === 'Ashram';
+    // V3 Operational Workspaces Architecture — Phase B. Accommodation, stay
+    // dates, rooms, and cabs/travel are no longer part of this payload at
+    // all — the backend (rejectMigratedAwayFields_) now rejects a save that
+    // includes any of those keys, so they're deliberately absent here, not
+    // just left blank. Seva/Meals/Meetings are untouched — those sheets
+    // weren't part of the Visit migration and still save through here until
+    // their own workspace phases (F/G/H) give them row-level actions.
+    function collectGuestPayload() {
       return {
         guestId: $('edit-guest-id').value,
         version: $('edit-version').value,
         name: $('edit-name').value.trim(),
         isForeign: $('edit-foreign').checked,
-        isCformComplete: $('edit-cform').checked,
         personType: $('edit-person-type').value,
-        accommodation,
-        outsideAccommodationDetails: $('edit-outside-accommodation-details').value.trim(),
-        outsideAccommodationConfirmed: $('edit-outside-accommodation-confirmed').checked,
-        selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
         invitedPurpose: getSelectedPurposes(),
         invitedPurposeOther: $('edit-purpose-other-text').value.trim(),
         staffAssignment: $('edit-staff-assignment').value.trim(),
         sevaTeamIds: getSelectedGuestSevaTeamIds(),
         specificSeva: collectSpecificSevaPayloads(),
         mealOverrides: collectMealOverridesPayload(),
-        swamijiMeetings: collectMeetingPayloads(),
-        rooms: requiresRoom ? getRoomRowValues() : [],
-        sharedRoomAcks: requiresRoom ? (sharedRoomAcks || []) : [],
-        arrivalDate: $('edit-arrival-date').value,
-        arrivalTime: $('edit-arrival-time').value,
-        departureDate: $('edit-departure-date').value,
-        departureTime: $('edit-departure-time').value,
-        pickupRequired,
-        pickupDate: pickupRequired ? $('edit-pickup-date').value : '',
-        pickupTime: pickupRequired ? $('edit-pickup-time').value : '',
-        pickupDetails: pickupRequired ? $('edit-pickup-details').value.trim() : '',
-        pickupFrom: pickupRequired ? $('edit-pickup-from').value.trim() : '',
-        pickupBookingConfirmed: pickupRequired ? $('edit-pickup-booking-confirmed').checked : false,
-        pickupConfirmationIntent: pickupRequired
-          ? ($('edit-pickup-booking-confirmed').dataset.confirmationIntent || 'none')
-          : 'none',
-        dropoffRequired,
-        dropoffDate: dropoffRequired ? $('edit-dropoff-date').value : '',
-        dropoffTime: dropoffRequired ? $('edit-dropoff-time').value : '',
-        dropoffDetails: dropoffRequired ? $('edit-dropoff-details').value.trim() : '',
-        dropoffTo: dropoffRequired ? $('edit-dropoff-to').value.trim() : '',
-        dropoffBookingConfirmed: dropoffRequired ? $('edit-dropoff-booking-confirmed').checked : false,
-        dropoffConfirmationIntent: dropoffRequired
-          ? ($('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none')
-          : 'none',
-        travelLegs: collectTravelLegPayloads()
+        swamijiMeetings: collectMeetingPayloads()
       };
     }
 
-    function resolveOptimisticCabState(type, payload, existing) {
-      const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
-      if (!payload[`${prefix}Required`]) return { confirmed: false, state: '' };
-
-      const intent = payload[`${prefix}ConfirmationIntent`] || 'none';
-      const existingConfirmed = Boolean(existing && existing[
-        type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed'
-      ]);
-      if (intent === 'confirm') return { confirmed: true, state: 'Confirmed' };
-      if (intent === 'preserve' && existingConfirmed) {
-        return {
-          confirmed: true,
-          state: evaluateCabSchedule(type) ? 'Needs Rescheduling' : 'Needs Reconfirmation'
-        };
-      }
-      return { confirmed: false, state: 'Requested' };
-    }
-
+    // V3 Operational Workspaces Architecture — Phase B. Accommodation, stay
+    // dates, rooms, and cabs/travel are no longer part of the save payload
+    // (see collectGuestPayload) — every one of those fields is left for the
+    // `...(existing || {})` spread below to carry forward untouched from
+    // before this edit, rather than being re-derived from a payload that no
+    // longer has them (which would optimistically blank them out on screen
+    // until the real server response arrived a moment later). A brand new
+    // guest genuinely has none of these yet (no Visit exists), so `existing`
+    // being empty there is correct, not a bug.
     function buildOptimisticGuest(payload, existing, guestId) {
-      const arrival = localDateInfo(payload.arrivalDate, payload.arrivalTime, false);
-      const departure = localDateInfo(payload.departureDate, payload.departureTime, true);
-      const pickup = localDateInfo(payload.pickupDate, payload.pickupTime, false);
-      const dropoff = localDateInfo(payload.dropoffDate, payload.dropoffTime, false);
-      const pickupBooking = resolveOptimisticCabState('pickup', payload, existing);
-      const dropoffBooking = resolveOptimisticCabState('dropoff', payload, existing);
-
       const guest = {
         ...(existing || {}),
         guestId,
         Name: payload.name,
         'Foreign National': payload.isForeign,
-        'C-form complete': payload.isForeign && payload.isCformComplete,
         personType: payload.personType,
-        accommodation: payload.accommodation,
-        outsideAccommodationDetails: payload.outsideAccommodationDetails,
-        outsideAccommodationConfirmed: Boolean(payload.outsideAccommodationConfirmed),
-        selfArrangedStayingAt: payload.selfArrangedStayingAt,
         invitedPurpose: Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : [],
         invitedPurposeOther: payload.invitedPurposeOther,
         staffAssignment: payload.staffAssignment,
         sevaTeamIds: Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : [],
         specificSeva: Array.isArray(payload.specificSeva) ? payload.specificSeva : [],
         mealOverrides: Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [],
-        swamijiMeetings: Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : [],
-        Rooms: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms : []) : [],
-        Room: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms.join(' & ') : '') : '',
-        Arrival: arrival.display,
-        Departure: departure.display,
-        'Pickup Required': Boolean(payload.pickupRequired),
-        'Pickup Cab Time': payload.pickupRequired ? pickup.display : '',
-        'Pickup Cab details': payload.pickupRequired ? payload.pickupDetails : '',
-        pickupFrom: payload.pickupRequired ? payload.pickupFrom : '',
-        'Pickup Booking Confirmed': pickupBooking.confirmed,
-        pickupBookingState: pickupBooking.state,
-        'Dropoff Required': Boolean(payload.dropoffRequired),
-        'Dropoff Cab Time': payload.dropoffRequired ? dropoff.display : '',
-        'Dropoff Cab details': payload.dropoffRequired ? payload.dropoffDetails : '',
-        dropoffTo: payload.dropoffRequired ? payload.dropoffTo : '',
-        'Dropoff Booking Confirmed': dropoffBooking.confirmed,
-        dropoffBookingState: dropoffBooking.state,
-        arrivalDate: payload.arrivalDate,
-        arrivalTime: payload.arrivalTime,
-        arrivalMs: arrival.ms,
-        departureDate: payload.departureDate,
-        departureTime: payload.departureTime,
-        departureMs: departure.ms,
-        pickupDate: payload.pickupRequired ? payload.pickupDate : '',
-        pickupTime: payload.pickupRequired ? payload.pickupTime : '',
-        pickupMs: payload.pickupRequired ? pickup.ms : null,
-        dropoffDate: payload.dropoffRequired ? payload.dropoffDate : '',
-        dropoffTime: payload.dropoffRequired ? payload.dropoffTime : '',
-        dropoffMs: payload.dropoffRequired ? dropoff.ms : null,
-        travelLegs: (Array.isArray(payload.travelLegs) ? payload.travelLegs : [])
-          .map((leg, index) => prepareTravelLegForDisplay(leg, index))
+        swamijiMeetings: Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : []
       };
 
       const priority = calculateLocalPriority(guest);
