@@ -728,7 +728,7 @@
        of partially behind it — the browser has no built-in awareness that
        a pinned sticky sibling will cover the first ~54px of whatever
        scrolls to the very top. */
-    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-cabs, #sec-travel {
+    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-meals, #sec-cabs, #sec-travel {
       scroll-margin-top: 76px;
     }
 
@@ -862,6 +862,69 @@
     .seva-team-row-actions {
       display: flex;
       gap: 8px;
+    }
+
+    .meal-exceptions-list {
+      display: flex;
+      max-height: 320px;
+      margin-top: 4px;
+      gap: 8px;
+      flex-direction: column;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .meal-exception-row {
+      display: flex;
+      padding: 9px 11px;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      border: 1px solid #333;
+      border-radius: 7px;
+      background: #1e1e1e;
+    }
+
+    .meal-exception-date {
+      flex: 0 0 auto;
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .meal-exception-meals {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .meal-exception-checkbox-label {
+      gap: 5px;
+      font-size: 0.8rem;
+    }
+
+    .meal-exceptions-truncated-note {
+      margin-top: 8px;
+      color: var(--subtle);
+      font-size: 0.76rem;
+    }
+
+    .meal-add-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .meal-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .meal-add-row .edit-input {
+      flex: 1 1 130px;
     }
 
     .checkbox-input {
@@ -1502,6 +1565,7 @@
         <button type="button" class="section-nav-pill" data-target="sec-stay">Stay</button>
         <button type="button" class="section-nav-pill" data-target="sec-accommodation">Accommodation</button>
         <button type="button" class="section-nav-pill" data-target="sec-seva">Seva</button>
+        <button type="button" class="section-nav-pill" data-target="sec-meals">Meals</button>
         <button type="button" class="section-nav-pill" data-target="sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="sec-travel">Travel</button>
       </div>
@@ -1660,6 +1724,41 @@
           <label class="input-label">Seva Team membership</label>
           <div id="guest-seva-teams-list" class="seva-team-checkbox-list"></div>
           <div id="guest-seva-teams-empty" class="travel-empty">No Seva Teams have been created yet.</div>
+        </div>
+
+        <div class="section-divider">
+          <div class="travel-section-header">
+            <h4 class="travel-section-title">Specific Seva</h4>
+            <button id="add-specific-seva-btn" class="travel-add-btn" type="button">+ Add Specific Seva</button>
+          </div>
+          <p class="travel-help">
+            Independent of any Seva Team — its own dates, or none yet if still to be decided.
+          </p>
+          <div id="specific-seva-list" class="travel-leg-list"></div>
+          <div id="specific-seva-empty" class="travel-empty">No Specific Seva added.</div>
+        </div>
+      </section>
+
+      <section class="form-section" id="sec-meals" aria-labelledby="meals-section-title">
+        <h3 id="meals-section-title" class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-meal"></use></svg>
+          Meals
+        </h3>
+
+        <div id="meal-exceptions-group">
+          <p class="form-section-description">Included by default for every day of their stay. Uncheck a meal to mark it excluded.</p>
+          <div id="meal-exceptions-missing-dates" class="travel-empty">Set arrival and departure dates to manage meal exceptions.</div>
+          <div id="meal-exceptions-list" class="meal-exceptions-list" hidden></div>
+        </div>
+
+        <div id="meal-add-group">
+          <div class="travel-section-header">
+            <h4 class="travel-section-title">Meals</h4>
+            <button id="add-meal-btn" class="travel-add-btn" type="button">+ Add Meal</button>
+          </div>
+          <p class="travel-help">Not included by default — add specific meals this person is invited to.</p>
+          <div id="meal-add-list" class="meal-add-list"></div>
+          <div id="meal-add-empty" class="travel-empty">No meals added.</div>
         </div>
       </section>
 
@@ -1839,6 +1938,7 @@
     <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.09 0-7.19 3.72-6.39 7.69L3 9v7h7l-2.87-2.87C6.4 10.04 8.74 7 12 7c1.38 0 2.63.56 3.54 1.46L13 11h7V4l-2.35 2.35zM6.35 17.65C7.8 19.1 9.79 20 12 20c4.09 0 7.19-3.72 6.39-7.69L21 15V8h-7l2.87 2.87C17.6 13.96 15.26 17 12 17c-1.38 0-2.63-.56-3.54-1.46L11 13H4v7l2.35-2.35z"/></symbol>
     <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
     <symbol id="icon-people" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></symbol>
+    <symbol id="icon-meal" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></symbol>
     <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
@@ -1874,6 +1974,12 @@
     let allGuests = [];
     let allSevaTeams = [];
     let roomInventory = [];
+    const ALLOWED_MEALS = Object.freeze(['Breakfast', 'Lunch', 'Dinner']);
+    // Snapshot of the guest's own Meal Overrides for the current modal
+    // session — same role as roomsOriginalForShareCheck, so a re-render
+    // triggered by an accommodation/date change rebuilds from the guest's
+    // real saved data rather than assuming a blank slate.
+    let modalMealOverrides = [];
     let pendingGuestIds = new Set();
     let deleteTimeout = null;
     let isDeleteConfirm = false;
@@ -2214,6 +2320,9 @@
       $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
       $('edit-foreign').addEventListener('change', toggleCForm);
       $('edit-accommodation').addEventListener('change', toggleAccommodationFields);
+      $('edit-accommodation').addEventListener('change', toggleMealsSectionMode);
+      $('edit-arrival-date').addEventListener('change', toggleMealsSectionMode);
+      $('edit-departure-date').addEventListener('change', toggleMealsSectionMode);
       $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
       $('edit-person-type').addEventListener('change', toggleCabTravelSections);
       $('edit-person-type').addEventListener('change', toggleSevaSectionVisibility);
@@ -2244,6 +2353,8 @@
         if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
       });
       $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
+      $('add-specific-seva-btn').addEventListener('click', () => addSpecificSevaEditor());
+      $('add-meal-btn').addEventListener('click', () => addMealRow());
       $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
 
@@ -2545,6 +2656,113 @@
 
     function getSelectedGuestSevaTeamIds() {
       return [...document.querySelectorAll('.guest-seva-team-checkbox:checked')].map(box => box.dataset.teamId);
+    }
+
+    // ============================================================
+    // Specific Seva — independent of any team, own dates (or none yet),
+    // repeatable per guest. Styled and wired identically to the Travel Legs
+    // editor list (same collapsible-row pattern, same helper reuse).
+    // ============================================================
+
+    function renderSpecificSevaEditors(list) {
+      const container = $('specific-seva-list');
+      container.replaceChildren();
+      (Array.isArray(list) ? list : []).forEach(entry => addSpecificSevaEditor(entry));
+      updateSpecificSevaEmptyState();
+    }
+
+    function addSpecificSevaEditor(entry = {}) {
+      const list = $('specific-seva-list');
+      const isExisting = Boolean(entry.sevaId);
+      const editor = createElement('div', 'travel-leg-editor');
+      editor.dataset.sevaId = String(entry.sevaId || `seva-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      editor.innerHTML = `
+        <div class="travel-leg-summary">
+          <div class="travel-leg-summary-text">
+            <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
+            <span>New Specific Seva</span>
+          </div>
+          <div class="travel-leg-summary-actions">
+            <button class="travel-remove-btn" type="button" aria-label="Remove Specific Seva">
+              <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
+            </button>
+            <svg class="icon travel-leg-chevron" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+          </div>
+        </div>
+        <div class="travel-leg-details conditional-fields">
+          <div class="input-group">
+            <label class="input-label">Description *</label>
+            <input class="edit-input" data-field="description" type="text" maxlength="500" autocomplete="off">
+          </div>
+          <div class="travel-leg-grid">
+            <div class="input-group">
+              <label class="input-label">Start date — optional</label>
+              <input class="edit-input" data-field="startDate" type="date">
+            </div>
+            <div class="input-group">
+              <label class="input-label">End date — optional</label>
+              <input class="edit-input" data-field="endDate" type="date">
+            </div>
+          </div>
+        </div>`;
+
+      const setValue = (field, value) => {
+        const input = editor.querySelector(`[data-field="${field}"]`);
+        if (input) input.value = value || '';
+      };
+      setValue('description', entry.description);
+      setValue('startDate', entry.startDate);
+      setValue('endDate', entry.endDate);
+
+      editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
+        editor.remove();
+        updateSpecificSevaEmptyState();
+      });
+      ['description', 'startDate', 'endDate'].forEach(field => {
+        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateSpecificSevaSummary(editor));
+      });
+
+      const summary = editor.querySelector('.travel-leg-summary');
+      summary.addEventListener('click', event => {
+        if (event.target.closest('button')) return;
+        toggleLegExpanded(editor);
+      });
+
+      list.appendChild(editor);
+      setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExisting);
+      editor.classList.toggle('leg-expanded', !isExisting);
+      updateSpecificSevaSummary(editor);
+      updateSpecificSevaEmptyState();
+    }
+
+    function updateSpecificSevaSummary(editor) {
+      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+      const description = value('description');
+      const dateRange = [value('startDate'), value('endDate')]
+        .filter(Boolean)
+        .map(d => String(localDateInfo(d, '', false).display || d).replace(/^[A-Za-z]{3},\s*/, ''))
+        .join(' – ');
+
+      const label = editor.querySelector('.travel-leg-summary-text span');
+      label.textContent = description
+        ? `${description}${dateRange ? ` · ${dateRange}` : ' · dates TBD'}`
+        : 'New Specific Seva';
+    }
+
+    function updateSpecificSevaEmptyState() {
+      $('specific-seva-empty').style.display = $('specific-seva-list').children.length ? 'none' : 'block';
+    }
+
+    function collectSpecificSevaPayloads() {
+      return [...$('specific-seva-list').querySelectorAll('.travel-leg-editor')].map(editor => {
+        const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+        return {
+          sevaId: editor.dataset.sevaId || '',
+          description: value('description'),
+          startDate: value('startDate'),
+          endDate: value('endDate')
+        };
+      });
     }
 
     function prepareGuestForDisplay(guest) {
@@ -4008,6 +4226,8 @@
         $('edit-staff-assignment').value = guest.staffAssignment || '';
         updatePurposeOtherVisibility();
         renderGuestSevaTeamCheckboxes(guest.sevaTeamIds || []);
+        renderSpecificSevaEditors(guest.specificSeva || []);
+        modalMealOverrides = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
         $('edit-foreign').checked = Boolean(guest['Foreign National']);
         $('edit-cform').checked = Boolean(guest['C-form complete']);
         $('edit-arrival-date').value = guest.arrivalDate || '';
@@ -4061,6 +4281,8 @@
         $('edit-staff-assignment').value = '';
         updatePurposeOtherVisibility();
         renderGuestSevaTeamCheckboxes([]);
+        renderSpecificSevaEditors([]);
+        modalMealOverrides = [];
         $('edit-foreign').checked = false;
         $('edit-cform').checked = false;
         $('edit-arrival-date').value = '';
@@ -4098,6 +4320,7 @@
       togglePurposeAssignmentFields();
       toggleCabTravelSections();
       toggleSevaSectionVisibility();
+      toggleMealsSectionMode();
       updateTransportConstraints();
       modalIsOpen = true;
       $('modal').style.display = 'flex';
@@ -4517,6 +4740,24 @@
       return ['Friend', 'Visitor', 'Other'].includes(personType);
     }
 
+    // Governing rule: Ashram residents are included for meals by default
+    // during their stay (arrival/departure day included); everyone else is
+    // excluded by default. Mirrors isAshramResidentOnDate_ in Code-V3.gs.
+    function isAshramResidentOnDate(guest, dateKey) {
+      if (!requiresAshramRoom(guest)) return false;
+      if (!guest.arrivalDate || dateKey < guest.arrivalDate) return false;
+      if (guest.departureDate && dateKey > guest.departureDate) return false;
+      return true;
+    }
+
+    // An explicit override always wins; absent one, falls back to the
+    // resident default. Mirrors resolveMealInclusion_ in Code-V3.gs.
+    function resolveMealInclusion(guest, dateKey, meal, overridesForGuest) {
+      const override = overridesForGuest.find(entry => entry.date === dateKey && entry.meal === meal);
+      if (override) return override.included;
+      return isAshramResidentOnDate(guest, dateKey);
+    }
+
     // Purely presentational, like every other Person-Type-driven toggle
     // here — cab/travel data is never cleared by this, so a Visitor
     // reclassified back to an eligible type gets their prior data back
@@ -4540,6 +4781,179 @@
       $('sec-seva').hidden = !eligible;
       const sevaPill = document.querySelector('.section-nav-pill[data-target="sec-seva"]');
       if (sevaPill) sevaPill.hidden = !eligible;
+    }
+
+    // ============================================================
+    // Meals — no Person Type eligibility gate (applies to everyone), but
+    // switches between two entirely different UIs depending on residency:
+    // residents get an exceptions grid defaulting to fully included,
+    // non-residents get an explicit opt-in list. Rebuilds from
+    // modalMealOverrides (the guest's real saved data) on every toggle,
+    // same "rebuild fresh on structural change" pattern already used by
+    // toggleAccommodationFields for Room Allocation.
+    function toggleMealsSectionMode() {
+      const isResident = $('edit-accommodation').value === 'Ashram';
+      $('meal-exceptions-group').hidden = !isResident;
+      $('meal-add-group').hidden = isResident;
+      if (isResident) {
+        renderMealExceptionsGrid(modalMealOverrides);
+      } else {
+        renderMealAddList(modalMealOverrides);
+      }
+    }
+
+    // yyyy-MM-dd strings only, inclusive of both ends — capped so a mistyped
+    // far-future date (e.g. a stray extra digit in the year) can't generate
+    // tens of thousands of rows and hang the browser.
+    // maxDays caps the returned list (so a mistyped far-future date can't
+    // generate tens of thousands of rows and hang the browser) without
+    // needing a second, separate enumeration just to learn the true count —
+    // callers that need "N of M days" can get M via totalDaysInRange.
+    function enumerateDateRange(startDateKey, endDateKey, maxDays) {
+      const dates = [];
+      const start = new Date(`${startDateKey}T00:00:00`);
+      const end = new Date(`${endDateKey}T00:00:00`);
+      if (isNaN(start) || isNaN(end) || end < start) return dates;
+      const limit = maxDays || Infinity;
+      const cursor = new Date(start);
+      while (dates.length < limit && cursor <= end) {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, '0');
+        const d = String(cursor.getDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return dates;
+    }
+
+    function totalDaysInRange(startDateKey, endDateKey) {
+      const start = new Date(`${startDateKey}T00:00:00`);
+      const end = new Date(`${endDateKey}T00:00:00`);
+      if (isNaN(start) || isNaN(end) || end < start) return 0;
+      return Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1;
+    }
+
+    function formatDateKeyDisplay(dateKey) {
+      return String(localDateInfo(dateKey, '', false).display || dateKey).replace(/^[A-Za-z]{3},\s*/, '');
+    }
+
+    function renderMealExceptionsGrid(overrides) {
+      const arrivalDate = $('edit-arrival-date').value;
+      const departureDate = $('edit-departure-date').value;
+      const list = $('meal-exceptions-list');
+      list.replaceChildren();
+
+      if (!arrivalDate || !departureDate) {
+        $('meal-exceptions-missing-dates').hidden = false;
+        list.hidden = true;
+        return;
+      }
+      $('meal-exceptions-missing-dates').hidden = true;
+      list.hidden = false;
+
+      const excludedSet = new Set(
+        overrides.filter(entry => entry.included === false).map(entry => `${entry.date}|${entry.meal}`)
+      );
+
+      const dates = enumerateDateRange(arrivalDate, departureDate, 60);
+      const totalDays = totalDaysInRange(arrivalDate, departureDate);
+
+      dates.forEach(dateKey => {
+        const row = createElement('div', 'meal-exception-row');
+        row.appendChild(createElement('span', 'meal-exception-date', formatDateKeyDisplay(dateKey)));
+        const mealsWrap = createElement('div', 'meal-exception-meals');
+        ALLOWED_MEALS.forEach(meal => {
+          const label = createElement('label', 'checkbox-label meal-exception-checkbox-label');
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.className = 'checkbox-input meal-exception-checkbox';
+          input.dataset.date = dateKey;
+          input.dataset.meal = meal;
+          input.checked = !excludedSet.has(`${dateKey}|${meal}`);
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(meal));
+          mealsWrap.appendChild(label);
+        });
+        row.appendChild(mealsWrap);
+        list.appendChild(row);
+      });
+
+      if (totalDays > dates.length) {
+        list.appendChild(createElement(
+          'div',
+          'meal-exceptions-truncated-note',
+          `Showing the first ${dates.length} of ${totalDays} days.`
+        ));
+      }
+    }
+
+    function renderMealAddList(overrides) {
+      const container = $('meal-add-list');
+      container.replaceChildren();
+      overrides.filter(entry => entry.included !== false).forEach(entry => addMealRow(entry));
+      updateMealAddEmptyState();
+    }
+
+    function addMealRow(entry = {}) {
+      const container = $('meal-add-list');
+      const row = createElement('div', 'meal-add-row');
+      row.dataset.overrideId = entry.overrideId || '';
+
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.className = 'edit-input';
+      dateInput.dataset.field = 'date';
+      dateInput.setAttribute('aria-label', 'Meal date');
+      dateInput.value = entry.date || '';
+
+      const mealSelect = document.createElement('select');
+      mealSelect.className = 'edit-input';
+      mealSelect.dataset.field = 'meal';
+      mealSelect.setAttribute('aria-label', 'Meal');
+      ALLOWED_MEALS.forEach(meal => {
+        const option = document.createElement('option');
+        option.value = meal;
+        option.textContent = meal;
+        mealSelect.appendChild(option);
+      });
+      mealSelect.value = entry.meal || 'Breakfast';
+
+      const removeBtn = createElement('button', 'travel-remove-btn', 'Remove');
+      removeBtn.type = 'button';
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+        updateMealAddEmptyState();
+      });
+
+      row.appendChild(dateInput);
+      row.appendChild(mealSelect);
+      row.appendChild(removeBtn);
+      container.appendChild(row);
+      updateMealAddEmptyState();
+    }
+
+    function updateMealAddEmptyState() {
+      $('meal-add-empty').style.display = $('meal-add-list').children.length ? 'none' : 'block';
+    }
+
+    // Residents: only unchecked cells become overrides (Included=false) —
+    // checked cells match the default already, so writing them out would
+    // just be noise. Non-residents: every row is an explicit Included=true
+    // override, since nothing is included for them without one.
+    function collectMealOverridesPayload() {
+      if ($('edit-accommodation').value === 'Ashram') {
+        return [...document.querySelectorAll('.meal-exception-checkbox')]
+          .filter(box => !box.checked)
+          .map(box => ({ overrideId: '', date: box.dataset.date, meal: box.dataset.meal, included: false }));
+      }
+      return [...document.querySelectorAll('.meal-add-row')]
+        .map(row => ({
+          overrideId: row.dataset.overrideId || '',
+          date: row.querySelector('[data-field="date"]').value,
+          meal: row.querySelector('[data-field="meal"]').value
+        }))
+        .filter(entry => entry.date && entry.meal)
+        .map(entry => ({ ...entry, included: true }));
     }
 
     function setPurposeCheckboxes(purposes) {
@@ -5199,6 +5613,7 @@
       $('edit-staff-assignment').value = payload.staffAssignment || '';
       updatePurposeOtherVisibility();
       renderGuestSevaTeamCheckboxes(Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : []);
+      renderSpecificSevaEditors(Array.isArray(payload.specificSeva) ? payload.specificSeva : []);
       togglePurposeAssignmentFields();
       toggleCabTravelSections();
       toggleSevaSectionVisibility();
@@ -5214,6 +5629,8 @@
       if (payload.accommodation === 'Ashram') {
         setRoomRows(Array.isArray(payload.rooms) ? payload.rooms : []);
       }
+      modalMealOverrides = Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [];
+      toggleMealsSectionMode();
 
       $('edit-pickup-required').checked = Boolean(payload.pickupRequired);
       $('edit-pickup-date').value = payload.pickupDate || '';
@@ -5252,6 +5669,8 @@
         invitedPurposeOther: $('edit-purpose-other-text').value.trim(),
         staffAssignment: $('edit-staff-assignment').value.trim(),
         sevaTeamIds: getSelectedGuestSevaTeamIds(),
+        specificSeva: collectSpecificSevaPayloads(),
+        mealOverrides: collectMealOverridesPayload(),
         rooms: requiresRoom ? getRoomRowValues() : [],
         sharedRoomAcks: requiresRoom ? (sharedRoomAcks || []) : [],
         arrivalDate: $('edit-arrival-date').value,
@@ -5321,6 +5740,8 @@
         invitedPurposeOther: payload.invitedPurposeOther,
         staffAssignment: payload.staffAssignment,
         sevaTeamIds: Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : [],
+        specificSeva: Array.isArray(payload.specificSeva) ? payload.specificSeva : [],
+        mealOverrides: Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [],
         Rooms: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms : []) : [],
         Room: payload.accommodation === 'Ashram' ? (Array.isArray(payload.rooms) ? payload.rooms.join(' & ') : '') : '',
         Arrival: arrival.display,
