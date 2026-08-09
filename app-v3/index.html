@@ -620,7 +620,7 @@
       fill: currentColor;
     }
 
-    #modal, #seva-teams-modal {
+    #modal, #seva-teams-modal, #data-audit-modal, #directory-modal {
       display: none;
       position: fixed;
       z-index: 100;
@@ -1120,6 +1120,13 @@
 
     .field-message.info { color: #8cbfe5; }
 
+    .directory-pagination {
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+    .directory-pagination .field-message { margin-top: 0; min-height: auto; }
+
 
 
     .travel-section-header {
@@ -1530,6 +1537,9 @@
         <input type="search" id="search-bar" placeholder="Search guests, rooms, travel, or dates..." aria-label="Search guests">
         <button id="search-clear-btn" class="search-clear-btn" type="button" aria-label="Clear search" hidden>&times;</button>
       </div>
+      <button id="directory-btn" class="icon-button" type="button" aria-label="Guest Directory" title="Guest Directory">
+        <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+      </button>
       <button id="seva-teams-btn" class="icon-button" type="button" aria-label="Manage Seva Teams" title="Manage Seva Teams">
         <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
       </button>
@@ -1548,7 +1558,11 @@
     </div>
   </header>
 
-  <div id="quick-filters" class="quick-filters" role="group" aria-label="Quick filters">
+  <!-- V3 Operational Workspaces Architecture — Phase D. Hidden, not deleted
+       — plan §12 redistributes these chips by workspace as each one ships
+       (Phase E–I), so the definitions stay here for reference/reuse. The
+       homepage keeps only free-text search (searchGuestCards) now. -->
+  <div id="quick-filters" class="quick-filters" role="group" aria-label="Quick filters" hidden>
     <!-- Order here is only the starting point — chips re-sort by how often
          each one actually gets used (see reorderQuickFilters). It decides
          what a brand-new device sees first, so the "needs attention" group
@@ -1591,7 +1605,20 @@
   </div>
 
   <div id="loading">Loading guests...</div>
+
+  <!-- V3 Operational Workspaces Architecture — Phase D. Replaces the
+       tier-tab dashboard as the homepage. The old tier-tabs/quick-filters
+       markup below is hidden, not deleted — quick-filters need somewhere to
+       redistribute to (plan §12) once each workspace exists (Phase E–I),
+       so their chip definitions stay available for reference/reuse rather
+       than being deleted and re-authored from scratch later. -->
   <div id="tier-tabs" class="tier-tabs" role="tablist" aria-label="Guest priority tiers" hidden></div>
+
+  <div id="home-tiles" class="card-grid" aria-label="Operational workspaces"></div>
+
+  <div id="home-search-results" class="card-grid" hidden></div>
+  <div id="home-search-empty" class="travel-empty" hidden>No guests match that search.</div>
+
   <main id="app" aria-live="polite"></main>
 
   <div id="modal" aria-hidden="true">
@@ -2017,6 +2044,32 @@
       </div>
       <div id="data-audit-status" class="field-message info" aria-live="polite">Not yet run.</div>
       <div id="data-audit-results"></div>
+    </div>
+  </div>
+
+  <div id="directory-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="directory-modal-title">
+      <div class="modal-header">
+        <h2 id="directory-modal-title">Guest Directory</h2>
+        <div class="modal-header-actions">
+          <button id="directory-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="directory-search">Filter by name</label>
+        <input type="search" id="directory-search" class="edit-input" placeholder="Type a name..." autocomplete="off">
+      </div>
+
+      <div id="directory-list" class="card-grid"></div>
+      <div id="directory-empty" class="travel-empty" hidden>No guests found.</div>
+      <div class="seva-team-row-actions directory-pagination">
+        <button id="directory-prev-btn" type="button" class="travel-remove-btn">Previous</button>
+        <span id="directory-page-info" class="field-message info"></span>
+        <button id="directory-next-btn" type="button" class="travel-remove-btn">Next</button>
+      </div>
     </div>
   </div>
 
@@ -2468,6 +2521,20 @@
       $('data-audit-btn').addEventListener('click', openDataAuditModal);
       $('data-audit-close-btn').addEventListener('click', closeDataAuditModal);
       $('data-audit-run-btn').addEventListener('click', runDataAuditReport);
+      $('directory-btn').addEventListener('click', openDirectory);
+      $('directory-close-btn').addEventListener('click', closeDirectory);
+      $('directory-modal').addEventListener('click', event => {
+        if (event.target === $('directory-modal')) closeDirectory();
+      });
+      $('directory-search').addEventListener('input', handleDirectorySearchInput);
+      $('directory-prev-btn').addEventListener('click', () => {
+        directoryOffset_ = Math.max(0, directoryOffset_ - DIRECTORY_PAGE_SIZE_);
+        loadDirectoryPage();
+      });
+      $('directory-next-btn').addEventListener('click', () => {
+        directoryOffset_ += DIRECTORY_PAGE_SIZE_;
+        loadDirectoryPage();
+      });
       $('seva-teams-close-btn').addEventListener('click', closeSevaTeamsModal);
       $('seva-teams-modal').addEventListener('click', event => {
         if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
@@ -2505,8 +2572,18 @@
       });
 
       loadAppData(false);
+      // V3 Operational Workspaces Architecture — Phase D. The homepage
+      // tiles refresh off getHomeSummary — the lightest read in the whole
+      // API — independently of the (still-running, still full-dataset)
+      // getAppData poll above, which the guest edit modal's Seva/room
+      // pickers still depend on for now. Fully replacing that full-dataset
+      // poll everywhere is Phase J's job, not this one.
+      loadHomeSummary();
       window.setInterval(() => {
         if (!modalIsOpen && pendingGuestIds.size === 0 && !document.hidden) loadAppData(true);
+      }, REFRESH_INTERVAL_MS);
+      window.setInterval(() => {
+        if (!modalIsOpen && !document.hidden) loadHomeSummary();
       }, REFRESH_INTERVAL_MS);
     }
 
@@ -3609,33 +3686,54 @@
       app.appendChild(error);
     }
 
+    // V3 Operational Workspaces Architecture — Phase D. Replaces the old
+    // tier-tab/createZone rendering — this now just toggles between the
+    // homepage tiles and search results, both living outside #app (which
+    // is unused going forward but left in the DOM rather than removed, in
+    // case a later phase wants it). renderTierTabs_/createZone_/
+    // createSearchResults_/matchesSearch_ etc. are deliberately left
+    // defined-but-uncalled below rather than deleted — same "hide, don't
+    // excise" posture as the quick-filters/tier-tabs markup, since a later
+    // cleanup phase (Phase J) is the one that actually retires this code.
+    // A monotonically increasing token guards against an older, slower
+    // search response landing after a newer one and clobbering its results
+    // — a real risk now that search is a network round trip, not a
+    // synchronous local filter.
+    let searchRequestToken_ = 0;
+
     function renderApp() {
-      updateQuickFilterActiveState();
       $('search-clear-btn').hidden = !$('search-bar').value;
-      const app = $('app');
-      app.replaceChildren();
+      const query = $('search-bar').value.trim();
 
-      const rawQuery = $('search-bar').value.trim();
-      const query = normalizeSearchText(rawQuery);
-      const filteredGuests = allGuests.filter(guest => matchesSearch(guest, query));
-
-      if (query) {
-        // Search is a flat, cross-tier lookup — a genuinely different
-        // intent from browsing one tier at a time, so the tab bar (which
-        // only makes sense as a browsing aid) steps aside while it's active.
-        $('tier-tabs').hidden = true;
-        if (filteredGuests.length === 0) {
-          app.appendChild(createElement('div', 'empty-state', 'No guests match your search.'));
-          return;
-        }
-        app.appendChild(createSearchResults(filteredGuests));
+      if (!query) {
+        searchRequestToken_ += 1;
+        $('home-tiles').hidden = false;
+        $('home-search-results').hidden = true;
+        $('home-search-empty').hidden = true;
         return;
       }
 
-      $('tier-tabs').hidden = false;
-      renderTierTabs();
-      const guests = allGuests.filter(guest => Number(guest.priorityTier) === activeTier);
-      app.appendChild(createZone(activeTier, guests));
+      $('home-tiles').hidden = true;
+      $('home-search-empty').hidden = true;
+
+      const requestToken = ++searchRequestToken_;
+      apiCall('searchGuestCards', { query, limit: 25 })
+        .then(results => {
+          if (requestToken !== searchRequestToken_) return;
+          const container = $('home-search-results');
+          container.replaceChildren();
+          if (!results.length) {
+            container.hidden = true;
+            $('home-search-empty').hidden = false;
+            return;
+          }
+          results.forEach(summary => container.appendChild(createFullGuestCard(summary)));
+          container.hidden = false;
+        })
+        .catch(error => handleApiError(error, err => {
+          if (requestToken !== searchRequestToken_) return;
+          showToast(`Search failed: ${getErrorMessage(err)}`, 'error');
+        }));
     }
 
     // Counts always reflect every tier regardless of which is active, so
@@ -3960,6 +4058,284 @@
       appendConfirmedTravelDetails(card, guest);
 
       return card;
+    }
+
+    // V3 Operational Workspaces Architecture — Phase D. The "full guest
+    // card" for the new Directory/homepage-search, deliberately NOT reusing
+    // createGuestCard above: that renderer (and its append*Details helpers)
+    // reads from two global, full-dataset arrays — allGuests (for
+    // findRoomSharingPartners' cross-guest room lookup) and allSevaTeams
+    // (for Seva team name/date lookup by ID) — which only exist because the
+    // old getAppData always loaded every guest into memory. getDirectory/
+    // searchGuestCards/getGuestCardSummaries deliberately don't do that
+    // (the whole point of this revision's performance goals), so this
+    // renders straight from one self-contained card-summary object instead
+    // — the backend has already joined in everything it needs (accommodation/
+    // visit, Seva team names+status, Specific Seva, today's meals, upcoming
+    // meetings, trips). Operational warning badges (Room missing, C-form
+    // pending, cab booking state, etc.) are deliberately NOT reproduced here
+    // — those move to the Accommodation & Travel workspace in Phase E, which
+    // is where they're actually actionable; this card is informational only.
+    function createFullGuestCard(summary) {
+      const card = createElement('article', 'card');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Open ${summary.name || 'guest'}`);
+      card.addEventListener('click', () => openModal('edit', summary.guestId));
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openModal('edit', summary.guestId);
+        }
+      });
+
+      card.appendChild(createElement('div', 'guest-name', summary.name || 'Unnamed Guest'));
+
+      const topBadges = createElement('div', 'badge-row');
+      const personTypeClass = summary.personType === PERSON_TYPE_NEEDS_REVIEW
+        ? 'badge-warning'
+        : ({
+            Friend: 'badge-blue',
+            Visitor: 'badge-purple',
+            'Event Staff': 'badge-teal',
+            Other: 'badge-silver'
+          })[summary.personType] || 'badge-salmon';
+      topBadges.appendChild(createBadge(summary.personType || 'Invited Guest', personTypeClass));
+
+      if (isInvitedGuestPurposeApplicable(summary.personType) && Array.isArray(summary.invitedPurpose)) {
+        summary.invitedPurpose.forEach(purpose => topBadges.appendChild(createBadge(purpose, 'badge-gray')));
+      }
+      if (Array.isArray(summary.sevaTeams) && summary.sevaTeams.length) {
+        topBadges.appendChild(createBadge('Seva Team', 'badge-teal'));
+      }
+      if (summary.archived) topBadges.appendChild(createBadge('Archived', 'badge-gray'));
+      card.appendChild(topBadges);
+
+      if (isEventStaffAssignmentApplicable(summary.personType) && summary.staffAssignment) {
+        card.appendChild(createDetailLine('icon-user', summary.staffAssignment));
+      }
+      if (isInvitedGuestPurposeApplicable(summary.personType)
+          && Array.isArray(summary.invitedPurpose) && summary.invitedPurpose.includes('Other')
+          && summary.invitedPurposeOther) {
+        card.appendChild(createDetailLine('icon-user', summary.invitedPurposeOther));
+      }
+
+      const visit = summary.visit;
+      if (visit) {
+        card.appendChild(createDetailLine('icon-calendar', visit.arrivalDisplay ? `Arrives ${visit.arrivalDisplay}` : 'Arrival date TBD'));
+        if (visit.departureDisplay) {
+          card.appendChild(createDetailLine('icon-calendar', `Departs ${visit.departureDisplay}`));
+        }
+        if (visit.accommodation === 'Ashram') {
+          card.appendChild(createDetailLine(
+            'icon-bed',
+            Array.isArray(visit.rooms) && visit.rooms.length ? visit.rooms.join(' & ') : 'Room not assigned'
+          ));
+        } else if (visit.accommodation) {
+          const accommodationLabels = {
+            'Outside - Arranged by Ashram': 'Outside · Arranged by Ashram',
+            'Outside - Self-arranged': 'Outside · Self-arranged',
+            'No overnight stay': 'No overnight stay',
+            TBD: 'Accommodation: TBD'
+          };
+          card.appendChild(createDetailLine('icon-bed', accommodationLabels[visit.accommodation] || visit.accommodation));
+        }
+      }
+
+      (summary.sevaTeams || []).forEach(team => {
+        card.appendChild(createDetailLine('icon-people', `${team.name} · ${team.status}`));
+      });
+      (summary.specificSeva || []).forEach(entry => {
+        const dateText = entry.status === 'Seva dates TBD' ? 'dates TBD' : formatSevaDateRange(entry.startDate, entry.endDate);
+        card.appendChild(createDetailLine('icon-people', `${entry.description}${dateText ? ` · ${dateText}` : ''}`));
+      });
+
+      if (Array.isArray(summary.mealsToday) && summary.mealsToday.length) {
+        const included = summary.mealsToday.filter(m => m.included).map(m => m.meal);
+        if (included.length) {
+          card.appendChild(createDetailLine('icon-meal', `Today: ${included.join(', ')}`));
+        }
+      }
+
+      (summary.upcomingMeetings || []).forEach(meeting => {
+        if (!meeting.date) return;
+        const dateText = formatDateKeyDisplay(meeting.date);
+        const text = meeting.time
+          ? `Meeting with Swamiji · ${dateText} · ${meeting.time}`
+          : `Meeting with Swamiji · ${dateText}`;
+        card.appendChild(createDetailLine('icon-calendar', text));
+      });
+
+      (summary.trips || []).forEach(trip => {
+        card.appendChild(createDetailLine('icon-flight', `${trip.name} · ${trip.status}`));
+      });
+
+      return card;
+    }
+
+    // V3 Operational Workspaces Architecture — Phase D. The 5-tile
+    // homepage, driven by getHomeSummary — deliberately the lightest read
+    // in the whole API (aggregate counts only, no guest-level rows), so the
+    // homepage never needs the full dataset just to render. Static
+    // structure/labels defined once here; renderHomeTiles just rebuilds the
+    // small stat lines on each refresh, cheap since it's only 5 small cards.
+    const HOME_TILE_DEFS_ = [
+      {
+        workspace: 'accommodation',
+        title: 'Accommodation & Travel',
+        icon: 'icon-bed',
+        lines: summary => [
+          `${summary.accommodation.arrivingToday} arriving today`,
+          `${summary.accommodation.departingToday} departing today`,
+          `${summary.accommodation.currentlyResiding} currently residing`,
+          summary.accommodation.attentionNeeded ? `${summary.accommodation.attentionNeeded} need attention` : ''
+        ]
+      },
+      {
+        workspace: 'meals',
+        title: 'Meals',
+        icon: 'icon-meal',
+        lines: summary => [`${summary.meals.today} meal record${summary.meals.today === 1 ? '' : 's'} today`]
+      },
+      {
+        workspace: 'meetings',
+        title: 'Meetings with Swamiji',
+        icon: 'icon-calendar',
+        lines: summary => [
+          `${summary.meetings.today} today`,
+          summary.meetings.needsCompletion ? `${summary.meetings.needsCompletion} need completion` : ''
+        ]
+      },
+      {
+        workspace: 'seva',
+        title: 'Seva Teams & Tasks',
+        icon: 'icon-people',
+        lines: summary => [
+          `${summary.seva.activeTeams} active team${summary.seva.activeTeams === 1 ? '' : 's'}`,
+          `${summary.seva.activeSpecificSeva} active individual task${summary.seva.activeSpecificSeva === 1 ? '' : 's'}`
+        ]
+      },
+      {
+        workspace: 'trips',
+        title: 'Trips',
+        icon: 'icon-flight',
+        lines: summary => [
+          `${summary.trips.active} active`,
+          `${summary.trips.upcoming} upcoming`
+        ]
+      }
+    ];
+
+    function renderHomeTiles(summary) {
+      const container = $('home-tiles');
+      container.replaceChildren();
+      HOME_TILE_DEFS_.forEach(def => {
+        const tile = createElement('div', 'card home-tile');
+        tile.tabIndex = 0;
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('aria-label', def.title);
+        tile.addEventListener('click', () => openWorkspacePlaceholder_(def.title));
+        tile.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openWorkspacePlaceholder_(def.title);
+          }
+        });
+        tile.appendChild(createElement('div', 'guest-name', def.title));
+        def.lines(summary).filter(Boolean).forEach(text => {
+          tile.appendChild(createDetailLine(def.icon, text));
+        });
+        container.appendChild(tile);
+      });
+    }
+
+    // Temporary — replaced by real per-workspace navigation once each one
+    // ships (Phase E–I). Until then, a tile tap just confirms it's alive.
+    function openWorkspacePlaceholder_(title) {
+      showToast(`${title} workspace is coming in a later phase.`, 'info');
+    }
+
+    function loadHomeSummary() {
+      apiCall('getHomeSummary')
+        .then(summary => renderHomeTiles(summary))
+        .catch(error => handleApiError(error, err => {
+          console.error('getHomeSummary failed:', err);
+        }));
+    }
+
+    // Guest Directory — paginated getDirectory (lightweight rows only) with
+    // exactly one getGuestCardSummaries call per page turn to enrich the
+    // visible page into full cards. Never one request per row (plan §2/§4).
+    const DIRECTORY_PAGE_SIZE_ = 20;
+    let directoryOffset_ = 0;
+    let directoryTotal_ = 0;
+    let directoryNameQuery_ = '';
+    let directorySearchTimer_ = null;
+    let directoryRequestToken_ = 0;
+
+    function openDirectory() {
+      directoryOffset_ = 0;
+      directoryNameQuery_ = '';
+      $('directory-search').value = '';
+      $('directory-modal').style.display = 'flex';
+      $('directory-modal').setAttribute('aria-hidden', 'false');
+      loadDirectoryPage();
+    }
+
+    function closeDirectory() {
+      $('directory-modal').style.display = 'none';
+      $('directory-modal').setAttribute('aria-hidden', 'true');
+      window.clearTimeout(directorySearchTimer_);
+    }
+
+    function handleDirectorySearchInput() {
+      window.clearTimeout(directorySearchTimer_);
+      directorySearchTimer_ = window.setTimeout(() => {
+        directoryNameQuery_ = $('directory-search').value.trim();
+        directoryOffset_ = 0;
+        loadDirectoryPage();
+      }, 180);
+    }
+
+    function updateDirectoryPaginationControls_() {
+      const start = directoryTotal_ === 0 ? 0 : directoryOffset_ + 1;
+      const end = Math.min(directoryOffset_ + DIRECTORY_PAGE_SIZE_, directoryTotal_);
+      $('directory-page-info').textContent = `${start}–${end} of ${directoryTotal_}`;
+      $('directory-prev-btn').disabled = directoryOffset_ === 0;
+      $('directory-next-btn').disabled = end >= directoryTotal_;
+    }
+
+    function loadDirectoryPage() {
+      const listEl = $('directory-list');
+      const emptyEl = $('directory-empty');
+      listEl.replaceChildren();
+      emptyEl.hidden = true;
+      $('directory-page-info').textContent = 'Loading...';
+      $('directory-prev-btn').disabled = true;
+      $('directory-next-btn').disabled = true;
+
+      const requestToken = ++directoryRequestToken_;
+      apiCall('getDirectory', { options: { nameQuery: directoryNameQuery_, limit: DIRECTORY_PAGE_SIZE_, offset: directoryOffset_ } })
+        .then(page => {
+          if (requestToken !== directoryRequestToken_) return;
+          directoryTotal_ = page.total;
+          const guestIds = page.guests.map(row => row.guestId);
+          if (!guestIds.length) {
+            emptyEl.hidden = false;
+            updateDirectoryPaginationControls_();
+            return;
+          }
+          return apiCall('getGuestCardSummaries', { guestIds }).then(summaries => {
+            if (requestToken !== directoryRequestToken_) return;
+            summaries.forEach(summary => listEl.appendChild(createFullGuestCard(summary)));
+            updateDirectoryPaginationControls_();
+          });
+        })
+        .catch(error => handleApiError(error, err => {
+          if (requestToken !== directoryRequestToken_) return;
+          showToast(`Directory load failed: ${getErrorMessage(err)}`, 'error');
+          $('directory-page-info').textContent = '';
+        }));
     }
 
     function getRoomCategoryBadgeClass(category) {
