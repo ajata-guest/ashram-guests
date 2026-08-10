@@ -1848,7 +1848,9 @@
     </div>
   </header>
 
-  <div id="loading">Loading…</div>
+  <!-- No separate loading screen: the sign-in gate holds until the app is
+       fully loaded, so there is never a moment where an empty shell is on
+       screen waiting to be filled. -->
   <div id="page-error" class="error-state" hidden></div>
 
   <!-- ===================================================================
@@ -3067,27 +3069,59 @@
     // guard has to run before the page swaps, and because a hashchange has
     // already happened by the time we hear about it, declining means putting
     // the old hash back rather than simply not moving.
+    // A page is only shown once its data has arrived. Swapping first and
+    // filling in afterwards is what produces the empty-shell flash between
+    // views; waiting means you stay on a complete page until the next
+    // complete page is ready to replace it.
+    let routeToken_ = 0;
+
     function handleRouteChange_() {
-      if (suppressHashHandler_) { suppressHashHandler_ = false; return; }
+      if (suppressHashHandler_) { suppressHashHandler_ = false; return Promise.resolve(); }
       const next = parseHash_(location.hash);
 
       if (isEditorDirty_() && next.name !== currentRoute_.name) {
         if (!window.confirm('You have unsaved changes on this page. Leave without saving?')) {
           suppressHashHandler_ = true;
           location.hash = routeToHash_(currentRoute_);
-          return;
+          return Promise.resolve();
         }
         clearEditorDirty_();
       }
 
-      currentRoute_ = next;
-      showPage_(ROUTES_[next.name].page);
-      $('page-error').hidden = true;
-      try {
-        ROUTES_[next.name].load(next.arg);
-      } catch (error) {
-        showPageError_(getErrorMessage(error));
-      }
+      const route = ROUTES_[next.name];
+      const token = ++routeToken_;
+      setNavBusy_(true);
+
+      return Promise.resolve()
+        .then(() => route.load(next.arg))
+        .then(() => {
+          // A newer navigation started while this one was loading — that one
+          // owns the screen now, so this result is dropped rather than
+          // yanking the user back to a page they already left.
+          if (token !== routeToken_) return;
+          currentRoute_ = next;
+          $('page-error').hidden = true;
+          showPage_(route.page);
+          setNavBusy_(false);
+        })
+        .catch(error => {
+          if (token !== routeToken_) return;
+          // Still land on the page, so the error is attached to the place it
+          // came from rather than leaving the previous page silently stuck.
+          currentRoute_ = next;
+          showPage_(route.page);
+          setNavBusy_(false);
+          handleApiError(error, err => showPageError_(getErrorMessage(err)));
+        });
+    }
+
+    // Deliberately just the refresh button spinning down and the cursor —
+    // no overlay, no skeleton. The previous page stays fully readable while
+    // the next one loads, which is less disruptive than replacing it with a
+    // placeholder.
+    function setNavBusy_(busy) {
+      $('refresh-btn').disabled = busy;
+      document.body.style.cursor = busy ? 'progress' : '';
     }
 
     function routeToHash_(route) {
@@ -3201,11 +3235,14 @@
       return normalized.split(/\s+/).every(term => record.searchText.includes(term));
     }
 
-    // The one successful-response path, so this is where the sign-in gate
-    // finally drops — hiding it any earlier flashed the empty app shell at
-    // accounts that turn out not to be authorized.
+    // The sign-in gate is the app's only loading screen. It stays up until
+    // everything the app needs is actually in hand — the homepage summary
+    // AND the whole directory — and only then does it drop, revealing a
+    // finished page. Dropping it first and showing a "Loading…" placeholder
+    // underneath makes you wait twice for one startup, and puts an empty
+    // shell on screen in between; the app should never appear before it is
+    // ready to be used.
     function startSession_() {
-      $('signin-gate').style.display = 'none';
       // The short-lived ID token stays as a safety net: if createSession
       // below fails, this is what stops the next reopen regressing to
       // "sign in every time". Blank on a pure session resume, which is
@@ -3217,26 +3254,28 @@
           .catch(err => console.error('createSession failed — will retry next reopen, falling back to the ID-token path meanwhile:', err));
       }
 
-      // The homepage renders off the small summary call so the first paint
-      // doesn't wait on the whole directory; the directory then loads in the
-      // background and is warm by the time anyone opens it.
-      $('loading').style.display = 'block';
-      loadHomeSummary_()
+      // Both in parallel: the two calls don't depend on each other, so
+      // waiting for them one after the other would double the wait for no
+      // reason.
+      Promise.all([
+        loadHomeSummary_(),
+        loadDirectorySnapshot_({ includeArchived: false })
+      ])
         .then(() => {
-          $('loading').style.display = 'none';
-          handleRouteChange_();
-          return loadDirectorySnapshot_({ includeArchived: false });
+          renderHome_();
+          return handleRouteChange_();
         })
-        // Re-render only — never refetch. The summary is already in hand, so
-        // calling the generic refresh here would fire a second identical
-        // getHomeSummary on every single startup.
         .then(() => {
-          if (currentRoute_.name === 'home') renderHome_();
-          else if (currentRoute_.name === 'directory') renderDirectory_();
+
+          $('signin-gate').style.display = 'none';
         })
         .catch(error => handleApiError(error, err => {
-          $('loading').style.display = 'none';
-          showFatalError(getErrorMessage(err));
+          // Report inside the gate rather than behind it — the gate is what
+          // is on screen, and removing .verifying brings the sign-in button
+          // back so this is recoverable rather than a dead end.
+          const gate = $('signin-gate');
+          gate.classList.remove('verifying');
+          $('signin-message').textContent = `Couldn't load your data: ${getErrorMessage(err)}`;
         }));
     }
 
@@ -3922,10 +3961,6 @@
     function updateLastRefreshed(timestamp) {
       const date = timestamp ? new Date(timestamp) : new Date();
       $('last-updated').textContent = `Last refreshed ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-    }
-
-    function showFatalError(message) {
-      showPageError_(`Unable to load: ${message}`);
     }
 
     function hasGuestArrived(guest) {
