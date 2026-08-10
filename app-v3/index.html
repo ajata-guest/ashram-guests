@@ -727,54 +727,6 @@
       fill: currentColor;
     }
 
-    .modal-section-nav {
-      display: flex;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      margin: 0 0 18px;
-      gap: 6px;
-      padding: 10px 0;
-      background: var(--surface-raised);
-      border-bottom: 1px solid #2c2c2c;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Lets the sticky nav's raised background bleed to the modal's edges
-       without needing negative margins on the sticky element itself —
-       negative margins combined with position: sticky is a known source of
-       inconsistent "stuck" behavior across browsers. */
-    .modal-section-nav::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: -24px;
-      right: -24px;
-      z-index: -1;
-      background: inherit;
-    }
-
-    /* So scrollIntoView() lands each section below the sticky nav instead
-       of partially behind it — the browser has no built-in awareness that
-       a pinned sticky sibling will cover the first ~54px of whatever
-       scrolls to the very top. */
-    #sec-guest {
-      scroll-margin-top: 76px;
-    }
-
-    .section-nav-pill {
-      border: 0;
-      border-radius: 999px;
-      padding: 6px 12px;
-      background: transparent;
-      color: var(--subtle);
-      cursor: pointer;
-      font-size: 0.78rem;
-    }
-
-    .section-nav-pill:hover { color: var(--text); }
-    .section-nav-pill.active { background: rgba(250, 128, 114, 0.15); color: var(--salmon); }
 
     .form-section-description {
       margin: -7px 0 14px;
@@ -1834,7 +1786,6 @@
       .controls { max-width: none; }
       .zone-description { display: none; }
       .modal-content { padding: 20px 16px; }
-      .modal-section-nav::before { left: -16px; right: -16px; }
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
       /* Date and time stay side by side rather than stacking — stacking cost
@@ -1981,9 +1932,10 @@
       <input type="hidden" id="edit-guest-id">
       <input type="hidden" id="edit-version">
 
-      <div class="modal-section-nav" id="modal-section-nav" aria-label="Jump to section">
-        <button type="button" class="section-nav-pill active" data-target="sec-guest">Guest</button>
-      </div>
+<!-- The jump-to-section nav that used to sit here is gone with the
+           sections it navigated: this dialog holds guest basics and nothing
+           else now, and a one-item nav pointing at the only section is
+           furniture, not navigation. -->
 
       <section class="form-section" id="sec-guest" aria-labelledby="guest-section-title">
         <h3 id="guest-section-title" class="form-section-title">
@@ -2733,12 +2685,17 @@
       $('signin-message').textContent = isResume ? 'Signing you back in…' : 'Verifying sign-in…';
       if (!appInitialized) {
         appInitialized = true;
+        // initializeApp binds every listener and finishes by calling
+        // startSession_, which is what actually drops the gate.
         initializeApp();
       } else {
-        // A gate shown mid-session (expired token) just needed a fresh
-        // token — the app is already wired up, so resume instead of
-        // re-running the full initializer and double-binding listeners.
-        refreshCurrentPage_({ silent: true });
+        // A gate shown mid-session (expired token) just needed a fresh one —
+        // the app is already wired up, so go straight to startSession_
+        // rather than re-running the initializer and double-binding every
+        // listener. It has to be startSession_ and not a plain refresh:
+        // dropping the gate is its job, and skipping it leaves the app
+        // stuck behind a gate that never clears.
+        startSession_();
       }
     }
 
@@ -2754,8 +2711,8 @@
     // Resumes purely off our own long-lived SESSION_TOKEN_KEY — no Google ID
     // token involved, so it can't go through handleCredentialResponse (which
     // requires a credential to decode). apiCall() already prefers a stored
-    // session token over currentIdToken, so getAppData below authenticates
-    // with it automatically.
+    // session token over currentIdToken, so the first call below
+    // authenticates with it automatically.
     function resumeWithSession_() {
       const gate = $('signin-gate');
       gate.classList.remove('denied');
@@ -2765,7 +2722,7 @@
         appInitialized = true;
         initializeApp();
       } else {
-        refreshCurrentPage_({ silent: true });
+        startSession_();
       }
     }
 
@@ -2887,7 +2844,6 @@
       $('refresh-btn').addEventListener('click', () => refreshCurrentPage_({ silent: false }));
       $('notif-btn').addEventListener('click', handleNotifButtonClick);
       updateNotifButtonState();
-      initSectionNav();
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
       });
@@ -3271,7 +3227,13 @@
           handleRouteChange_();
           return loadDirectorySnapshot_({ includeArchived: false });
         })
-        .then(() => { if (currentRoute_.name === 'home' || currentRoute_.name === 'directory') refreshCurrentPage_({ silent: true }); })
+        // Re-render only — never refetch. The summary is already in hand, so
+        // calling the generic refresh here would fire a second identical
+        // getHomeSummary on every single startup.
+        .then(() => {
+          if (currentRoute_.name === 'home') renderHome_();
+          else if (currentRoute_.name === 'directory') renderDirectory_();
+        })
         .catch(error => handleApiError(error, err => {
           $('loading').style.display = 'none';
           showFatalError(getErrorMessage(err));
@@ -5945,9 +5907,6 @@
       resetCloseConfirm();
       modalDirty = false;
       document.querySelector('.modal-content').scrollTop = 0;
-      [...$('modal-section-nav').querySelectorAll('.section-nav-pill')].forEach(pill => {
-        pill.classList.toggle('active', pill.dataset.target === 'sec-guest');
-      });
       $('modal-mode').value = mode;
       $('edit-guest-id').value = guestId;
       $('edit-version').value = '';
