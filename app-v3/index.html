@@ -620,7 +620,7 @@
       fill: currentColor;
     }
 
-    #modal, #seva-teams-modal, #data-audit-modal, #directory-modal {
+    #modal, #seva-teams-modal, #data-audit-modal, #directory-modal, #visit-editor-modal, #accommodation-workspace-modal, #add-to-workspace-modal, #meals-workspace-modal, #meetings-workspace-modal, #meeting-editor-modal, #trips-workspace-modal, #trip-editor-modal {
       display: none;
       position: fixed;
       z-index: 100;
@@ -759,7 +759,7 @@
        of partially behind it — the browser has no built-in awareness that
        a pinned sticky sibling will cover the first ~54px of whatever
        scrolls to the very top. */
-    #sec-guest, #sec-stay, #sec-accommodation, #sec-seva, #sec-meals, #sec-meetings, #sec-cabs, #sec-travel {
+    #sec-guest {
       scroll-margin-top: 76px;
     }
 
@@ -1641,13 +1641,6 @@
 
       <div class="modal-section-nav" id="modal-section-nav" aria-label="Jump to section">
         <button type="button" class="section-nav-pill active" data-target="sec-guest">Guest</button>
-        <button type="button" class="section-nav-pill" data-target="sec-stay">Stay</button>
-        <button type="button" class="section-nav-pill" data-target="sec-accommodation">Accommodation</button>
-        <button type="button" class="section-nav-pill" data-target="sec-seva">Seva</button>
-        <button type="button" class="section-nav-pill" data-target="sec-meals">Meals</button>
-        <button type="button" class="section-nav-pill" data-target="sec-meetings">Meetings</button>
-        <button type="button" class="section-nav-pill" data-target="sec-cabs">Cabs</button>
-        <button type="button" class="section-nav-pill" data-target="sec-travel">Travel</button>
       </div>
 
       <section class="form-section" id="sec-guest" aria-labelledby="guest-section-title">
@@ -1679,10 +1672,6 @@
           <label class="checkbox-label" for="edit-foreign">
             <input type="checkbox" id="edit-foreign" class="checkbox-input">
             Foreign National
-          </label>
-          <label class="checkbox-label" id="cform-control" for="edit-cform" hidden>
-            <input type="checkbox" id="edit-cform" class="checkbox-input">
-            C-form complete
           </label>
         </div>
 
@@ -1723,22 +1712,31 @@
         </div>
       </section>
 
-      <section class="form-section" id="sec-stay" aria-labelledby="stay-section-title">
-        <h3 id="stay-section-title" class="form-section-title">
+      <button id="save-btn" type="button">Save Changes</button>
+    </div>
+  </div>
+
+  <div id="visit-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="visit-editor-modal-title">
+      <div class="modal-header">
+        <h2 id="visit-editor-modal-title">Edit Visit</h2>
+        <div class="modal-header-actions">
+          <button id="visit-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="visit-editor-guest-name" class="app-subtitle" style="margin-bottom:16px;"></div>
+      <input type="hidden" id="visit-editor-guest-id">
+      <input type="hidden" id="visit-editor-visit-id">
+      <input type="hidden" id="visit-editor-version">
+
+      <section class="form-section" id="visit-sec-stay">
+        <h3 class="form-section-title">
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
           Stay
         </h3>
-
-        <!-- V3 Operational Workspaces Architecture — Phase B. Arrival/departure
-             now belong to a Visit, not the Guest — edited from the
-             Accommodation & Travel workspace (Phase E) once it exists. The
-             fields below are kept in the DOM (hidden, never populated into
-             the save payload — see collectGuestPayload) rather than removed,
-             so nothing that still references their element IDs breaks; they
-             go away outright once Phase E ships. -->
-        <div class="travel-empty">Stay dates are now managed in the Accommodation &amp; Travel workspace.</div>
-
-        <div hidden>
         <div class="input-group">
           <label class="input-label" for="edit-arrival-date">Arrival</label>
           <div class="date-time-row">
@@ -1746,7 +1744,6 @@
             <input type="time" id="edit-arrival-time" class="edit-input" aria-label="Arrival time">
           </div>
         </div>
-
         <div class="input-group">
           <label class="input-label" for="edit-departure-date">Departure</label>
           <div class="date-time-row">
@@ -1754,21 +1751,13 @@
             <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
           </div>
         </div>
-        </div>
-
       </section>
 
-      <section class="form-section" id="sec-accommodation" aria-labelledby="accommodation-section-title">
-        <h3 id="accommodation-section-title" class="form-section-title">
+      <section class="form-section" id="visit-sec-accommodation">
+        <h3 class="form-section-title">
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-bed"></use></svg>
           Accommodation
         </h3>
-
-        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
-             the Stay section above: hidden, not removed. -->
-        <div class="travel-empty">Accommodation and room allocation are now managed in the Accommodation &amp; Travel workspace.</div>
-
-        <div hidden>
         <div class="input-group">
           <label class="input-label" for="edit-accommodation">Accommodation</label>
           <select id="edit-accommodation" class="edit-input">
@@ -1809,79 +1798,20 @@
             <input type="text" id="edit-self-arranged-staying-at" class="edit-input" maxlength="500" placeholder="Optional" autocomplete="off">
           </div>
         </div>
+
+        <div class="checkbox-row" id="visit-cform-row" hidden>
+          <label class="checkbox-label" for="edit-cform">
+            <input type="checkbox" id="edit-cform" class="checkbox-input">
+            C-form complete
+          </label>
         </div>
       </section>
 
-      <section class="form-section" id="sec-seva" aria-labelledby="seva-section-title">
-        <h3 id="seva-section-title" class="form-section-title">
-          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-people"></use></svg>
-          Seva
-        </h3>
-        <div class="input-group">
-          <label class="input-label">Seva Team membership</label>
-          <div id="guest-seva-teams-list" class="seva-team-checkbox-list"></div>
-          <div id="guest-seva-teams-empty" class="travel-empty">No Seva Teams have been created yet.</div>
-        </div>
-
-        <div class="section-divider">
-          <div class="travel-section-header">
-            <h4 class="travel-section-title">Specific Seva</h4>
-            <button id="add-specific-seva-btn" class="travel-add-btn" type="button">+ Add Specific Seva</button>
-          </div>
-          <p class="travel-help">
-            Independent of any Seva Team — its own dates, or none yet if still to be decided.
-          </p>
-          <div id="specific-seva-list" class="travel-leg-list"></div>
-          <div id="specific-seva-empty" class="travel-empty">No Specific Seva added.</div>
-        </div>
-      </section>
-
-      <section class="form-section" id="sec-meals" aria-labelledby="meals-section-title">
-        <h3 id="meals-section-title" class="form-section-title">
-          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-meal"></use></svg>
-          Meals
-        </h3>
-
-        <div id="meal-exceptions-group">
-          <p class="form-section-description">Included by default for every day of their stay. Uncheck a meal to mark it excluded.</p>
-          <div id="meal-exceptions-missing-dates" class="travel-empty">Set arrival and departure dates to manage meal exceptions.</div>
-          <div id="meal-exceptions-list" class="meal-exceptions-list" hidden></div>
-        </div>
-
-        <div id="meal-add-group">
-          <div class="travel-section-header">
-            <h4 class="travel-section-title">Meals</h4>
-            <button id="add-meal-btn" class="travel-add-btn" type="button">+ Add Meal</button>
-          </div>
-          <p class="travel-help">Not included by default — add specific meals this person is invited to.</p>
-          <div id="meal-add-list" class="meal-add-list"></div>
-          <div id="meal-add-empty" class="travel-empty">No meals added.</div>
-        </div>
-      </section>
-
-      <section class="form-section" id="sec-meetings" aria-labelledby="meetings-section-title">
-        <div class="travel-section-header">
-          <h3 id="meetings-section-title" class="travel-section-title">
-            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-            Meetings with Swamiji
-          </h3>
-          <button id="add-meeting-btn" class="travel-add-btn" type="button">+ Add Meeting with Swamiji</button>
-        </div>
-        <div id="meeting-list" class="travel-leg-list"></div>
-        <div id="meeting-empty" class="travel-empty">No meetings with Swamiji added.</div>
-      </section>
-
-      <section class="form-section" id="sec-cabs" aria-labelledby="cab-section-title">
-        <h3 id="cab-section-title" class="form-section-title">
+      <section class="form-section" id="visit-sec-cabs">
+        <h3 class="form-section-title">
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-car"></use></svg>
           Ashram Cabs
         </h3>
-
-        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
-             the Stay/Accommodation sections above: hidden, not removed. -->
-        <div class="travel-empty">Cabs are now managed in the Accommodation &amp; Travel workspace.</div>
-
-        <div hidden>
         <p class="form-section-description">Only add local pickup or drop-off that the ashram is responsible for.</p>
 
         <div class="transport-requirement">
@@ -1953,20 +1883,13 @@
             <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Drop-off details" autocomplete="off">
           </div>
         </div>
-        </div>
       </section>
 
-      <section class="form-section" id="sec-travel" aria-labelledby="travel-section-title">
-        <h3 id="travel-section-title" class="travel-section-title">
+      <section class="form-section" id="visit-sec-travel">
+        <h3 class="travel-section-title">
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
           Travel Itinerary
         </h3>
-
-        <!-- V3 Operational Workspaces Architecture — Phase B, same posture as
-             the other sections above: hidden, not removed. -->
-        <div class="travel-empty">Travel itinerary is now managed in the Accommodation &amp; Travel workspace.</div>
-
-        <div hidden>
         <div class="travel-section-header">
           <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
@@ -1975,17 +1898,223 @@
         </p>
         <div id="travel-leg-list" class="travel-leg-list"></div>
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
-        </div>
       </section>
 
-      <button id="save-btn" type="button">Save Changes</button>
+      <div class="seva-team-row-actions">
+        <button id="visit-editor-save-btn" type="button">Save Visit</button>
+        <button id="visit-editor-cancel-visit-btn" type="button" class="travel-remove-btn">Cancel Visit</button>
+        <button id="visit-editor-restore-visit-btn" type="button" class="travel-remove-btn" hidden>Restore Visit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="accommodation-workspace-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="accommodation-workspace-modal-title">
+      <div class="modal-header">
+        <h2 id="accommodation-workspace-modal-title">Accommodation &amp; Travel</h2>
+        <div class="modal-header-actions">
+          <button id="accommodation-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="travel-section-header">
+        <h3 class="travel-section-title">Visits</h3>
+        <button id="accommodation-workspace-add-btn" class="travel-add-btn" type="button">+ Add Visit</button>
+      </div>
+      <div id="accommodation-workspace-list" class="card-grid"></div>
+      <div id="accommodation-workspace-empty" class="travel-empty" hidden>No visits found.</div>
+    </div>
+  </div>
+
+  <div id="add-to-workspace-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="add-to-workspace-modal-title">
+      <div class="modal-header">
+        <h2 id="add-to-workspace-modal-title">Add Guest</h2>
+        <div class="modal-header-actions">
+          <button id="add-to-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="add-to-workspace-search">Guest name</label>
+        <input type="text" id="add-to-workspace-search" class="edit-input" placeholder="Type a name..." autocomplete="off">
+      </div>
+      <div id="add-to-workspace-matches" class="travel-leg-list"></div>
+      <div id="add-to-workspace-create-row" class="seva-team-row-actions" hidden>
+        <button id="add-to-workspace-create-btn" type="button">Create new guest "<span id="add-to-workspace-create-name"></span>"</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="meals-workspace-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meals-workspace-modal-title">
+      <div class="modal-header">
+        <h2 id="meals-workspace-modal-title">Meals</h2>
+        <div class="modal-header-actions">
+          <button id="meals-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="meals-workspace-date">Date</label>
+        <input type="date" id="meals-workspace-date" class="edit-input">
+      </div>
+
+      <div id="meals-workspace-list" class="card-grid"></div>
+      <div id="meals-workspace-empty" class="travel-empty" hidden>No guests to show for this date.</div>
+    </div>
+  </div>
+
+  <div id="meetings-workspace-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meetings-workspace-modal-title">
+      <div class="modal-header">
+        <h2 id="meetings-workspace-modal-title">Meetings with Swamiji</h2>
+        <div class="modal-header-actions">
+          <button id="meetings-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="travel-section-header">
+        <h3 class="travel-section-title">Meetings</h3>
+        <button id="meetings-workspace-add-btn" class="travel-add-btn" type="button">+ Add Meeting with Swamiji</button>
+      </div>
+
+      <div id="meetings-workspace-sections"></div>
+      <div id="meetings-workspace-empty" class="travel-empty" hidden>No meetings with Swamiji yet.</div>
+    </div>
+  </div>
+
+  <div id="meeting-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meeting-editor-modal-title">
+      <div class="modal-header">
+        <h2 id="meeting-editor-modal-title">Add Meeting with Swamiji</h2>
+        <div class="modal-header-actions">
+          <button id="meeting-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+      <div id="meeting-editor-guest-name" class="app-subtitle" style="margin-bottom:16px;"></div>
+      <input type="hidden" id="meeting-editor-guest-id">
+      <input type="hidden" id="meeting-editor-meeting-id">
+      <input type="hidden" id="meeting-editor-version">
+      <div class="input-group">
+        <label class="input-label" for="meeting-editor-date">Date</label>
+        <div class="date-time-row">
+          <input type="date" id="meeting-editor-date" class="edit-input" aria-label="Meeting date">
+          <input type="time" id="meeting-editor-time" class="edit-input" aria-label="Meeting time">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="meeting-editor-notes">Notes</label>
+        <input type="text" id="meeting-editor-notes" class="edit-input" maxlength="500" autocomplete="off">
+      </div>
+      <button id="meeting-editor-save-btn" type="button">Save Meeting</button>
+    </div>
+  </div>
+
+  <div id="trips-workspace-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="trips-workspace-modal-title">
+      <div class="modal-header">
+        <h2 id="trips-workspace-modal-title">Trips</h2>
+        <div class="modal-header-actions">
+          <button id="trips-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="travel-section-header">
+        <h3 class="travel-section-title">Trips</h3>
+        <button id="add-trip-btn" class="travel-add-btn" type="button">+ Add Trip</button>
+      </div>
+      <div id="trips-workspace-list" class="card-grid"></div>
+      <div id="trips-workspace-empty" class="travel-empty" hidden>No trips yet.</div>
+    </div>
+  </div>
+
+  <div id="trip-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="trip-editor-modal-title">
+      <div class="modal-header">
+        <h2 id="trip-editor-modal-title">Trip</h2>
+        <div class="modal-header-actions">
+          <button id="trip-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="edit-trip-id">
+      <input type="hidden" id="edit-trip-version">
+      <div class="input-group">
+        <label class="input-label" for="edit-trip-name">Trip Name</label>
+        <input type="text" id="edit-trip-name" class="edit-input" maxlength="500" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="edit-trip-purpose">Purpose — optional</label>
+        <input type="text" id="edit-trip-purpose" class="edit-input" maxlength="500" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <div class="date-time-row">
+          <div>
+            <label class="input-label" for="edit-trip-start">Start date — optional</label>
+            <input type="date" id="edit-trip-start" class="edit-input">
+          </div>
+          <div>
+            <label class="input-label" for="edit-trip-end">End date — optional</label>
+            <input type="date" id="edit-trip-end" class="edit-input">
+          </div>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="edit-trip-notes">Notes — optional</label>
+        <input type="text" id="edit-trip-notes" class="edit-input" maxlength="500" autocomplete="off">
+      </div>
+      <div class="checkbox-row">
+        <label class="checkbox-label" for="edit-trip-cancelled">
+          <input type="checkbox" id="edit-trip-cancelled" class="checkbox-input">
+          Cancelled
+        </label>
+      </div>
+      <div id="trip-editor-message" class="field-message" aria-live="polite"></div>
+      <button id="trip-editor-save-btn" type="button">Save Trip</button>
+
+      <div class="section-divider">
+        <div class="travel-section-header">
+          <h3 class="travel-section-title">Participants</h3>
+          <button id="trip-add-participant-btn" class="travel-add-btn" type="button">+ Add Participant</button>
+        </div>
+        <p class="travel-help">Any Person Type, including Visitors — Trip participation is independent of personal cab/travel eligibility.</p>
+        <div id="trip-participants-list" class="seva-team-roster"></div>
+        <div id="trip-participants-empty" class="travel-empty">No participants yet.</div>
+      </div>
+
+      <div class="section-divider">
+        <div class="travel-section-header">
+          <h3 class="travel-section-title">Travel Itinerary</h3>
+          <button id="add-trip-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
+        </div>
+        <p class="travel-help">
+          Legs stay in this order. Dates and times are optional, but every later dated leg must occur after the earlier dated legs.
+        </p>
+        <div id="trip-travel-leg-list" class="travel-leg-list"></div>
+        <div id="trip-travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
+      </div>
     </div>
   </div>
 
   <div id="seva-teams-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seva-teams-modal-title">
       <div class="modal-header">
-        <h2 id="seva-teams-modal-title">Seva Teams</h2>
+        <h2 id="seva-teams-modal-title">Seva Teams &amp; Tasks</h2>
         <div class="modal-header-actions">
           <button id="seva-teams-close-btn" class="close-btn" type="button" aria-label="Close dialog">
             <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
@@ -2024,6 +2153,44 @@
       </div>
       <div id="seva-teams-list" class="travel-leg-list"></div>
       <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
+
+      <div class="section-divider">
+        <div id="specific-seva-form" class="form-section" hidden>
+          <input type="hidden" id="edit-task-guest-id">
+          <input type="hidden" id="edit-task-seva-id">
+          <input type="hidden" id="edit-task-version">
+          <div id="edit-task-guest-name" class="app-subtitle" style="margin-bottom:8px;"></div>
+          <div class="input-group">
+            <label class="input-label" for="edit-task-description">Description</label>
+            <input type="text" id="edit-task-description" class="edit-input" maxlength="500" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <div class="date-time-row">
+              <div>
+                <label class="input-label" for="edit-task-start">Start date — optional</label>
+                <input type="date" id="edit-task-start" class="edit-input">
+              </div>
+              <div>
+                <label class="input-label" for="edit-task-end">End date — optional</label>
+                <input type="date" id="edit-task-end" class="edit-input">
+              </div>
+            </div>
+          </div>
+          <div id="specific-seva-form-message" class="field-message" aria-live="polite"></div>
+          <div class="seva-team-row-actions">
+            <button id="specific-seva-save-btn" type="button">Save Task</button>
+            <button id="specific-seva-cancel-btn" type="button" class="travel-remove-btn">Cancel</button>
+          </div>
+        </div>
+
+        <div class="travel-section-header">
+          <h3 class="travel-section-title">Individual Tasks</h3>
+          <button id="add-individual-task-btn" class="travel-add-btn" type="button">+ Add Individual Task</button>
+        </div>
+        <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
+        <div id="individual-tasks-list" class="travel-leg-list"></div>
+        <div id="individual-tasks-empty" class="travel-empty">No individual tasks yet.</div>
+      </div>
     </div>
   </div>
 
@@ -2145,11 +2312,6 @@
     let allSevaTeams = [];
     let roomInventory = [];
     const ALLOWED_MEALS = Object.freeze(['Breakfast', 'Lunch', 'Dinner']);
-    // Snapshot of the guest's own Meal Overrides for the current modal
-    // session — same role as roomsOriginalForShareCheck, so a re-render
-    // triggered by an accommodation/date change rebuilds from the guest's
-    // real saved data rather than assuming a blank slate.
-    let modalMealOverrides = [];
     let pendingGuestIds = new Set();
     let deleteTimeout = null;
     let isDeleteConfirm = false;
@@ -2449,7 +2611,6 @@
       reorderQuickFilters();
       initSectionNav();
       initSwipeNavigation();
-      $('add-room-btn').addEventListener('click', () => { addRoomRowEditor(); checkRoomAvailability(); });
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
       });
@@ -2466,7 +2627,7 @@
       $('room-share-confirm-btn').addEventListener('click', () => {
         const acks = pendingRoomShareAcks_;
         closeRoomShareSheet_();
-        proceedWithGuestSave_(acks);
+        proceedWithVisitSave_(acks);
       });
       document.addEventListener('click', event => {
         // Opening a card is using the search results, not dismissing them —
@@ -2487,32 +2648,10 @@
       $('modal').addEventListener('change', markModalDirty);
       $('save-btn').addEventListener('click', saveGuestFromModal);
       $('delete-btn').addEventListener('click', handleDeleteClick);
-      $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
-      $('edit-foreign').addEventListener('change', toggleCForm);
-      $('edit-accommodation').addEventListener('change', toggleAccommodationFields);
-      $('edit-accommodation').addEventListener('change', toggleMealsSectionMode);
-      $('edit-arrival-date').addEventListener('change', toggleMealsSectionMode);
-      $('edit-departure-date').addEventListener('change', toggleMealsSectionMode);
       $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
-      $('edit-person-type').addEventListener('change', toggleCabTravelSections);
-      $('edit-person-type').addEventListener('change', toggleSevaSectionVisibility);
       [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
         box.addEventListener('change', updatePurposeOtherVisibility);
       });
-      $('edit-arrival-date').addEventListener('input', handleDateChange);
-      $('edit-arrival-time').addEventListener('input', handleDateChange);
-      $('edit-departure-date').addEventListener('input', handleDateChange);
-      $('edit-departure-time').addEventListener('input', handleDateChange);
-      $('edit-pickup-required').addEventListener('change', () => handleTransportRequirementChange('pickup'));
-      $('edit-dropoff-required').addEventListener('change', () => handleTransportRequirementChange('dropoff'));
-      $('edit-pickup-date').addEventListener('input', updateTransportConstraints);
-      $('edit-pickup-time').addEventListener('input', updateTransportConstraints);
-      $('edit-pickup-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('pickup'));
-      $('edit-pickup-details').addEventListener('input', updateTransportConstraints);
-      $('edit-dropoff-date').addEventListener('input', updateTransportConstraints);
-      $('edit-dropoff-time').addEventListener('input', updateTransportConstraints);
-      $('edit-dropoff-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('dropoff'));
-      $('edit-dropoff-details').addEventListener('input', updateTransportConstraints);
       $('modal').addEventListener('click', event => {
         if (event.target === $('modal')) requestCloseModal();
       });
@@ -2535,16 +2674,85 @@
         directoryOffset_ += DIRECTORY_PAGE_SIZE_;
         loadDirectoryPage();
       });
+
+      $('accommodation-workspace-close-btn').addEventListener('click', closeAccommodationWorkspace);
+      $('accommodation-workspace-modal').addEventListener('click', event => {
+        if (event.target === $('accommodation-workspace-modal')) closeAccommodationWorkspace();
+      });
+      $('accommodation-workspace-add-btn').addEventListener('click', handleAddVisitClick_);
+
+      $('add-to-workspace-close-btn').addEventListener('click', closeGuestPicker_);
+      $('add-to-workspace-modal').addEventListener('click', event => {
+        if (event.target === $('add-to-workspace-modal')) closeGuestPicker_();
+      });
+      $('add-to-workspace-search').addEventListener('input', handleGuestPickerSearchInput_);
+      $('add-to-workspace-create-btn').addEventListener('click', createGuestFromPicker_);
+
+      $('visit-editor-close-btn').addEventListener('click', closeVisitEditor);
+      $('visit-editor-modal').addEventListener('click', event => {
+        if (event.target === $('visit-editor-modal')) closeVisitEditor();
+      });
+      $('visit-editor-save-btn').addEventListener('click', saveVisitFromEditor);
+      $('visit-editor-cancel-visit-btn').addEventListener('click', cancelCurrentVisit_);
+      $('visit-editor-restore-visit-btn').addEventListener('click', restoreCurrentVisit_);
+
+      $('meals-workspace-close-btn').addEventListener('click', closeMealsWorkspace);
+      $('meals-workspace-modal').addEventListener('click', event => {
+        if (event.target === $('meals-workspace-modal')) closeMealsWorkspace();
+      });
+      $('meals-workspace-date').addEventListener('change', loadMealsWorkspaceList);
+
+      $('meetings-workspace-close-btn').addEventListener('click', closeMeetingsWorkspace);
+      $('meetings-workspace-modal').addEventListener('click', event => {
+        if (event.target === $('meetings-workspace-modal')) closeMeetingsWorkspace();
+      });
+      $('meetings-workspace-add-btn').addEventListener('click', handleAddMeetingClick_);
+      $('meeting-editor-close-btn').addEventListener('click', closeMeetingEditor_);
+      $('meeting-editor-modal').addEventListener('click', event => {
+        if (event.target === $('meeting-editor-modal')) closeMeetingEditor_();
+      });
+      $('meeting-editor-save-btn').addEventListener('click', saveMeetingFromEditor_);
+
+      $('trips-workspace-close-btn').addEventListener('click', closeTripsWorkspace);
+      $('trips-workspace-modal').addEventListener('click', event => {
+        if (event.target === $('trips-workspace-modal')) closeTripsWorkspace();
+      });
+      $('add-trip-btn').addEventListener('click', handleAddTripClick_);
+      $('trip-editor-close-btn').addEventListener('click', closeTripEditor_);
+      $('trip-editor-modal').addEventListener('click', event => {
+        if (event.target === $('trip-editor-modal')) closeTripEditor_();
+      });
+      $('trip-editor-save-btn').addEventListener('click', saveTripFromEditor_);
+      $('trip-add-participant-btn').addEventListener('click', handleAddParticipantClick_);
+      $('add-trip-travel-leg-btn').addEventListener('click', () => addTravelLegEditor({}, 'trip-travel-leg-list', 'trip-travel-empty'));
+      $('add-room-btn').addEventListener('click', () => { addRoomRowEditor(); checkRoomAvailability(); });
+      $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
+      $('edit-accommodation').addEventListener('change', toggleAccommodationFields);
+      $('edit-arrival-date').addEventListener('input', handleDateChange);
+      $('edit-arrival-time').addEventListener('input', handleDateChange);
+      $('edit-departure-date').addEventListener('input', handleDateChange);
+      $('edit-departure-time').addEventListener('input', handleDateChange);
+      $('edit-pickup-required').addEventListener('change', () => handleTransportRequirementChange('pickup'));
+      $('edit-dropoff-required').addEventListener('change', () => handleTransportRequirementChange('dropoff'));
+      $('edit-pickup-date').addEventListener('input', updateTransportConstraints);
+      $('edit-pickup-time').addEventListener('input', updateTransportConstraints);
+      $('edit-pickup-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('pickup'));
+      $('edit-pickup-details').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-date').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-time').addEventListener('input', updateTransportConstraints);
+      $('edit-dropoff-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('dropoff'));
+      $('edit-dropoff-details').addEventListener('input', updateTransportConstraints);
+
       $('seva-teams-close-btn').addEventListener('click', closeSevaTeamsModal);
       $('seva-teams-modal').addEventListener('click', event => {
         if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
       });
       $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
-      $('add-specific-seva-btn').addEventListener('click', () => addSpecificSevaEditor());
-      $('add-meal-btn').addEventListener('click', () => addMealRow());
-      $('add-meeting-btn').addEventListener('click', () => addMeetingEditor());
       $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
+      $('add-individual-task-btn').addEventListener('click', handleAddIndividualTaskClick_);
+      $('specific-seva-save-btn').addEventListener('click', saveSpecificSevaFromForm_);
+      $('specific-seva-cancel-btn').addEventListener('click', closeSpecificSevaForm_);
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
@@ -2650,10 +2858,10 @@
     }
 
     // ============================================================
-    // Seva Teams — a shared entity, managed from its own screen rather than
-    // per-guest. Membership itself is set from the guest edit modal (see
-    // renderGuestSevaTeamCheckboxes below); this block only owns the teams
-    // themselves (create/edit/delete/roster).
+    // Seva Teams — a shared entity, managed from its own workspace screen.
+    // V3 Operational Workspaces Architecture — Phase H: membership/roster
+    // editing moved here too (addTeamMemberAction_/removeTeamMemberAction_
+    // below), out of the guest modal.
     // ============================================================
 
     function computeSevaTeamStatus(team, nowMs) {
@@ -2675,16 +2883,27 @@
       return 'Seva active';
     }
 
-    // Never stored — recomputed on every render from whoever currently lists
-    // this team in their own sevaTeamIds, same live-derivation pattern as
-    // findRoomSharingPartners.
-    function getSevaTeamMembers(teamId) {
-      return allGuests.filter(guest => Array.isArray(guest.sevaTeamIds) && guest.sevaTeamIds.includes(teamId));
+    // V3 Operational Workspaces Architecture — Phase H. Team roster and
+    // Individual Tasks (Specific Seva) both move here from the guest modal,
+    // driven by getWorkspaceData('seva') rather than allGuests — so a
+    // roster add/remove or task save shows correctly immediately, not only
+    // after the next 30s getAppData poll.
+    let sevaWorkspaceData_ = { teams: [], individualTasks: [] };
+
+    function loadSevaWorkspaceData_() {
+      return apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
+        .then(data => {
+          sevaWorkspaceData_ = data;
+          renderSevaTeamsList();
+          renderIndividualTasksList_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error')));
     }
 
     function openSevaTeamsModal() {
       closeSevaTeamForm();
-      renderSevaTeamsList();
+      closeSpecificSevaForm_();
+      loadSevaWorkspaceData_();
       $('seva-teams-modal').style.display = 'flex';
       $('seva-teams-modal').setAttribute('aria-hidden', 'false');
     }
@@ -2770,10 +2989,24 @@
       });
     }
 
+    function msToDateDisplay_(ms) {
+      return ms ? new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    }
+
+    // Local calendar-date components, not toISOString() (UTC) — a ms
+    // timestamp at local midnight can land on the previous UTC day, which
+    // would silently shift a date-input value back by one.
+    function msToDateInputValue_(ms) {
+      if (!ms) return '';
+      const date = new Date(ms);
+      const pad = n => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
     function renderSevaTeamsList() {
       const list = $('seva-teams-list');
       list.replaceChildren();
-      const sorted = allSevaTeams.slice().sort((a, b) => {
+      const sorted = sevaWorkspaceData_.teams.slice().sort((a, b) => {
         const aMs = finiteTimestamp(a.startMs);
         const bMs = finiteTimestamp(b.startMs);
         if (aMs === null && bMs === null) return 0;
@@ -2786,10 +3019,8 @@
     }
 
     function createSevaTeamRow(team) {
-      const nowMs = Date.now();
-      const status = computeSevaTeamStatus(team, nowMs);
-      const members = getSevaTeamMembers(team.teamId);
-      const dateRange = [team.startDate, team.endDate].filter(Boolean).join(' – ');
+      const members = Array.isArray(team.roster) ? team.roster : [];
+      const dateRange = [msToDateDisplay_(team.startMs), msToDateDisplay_(team.endMs)].filter(Boolean).join(' – ');
 
       const row = createElement('div', 'travel-leg-editor');
       row.dataset.teamId = team.teamId;
@@ -2804,7 +3035,7 @@
       icon.appendChild(iconUse);
       summaryText.appendChild(icon);
       const memberCountText = `${members.length} member${members.length === 1 ? '' : 's'}`;
-      summaryText.appendChild(createElement('span', '', `${team.name} · ${dateRange || 'dates TBD'} · ${status} · ${memberCountText}`));
+      summaryText.appendChild(createElement('span', '', `${team.name} · ${dateRange || 'dates TBD'} · ${team.status} · ${memberCountText}`));
 
       const summaryActions = createElement('div', 'travel-leg-summary-actions');
       const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2821,10 +3052,24 @@
       const details = createElement('div', 'travel-leg-details conditional-fields');
       const roster = createElement('div', 'seva-team-roster');
       if (members.length) {
-        members.forEach(guest => roster.appendChild(createElement('div', 'seva-team-roster-item', guest.Name || 'Unnamed Guest')));
+        members.forEach(member => {
+          const item = createElement('div', 'seva-team-roster-item');
+          item.appendChild(document.createTextNode(`${member.name || 'Unnamed Guest'} `));
+          const removeBtn = createElement('button', 'travel-remove-btn', 'Remove');
+          removeBtn.type = 'button';
+          removeBtn.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
+          item.appendChild(removeBtn);
+          roster.appendChild(item);
+        });
       } else {
         roster.appendChild(createElement('div', 'seva-team-roster-item', 'No members yet.'));
       }
+      const addMemberBtn = createElement('button', 'travel-add-btn', '+ Add member');
+      addMemberBtn.type = 'button';
+      addMemberBtn.addEventListener('click', () => {
+        openGuestPicker_(guestId => addTeamMemberAction_(guestId, team.teamId));
+      });
+      roster.appendChild(addMemberBtn);
 
       const actions = createElement('div', 'seva-team-row-actions');
       const editBtn = createElement('button', 'travel-add-btn', 'Edit');
@@ -2849,11 +3094,29 @@
       return row;
     }
 
+    function addTeamMemberAction_(guestId, teamId) {
+      apiCall('addTeamMember', { guestId, teamId })
+        .then(() => {
+          showToast('Member added.', 'success');
+          loadSevaWorkspaceData_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't add member: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function removeTeamMemberAction_(membershipId, teamId) {
+      apiCall('removeTeamMember', { membershipId })
+        .then(() => {
+          showToast('Member removed.', 'success');
+          loadSevaWorkspaceData_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't remove member: ${getErrorMessage(err)}`, 'error')));
+    }
+
     function openSevaTeamForm(team) {
       $('edit-seva-team-id').value = team ? team.teamId : '';
       $('edit-seva-team-name').value = team ? team.name : '';
-      $('edit-seva-team-start').value = team ? team.startDate : '';
-      $('edit-seva-team-end').value = team ? team.endDate : '';
+      $('edit-seva-team-start').value = team ? msToDateInputValue_(team.startMs) : '';
+      $('edit-seva-team-end').value = team ? msToDateInputValue_(team.endMs) : '';
       $('seva-team-form-message').textContent = '';
       $('seva-team-form').hidden = false;
       window.setTimeout(() => $('edit-seva-team-name').focus(), 0);
@@ -2885,7 +3148,7 @@
           $('seva-team-save-btn').disabled = false;
           applyAppData(data);
           closeSevaTeamForm();
-          renderSevaTeamsList();
+          loadSevaWorkspaceData_();
           showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
         })
         .catch(error => handleApiError(error, error => {
@@ -2899,7 +3162,7 @@
       apiCall('deleteSevaTeam', { teamId })
         .then(data => {
           applyAppData(data);
-          renderSevaTeamsList();
+          loadSevaWorkspaceData_();
           showToast('Seva Team deleted.', 'success');
         })
         .catch(error => handleApiError(error, error => {
@@ -2907,259 +3170,115 @@
         }));
     }
 
-    // Rendered fresh from allSevaTeams every time the guest modal opens,
-    // since the team list itself can change over time (unlike the fixed
-    // Purpose checkboxes) — a stale cached checkbox list could offer a team
-    // that was since deleted, or hide one just created.
-    function renderGuestSevaTeamCheckboxes(selectedTeamIds) {
-      const container = $('guest-seva-teams-list');
-      container.replaceChildren();
-      const selected = new Set(Array.isArray(selectedTeamIds) ? selectedTeamIds : []);
-      const nowMs = Date.now();
-
-      allSevaTeams.forEach(team => {
-        const label = createElement('label', 'checkbox-label');
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = 'checkbox-input guest-seva-team-checkbox';
-        input.dataset.teamId = team.teamId;
-        input.checked = selected.has(team.teamId);
-        label.appendChild(input);
-
-        const textWrap = createElement('span', 'seva-team-checkbox-label-text');
-        textWrap.appendChild(createElement('span', '', team.name));
-        const dateRange = [team.startDate, team.endDate].filter(Boolean).join(' – ');
-        const status = team.status || computeSevaTeamStatus(team, nowMs);
-        textWrap.appendChild(createElement('span', 'seva-team-checkbox-meta', `${dateRange || 'dates TBD'} · ${status}`));
-        label.appendChild(textWrap);
-
-        container.appendChild(label);
-      });
-
-      $('guest-seva-teams-empty').hidden = allSevaTeams.length > 0;
-    }
-
-    function getSelectedGuestSevaTeamIds() {
-      return [...document.querySelectorAll('.guest-seva-team-checkbox:checked')].map(box => box.dataset.teamId);
-    }
-
     // ============================================================
-    // Specific Seva — independent of any team, own dates (or none yet),
-    // repeatable per guest. Styled and wired identically to the Travel Legs
-    // editor list (same collapsible-row pattern, same helper reuse).
+    // Individual Tasks (Specific Seva) — independent of any team, own dates
+    // (or none yet), no Person Type eligibility gate. Each task is its own
+    // upsertSpecificSeva/deleteSpecificSeva row-level call now, driven by
+    // sevaWorkspaceData_.individualTasks rather than a per-guest bulk list.
     // ============================================================
 
-    function renderSpecificSevaEditors(list) {
-      const container = $('specific-seva-list');
-      container.replaceChildren();
-      (Array.isArray(list) ? list : []).forEach(entry => addSpecificSevaEditor(entry));
-      updateSpecificSevaEmptyState();
+    function renderIndividualTasksList_() {
+      const list = $('individual-tasks-list');
+      list.replaceChildren();
+      const tasks = Array.isArray(sevaWorkspaceData_.individualTasks) ? sevaWorkspaceData_.individualTasks : [];
+      tasks.forEach(task => list.appendChild(createIndividualTaskRow_(task)));
+      $('individual-tasks-empty').hidden = tasks.length > 0;
     }
 
-    function addSpecificSevaEditor(entry = {}) {
-      const list = $('specific-seva-list');
-      const isExisting = Boolean(entry.sevaId);
-      const editor = createElement('div', 'travel-leg-editor');
-      editor.dataset.sevaId = String(entry.sevaId || `seva-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-      editor.innerHTML = `
-        <div class="travel-leg-summary">
-          <div class="travel-leg-summary-text">
-            <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
-            <span>New Specific Seva</span>
-          </div>
-          <div class="travel-leg-summary-actions">
-            <button class="travel-remove-btn" type="button" aria-label="Remove Specific Seva">
-              <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
-            </button>
-            <svg class="icon travel-leg-chevron" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
-          </div>
-        </div>
-        <div class="travel-leg-details conditional-fields">
-          <div class="input-group">
-            <label class="input-label">Description *</label>
-            <input class="edit-input" data-field="description" type="text" maxlength="500" autocomplete="off">
-          </div>
-          <div class="travel-leg-grid">
-            <div class="input-group">
-              <label class="input-label">Start date — optional</label>
-              <input class="edit-input" data-field="startDate" type="date">
-            </div>
-            <div class="input-group">
-              <label class="input-label">End date — optional</label>
-              <input class="edit-input" data-field="endDate" type="date">
-            </div>
-          </div>
-        </div>`;
+    function createIndividualTaskRow_(task) {
+      const dateRange = [task.startDate, task.endDate].filter(Boolean).join(' – ');
+      const row = createElement('article', 'card');
+      row.appendChild(createElement('div', 'guest-name', task.name || 'Unnamed Guest'));
+      row.appendChild(createDetailLine('icon-people', `${task.description}${dateRange ? ` · ${dateRange}` : ' · dates TBD'} · ${task.status}`));
 
-      const setValue = (field, value) => {
-        const input = editor.querySelector(`[data-field="${field}"]`);
-        if (input) input.value = value || '';
-      };
-      setValue('description', entry.description);
-      setValue('startDate', entry.startDate);
-      setValue('endDate', entry.endDate);
+      const actions = createElement('div', 'seva-team-row-actions');
+      const editBtn = createElement('button', 'travel-add-btn', 'Edit');
+      editBtn.type = 'button';
+      editBtn.addEventListener('click', () => openSpecificSevaForm_(task.guestId, task.name, task));
+      const deleteBtn = createElement('button', 'travel-remove-btn', 'Delete');
+      deleteBtn.type = 'button';
+      deleteBtn.addEventListener('click', () => deleteIndividualTaskAction_(task.sevaId));
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+      row.appendChild(actions);
 
-      editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
-        editor.remove();
-        updateSpecificSevaEmptyState();
-      });
-      ['description', 'startDate', 'endDate'].forEach(field => {
-        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateSpecificSevaSummary(editor));
-      });
-
-      const summary = editor.querySelector('.travel-leg-summary');
-      summary.addEventListener('click', event => {
-        if (event.target.closest('button')) return;
-        toggleLegExpanded(editor);
-      });
-
-      list.appendChild(editor);
-      setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExisting);
-      editor.classList.toggle('leg-expanded', !isExisting);
-      updateSpecificSevaSummary(editor);
-      updateSpecificSevaEmptyState();
+      return row;
     }
 
-    function updateSpecificSevaSummary(editor) {
-      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
-      const description = value('description');
-      const dateRange = [value('startDate'), value('endDate')]
-        .filter(Boolean)
-        .map(d => String(localDateInfo(d, '', false).display || d).replace(/^[A-Za-z]{3},\s*/, ''))
-        .join(' – ');
-
-      const label = editor.querySelector('.travel-leg-summary-text span');
-      label.textContent = description
-        ? `${description}${dateRange ? ` · ${dateRange}` : ' · dates TBD'}`
-        : 'New Specific Seva';
+    // task === null means a brand-new task for this guest. Editing an
+    // existing task already has its guest name from sevaWorkspaceData_, so
+    // only the new-task path needs a getGuestProfile round-trip — same
+    // split openVisitEditor/openMeetingEditor_ use.
+    function openSpecificSevaForm_(guestId, guestName, task) {
+      $('edit-task-guest-id').value = guestId;
+      $('edit-task-guest-name').textContent = guestName || '';
+      $('edit-task-seva-id').value = task ? task.sevaId : '';
+      $('edit-task-version').value = task ? task.version : '';
+      $('edit-task-description').value = task ? task.description : '';
+      $('edit-task-start').value = task ? (task.startDate || '') : '';
+      $('edit-task-end').value = task ? (task.endDate || '') : '';
+      $('specific-seva-form-message').textContent = '';
+      $('specific-seva-form').hidden = false;
+      window.setTimeout(() => $('edit-task-description').focus(), 0);
     }
 
-    function updateSpecificSevaEmptyState() {
-      $('specific-seva-empty').style.display = $('specific-seva-list').children.length ? 'none' : 'block';
+    function closeSpecificSevaForm_() {
+      $('specific-seva-form').hidden = true;
+      $('specific-seva-form-message').textContent = '';
     }
 
-    function collectSpecificSevaPayloads() {
-      return [...$('specific-seva-list').querySelectorAll('.travel-leg-editor')].map(editor => {
-        const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
-        return {
-          sevaId: editor.dataset.sevaId || '',
-          description: value('description'),
-          startDate: value('startDate'),
-          endDate: value('endDate')
-        };
+    function handleAddIndividualTaskClick_() {
+      openGuestPicker_(guestId => {
+        apiCall('getGuestProfile', { guestId })
+          .then(profile => openSpecificSevaForm_(guestId, profile.name, null))
+          .catch(error => handleApiError(error, err => showToast(`Couldn't open guest: ${getErrorMessage(err)}`, 'error')));
       });
     }
 
-    // ============================================================
-    // Meetings with Swamiji — no Person Type eligibility gate (applies to
-    // everyone), independent of every other dimension. Same collapsible-row
-    // pattern as Specific Seva/Travel Legs.
-    // ============================================================
-
-    function renderMeetingEditors(list) {
-      const container = $('meeting-list');
-      container.replaceChildren();
-      (Array.isArray(list) ? list : []).forEach(entry => addMeetingEditor(entry));
-      updateMeetingEmptyState();
-    }
-
-    function addMeetingEditor(entry = {}) {
-      const list = $('meeting-list');
-      const isExisting = Boolean(entry.meetingId);
-      const editor = createElement('div', 'travel-leg-editor');
-      editor.dataset.meetingId = String(entry.meetingId || `meeting-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-      editor.innerHTML = `
-        <div class="travel-leg-summary">
-          <div class="travel-leg-summary-text">
-            <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-            <span>New meeting</span>
-          </div>
-          <div class="travel-leg-summary-actions">
-            <button class="travel-remove-btn" type="button" aria-label="Remove meeting">
-              <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
-            </button>
-            <svg class="icon travel-leg-chevron" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
-          </div>
-        </div>
-        <div class="travel-leg-details conditional-fields">
-          <div class="travel-leg-grid">
-            <div class="input-group">
-              <label class="input-label">Date</label>
-              <input class="edit-input" data-field="date" type="date">
-            </div>
-            <div class="input-group">
-              <label class="input-label">Time — optional</label>
-              <input class="edit-input" data-field="time" type="time">
-            </div>
-          </div>
-          <div class="input-group">
-            <label class="input-label">Notes — optional</label>
-            <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
-          </div>
-        </div>`;
-
-      const setValue = (field, value) => {
-        const input = editor.querySelector(`[data-field="${field}"]`);
-        if (input) input.value = value || '';
-      };
-      setValue('date', entry.date);
-      setValue('time', entry.time);
-      setValue('notes', entry.notes);
-
-      editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
-        editor.remove();
-        updateMeetingEmptyState();
-      });
-      ['date', 'time', 'notes'].forEach(field => {
-        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateMeetingSummary(editor));
-      });
-
-      const summary = editor.querySelector('.travel-leg-summary');
-      summary.addEventListener('click', event => {
-        if (event.target.closest('button')) return;
-        toggleLegExpanded(editor);
-      });
-
-      list.appendChild(editor);
-      setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExisting);
-      editor.classList.toggle('leg-expanded', !isExisting);
-      updateMeetingSummary(editor);
-      updateMeetingEmptyState();
-    }
-
-    function updateMeetingSummary(editor) {
-      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
-      const dateValue = value('date');
-      const timeValue = value('time');
-      const label = editor.querySelector('.travel-leg-summary-text span');
-
-      if (!dateValue) {
-        label.textContent = 'New meeting';
+    function saveSpecificSevaFromForm_() {
+      const description = $('edit-task-description').value.trim();
+      if (!description) {
+        $('specific-seva-form-message').textContent = 'A description is required.';
         return;
       }
-      const dateText = String(localDateInfo(dateValue, '', false).display || dateValue).replace(/^[A-Za-z]{3},\s*/, '');
-      if (!timeValue) {
-        label.textContent = `Meeting with Swamiji · ${dateText}`;
+      const startDate = $('edit-task-start').value;
+      const endDate = $('edit-task-end').value;
+      if (startDate && endDate && endDate < startDate) {
+        $('specific-seva-form-message').textContent = 'End date cannot be earlier than start date.';
         return;
       }
-      const timeText = localDateInfo(dateValue, timeValue, false).display.split(' at ')[1] || timeValue;
-      label.textContent = `Meeting with Swamiji · ${dateText} · ${timeText}`;
+
+      const payload = {
+        guestId: $('edit-task-guest-id').value,
+        sevaId: $('edit-task-seva-id').value,
+        version: $('edit-task-version').value,
+        description,
+        startDate,
+        endDate
+      };
+
+      $('specific-seva-save-btn').disabled = true;
+      apiCall('upsertSpecificSeva', { payload })
+        .then(() => {
+          $('specific-seva-save-btn').disabled = false;
+          closeSpecificSevaForm_();
+          showToast('Task saved.', 'success');
+          loadSevaWorkspaceData_();
+        })
+        .catch(error => handleApiError(error, err => {
+          $('specific-seva-save-btn').disabled = false;
+          $('specific-seva-form-message').textContent = getErrorMessage(err);
+        }));
     }
 
-    function updateMeetingEmptyState() {
-      $('meeting-empty').style.display = $('meeting-list').children.length ? 'none' : 'block';
-    }
-
-    function collectMeetingPayloads() {
-      return [...$('meeting-list').querySelectorAll('.travel-leg-editor')].map(editor => {
-        const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
-        return {
-          meetingId: editor.dataset.meetingId || '',
-          date: value('date'),
-          time: value('time'),
-          notes: value('notes')
-        };
-      });
+    function deleteIndividualTaskAction_(sevaId) {
+      if (!window.confirm('Delete this task? This cannot be undone.')) return;
+      apiCall('deleteSpecificSeva', { sevaId })
+        .then(() => {
+          showToast('Task deleted.', 'success');
+          loadSevaWorkspaceData_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Delete failed: ${getErrorMessage(err)}`, 'error')));
     }
 
     function prepareGuestForDisplay(guest) {
@@ -4234,11 +4353,11 @@
         tile.tabIndex = 0;
         tile.setAttribute('role', 'button');
         tile.setAttribute('aria-label', def.title);
-        tile.addEventListener('click', () => openWorkspacePlaceholder_(def.title));
+        tile.addEventListener('click', () => openWorkspaceTile_(def));
         tile.addEventListener('keydown', event => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            openWorkspacePlaceholder_(def.title);
+            openWorkspaceTile_(def);
           }
         });
         tile.appendChild(createElement('div', 'guest-name', def.title));
@@ -4249,10 +4368,14 @@
       });
     }
 
-    // Temporary — replaced by real per-workspace navigation once each one
-    // ships (Phase E–I). Until then, a tile tap just confirms it's alive.
-    function openWorkspacePlaceholder_(title) {
-      showToast(`${title} workspace is coming in a later phase.`, 'info');
+    // Real navigation lands per workspace as each one ships (Phase E–I) —
+    // still a placeholder for whichever hasn't shipped yet.
+    function openWorkspaceTile_(def) {
+      if (def.workspace === 'accommodation') { openAccommodationWorkspace(); return; }
+      if (def.workspace === 'meals') { openMealsWorkspace(); return; }
+      if (def.workspace === 'meetings') { openMeetingsWorkspace(); return; }
+      if (def.workspace === 'trips') { openTripsWorkspace(); return; }
+      showToast(`${def.title} workspace is coming in a later phase.`, 'info');
     }
 
     function loadHomeSummary() {
@@ -4336,6 +4459,959 @@
           showToast(`Directory load failed: ${getErrorMessage(err)}`, 'error');
           $('directory-page-info').textContent = '';
         }));
+    }
+
+    // ============================================================
+    // V3 Operational Workspaces Architecture — Phase E. Accommodation &
+    // Travel workspace: a list of current/upcoming Visits (getWorkspaceData
+    // 'accommodation'), each opening the Visit Editor below. The Visit
+    // Editor reuses the room/cab/travel-leg editor markup and validation
+    // logic that used to live in the guest modal's Stay/Accommodation/Cabs/
+    // Travel sections (see openModal/saveGuestFromModal above, now stripped
+    // to guest basics) — only the data source (getGuestProfile) and save
+    // target (saveVisitPlan, Visit-scoped) changed.
+    // ============================================================
+
+    function openAccommodationWorkspace() {
+      $('accommodation-workspace-modal').style.display = 'flex';
+      $('accommodation-workspace-modal').setAttribute('aria-hidden', 'false');
+      loadAccommodationWorkspaceList();
+    }
+
+    function closeAccommodationWorkspace() {
+      $('accommodation-workspace-modal').style.display = 'none';
+      $('accommodation-workspace-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function loadAccommodationWorkspaceList() {
+      const listEl = $('accommodation-workspace-list');
+      const emptyEl = $('accommodation-workspace-empty');
+      listEl.replaceChildren();
+      emptyEl.hidden = true;
+      apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
+        .then(data => {
+          const visits = Array.isArray(data.visits) ? data.visits : [];
+          if (!visits.length) {
+            emptyEl.hidden = false;
+            return;
+          }
+          visits
+            .slice()
+            .sort((a, b) => (a.arrivalMs === null ? Infinity : a.arrivalMs) - (b.arrivalMs === null ? Infinity : b.arrivalMs))
+            .forEach(visit => listEl.appendChild(createAccommodationVisitCard(visit)));
+        })
+        .catch(error => handleApiError(error, err => {
+          showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
+    function createAccommodationVisitCard(visit) {
+      const card = createElement('article', 'card');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Open ${visit.name || 'guest'}'s visit`);
+      card.addEventListener('click', () => openVisitEditor(visit.guestId, visit.visitId));
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openVisitEditor(visit.guestId, visit.visitId);
+        }
+      });
+
+      card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
+      const badges = createElement('div', 'badge-row');
+      badges.appendChild(createBadge(visit.personType || 'Invited Guest', 'badge-salmon'));
+      card.appendChild(badges);
+
+      const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      card.appendChild(createDetailLine('icon-calendar', visit.arrivalMs ? `Arrives ${dateFormat(visit.arrivalMs)}` : 'Arrival date TBD'));
+      if (visit.departureMs) card.appendChild(createDetailLine('icon-calendar', `Departs ${dateFormat(visit.departureMs)}`));
+
+      if (visit.accommodation === 'Ashram') {
+        card.appendChild(createDetailLine('icon-bed', Array.isArray(visit.rooms) && visit.rooms.length ? visit.rooms.join(' & ') : 'Room not assigned'));
+      } else if (visit.accommodation) {
+        const labels = {
+          'Outside - Arranged by Ashram': 'Outside · Arranged by Ashram',
+          'Outside - Self-arranged': 'Outside · Self-arranged',
+          'No overnight stay': 'No overnight stay',
+          TBD: 'Accommodation: TBD'
+        };
+        card.appendChild(createDetailLine('icon-bed', labels[visit.accommodation] || visit.accommodation));
+      }
+
+      if (visit.pickupRequired) card.appendChild(createDetailLine('icon-car', 'Pickup required'));
+      if (visit.dropoffRequired) card.appendChild(createDetailLine('icon-car', 'Drop-off required'));
+
+      return card;
+    }
+
+    // Generic search-existing-or-create-new guest picker, reusable by any
+    // workspace's "Add" flow (plan §4) — Trips/Meals/Meetings/Seva will
+    // reuse this in their own phases rather than each building their own.
+    let guestPickerOnSelect_ = null;
+    let guestPickerSearchTimer_ = null;
+
+    function openGuestPicker_(onSelect) {
+      guestPickerOnSelect_ = onSelect;
+      $('add-to-workspace-search').value = '';
+      $('add-to-workspace-matches').replaceChildren();
+      $('add-to-workspace-create-row').hidden = true;
+      $('add-to-workspace-modal').style.display = 'flex';
+      $('add-to-workspace-modal').setAttribute('aria-hidden', 'false');
+      $('add-to-workspace-search').focus();
+    }
+
+    function closeGuestPicker_() {
+      $('add-to-workspace-modal').style.display = 'none';
+      $('add-to-workspace-modal').setAttribute('aria-hidden', 'true');
+      guestPickerOnSelect_ = null;
+      window.clearTimeout(guestPickerSearchTimer_);
+    }
+
+    function handleGuestPickerSearchInput_() {
+      window.clearTimeout(guestPickerSearchTimer_);
+      guestPickerSearchTimer_ = window.setTimeout(loadGuestPickerMatches_, 180);
+    }
+
+    function loadGuestPickerMatches_() {
+      const query = $('add-to-workspace-search').value.trim();
+      const matchesEl = $('add-to-workspace-matches');
+      const createRow = $('add-to-workspace-create-row');
+      matchesEl.replaceChildren();
+      if (!query) {
+        createRow.hidden = true;
+        return;
+      }
+      apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
+        .then(page => {
+          const rows = Array.isArray(page.guests) ? page.guests : [];
+          rows.forEach(row => {
+            const item = createElement('div', 'travel-leg-summary');
+            item.style.cursor = 'pointer';
+            const text = createElement('div', 'travel-leg-summary-text');
+            text.appendChild(createElement('span', '', `${row.name} · ${row.personType}`));
+            item.appendChild(text);
+            item.addEventListener('click', () => {
+              const callback = guestPickerOnSelect_;
+              closeGuestPicker_();
+              if (callback) callback(row.guestId, false);
+            });
+            matchesEl.appendChild(item);
+          });
+          createRow.hidden = false;
+          $('add-to-workspace-create-name').textContent = query;
+        })
+        .catch(error => handleApiError(error, err => showToast(`Search failed: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function createGuestFromPicker_() {
+      const name = $('add-to-workspace-search').value.trim();
+      if (!name) return;
+      const guestId = crypto.randomUUID();
+      apiCall('createGuest', { payload: { guestId, name, personType: 'Invited Guest' } })
+        .then(() => {
+          const callback = guestPickerOnSelect_;
+          closeGuestPicker_();
+          if (callback) callback(guestId, true);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't create guest: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function handleAddVisitClick_() {
+      openGuestPicker_(guestId => openVisitEditor(guestId, ''));
+    }
+
+    // Visit Editor — Stay/Accommodation/Cabs/Travel, moved wholesale out of
+    // the guest modal. visitId === '' means a brand-new Visit for this
+    // guest (no auto-create — this is the one deliberate path that DOES
+    // create a Visit, per plan §1.2/§1.4).
+    let visitEditorGuestPersonType_ = 'Invited Guest';
+    let visitEditorGuestIsForeign_ = false;
+    let visitEditorIsCancelled_ = false;
+
+    function openVisitEditor(guestId, visitId) {
+      apiCall('getGuestProfile', { guestId })
+        .then(profile => {
+          const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
+          populateVisitEditor_(profile, visit);
+          $('visit-editor-modal').style.display = 'flex';
+          $('visit-editor-modal').setAttribute('aria-hidden', 'false');
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't load visit: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function closeVisitEditor() {
+      $('visit-editor-modal').style.display = 'none';
+      $('visit-editor-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function toggleVisitCabTravelSections_() {
+      const eligible = isCabTravelEligible(visitEditorGuestPersonType_);
+      $('visit-sec-cabs').hidden = !eligible;
+      $('visit-sec-travel').hidden = !eligible;
+    }
+
+    function toggleVisitCForm_() {
+      const enabled = visitEditorGuestIsForeign_;
+      $('visit-cform-row').hidden = !enabled;
+      $('edit-cform').disabled = !enabled;
+      if (!enabled) $('edit-cform').checked = false;
+    }
+
+    function populateVisitEditor_(profile, visit) {
+      visitEditorGuestPersonType_ = profile.personType || 'Invited Guest';
+      visitEditorGuestIsForeign_ = Boolean(profile.isForeign);
+      visitEditorIsCancelled_ = Boolean(visit && visit.cancelled);
+
+      $('visit-editor-guest-id').value = profile.guestId;
+      $('visit-editor-visit-id').value = visit ? visit.visitId : '';
+      $('visit-editor-version').value = visit ? visit.version : '';
+      $('visit-editor-guest-name').textContent = profile.name || '';
+      $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'New Visit';
+
+      $('edit-accommodation').value = (visit && visit.accommodation) || 'TBD';
+      $('edit-outside-accommodation-details').value = (visit && visit.outsideAccommodationDetails) || '';
+      $('edit-outside-accommodation-confirmed').checked = Boolean(visit && visit.outsideAccommodationConfirmed);
+      $('edit-self-arranged-staying-at').value = (visit && visit.selfArrangedStayingAt) || '';
+      $('edit-cform').checked = Boolean(visit && visit.cformComplete);
+
+      $('edit-arrival-date').value = (visit && visit.arrivalDate) || '';
+      $('edit-arrival-time').value = (visit && visit.arrivalTime) || '';
+      $('edit-arrival-date').dataset.originalValue = (visit && visit.arrivalDate) || '';
+      $('edit-arrival-time').dataset.originalValue = (visit && visit.arrivalTime) || '';
+      $('edit-departure-date').value = (visit && visit.departureDate) || '';
+      $('edit-departure-time').value = (visit && visit.departureTime) || '';
+      $('edit-departure-date').dataset.originalValue = (visit && visit.departureDate) || '';
+      $('edit-departure-time').dataset.originalValue = (visit && visit.departureTime) || '';
+      $('edit-departure-date').min = '';
+      $('edit-dropoff-date').min = '';
+      $('edit-dropoff-time').min = '';
+
+      $('edit-pickup-required').checked = Boolean(visit && visit.pickupRequired);
+      $('edit-pickup-required').dataset.originalChecked = String(Boolean(visit && visit.pickupRequired));
+      $('edit-pickup-required').dataset.locked = 'false';
+      $('edit-pickup-date').value = (visit && visit.pickupDate) || '';
+      $('edit-pickup-time').value = (visit && visit.pickupTime) || '';
+      $('edit-pickup-date').dataset.originalValue = (visit && visit.pickupDate) || '';
+      $('edit-pickup-time').dataset.originalValue = (visit && visit.pickupTime) || '';
+      $('edit-pickup-details').value = (visit && visit.pickupDetails) || '';
+      $('edit-pickup-details').dataset.originalValue = (visit && visit.pickupDetails) || '';
+      $('edit-pickup-from').value = (visit && visit.pickupFrom) || '';
+      $('edit-pickup-from').dataset.originalValue = (visit && visit.pickupFrom) || '';
+      $('pickup-warning').textContent = '';
+      $('pickup-warning').classList.remove('info');
+      resetCabBookingEditorState('pickup');
+      initializeCabBookingEditorState('pickup', visit);
+
+      $('edit-dropoff-required').checked = Boolean(visit && visit.dropoffRequired);
+      $('edit-dropoff-required').dataset.originalChecked = String(Boolean(visit && visit.dropoffRequired));
+      $('edit-dropoff-required').dataset.locked = 'false';
+      $('edit-dropoff-date').value = (visit && visit.dropoffDate) || '';
+      $('edit-dropoff-time').value = (visit && visit.dropoffTime) || '';
+      $('edit-dropoff-date').dataset.originalValue = (visit && visit.dropoffDate) || '';
+      $('edit-dropoff-time').dataset.originalValue = (visit && visit.dropoffTime) || '';
+      $('edit-dropoff-details').value = (visit && visit.dropoffDetails) || '';
+      $('edit-dropoff-details').dataset.originalValue = (visit && visit.dropoffDetails) || '';
+      $('edit-dropoff-to').value = (visit && visit.dropoffTo) || '';
+      $('edit-dropoff-to').dataset.originalValue = (visit && visit.dropoffTo) || '';
+      $('dropoff-warning').textContent = '';
+      $('dropoff-warning').classList.remove('info');
+      resetCabBookingEditorState('dropoff');
+      initializeCabBookingEditorState('dropoff', visit);
+
+      $('room-warning').textContent = '';
+      const roomValues = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
+      setRoomRows(roomValues);
+      roomsOriginalForShareCheck = roomValues.slice();
+
+      renderTravelLegEditors((visit && Array.isArray(visit.travelLegs) ? visit.travelLegs : []).map(leg => ({
+        ...leg,
+        travelId: leg.legId,
+        travelOrder: leg.order
+      })));
+
+      toggleVisitCabTravelSections_();
+      toggleVisitCForm_();
+      toggleAccommodationFields();
+      handleDateChange();
+      updateTransportConstraints();
+
+      $('visit-editor-cancel-visit-btn').hidden = !visit || visitEditorIsCancelled_;
+      $('visit-editor-restore-visit-btn').hidden = !visit || !visitEditorIsCancelled_;
+    }
+
+    function collectVisitPayload(sharedRoomAcks) {
+      return {
+        guestId: $('visit-editor-guest-id').value,
+        visitId: $('visit-editor-visit-id').value,
+        version: $('visit-editor-version').value,
+        accommodation: $('edit-accommodation').value,
+        outsideAccommodationDetails: $('edit-outside-accommodation-details').value.trim(),
+        outsideAccommodationConfirmed: $('edit-outside-accommodation-confirmed').checked,
+        selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
+        isCformComplete: $('edit-cform').checked,
+        rooms: getRoomRowValues().map(room => ({ roomAllocationId: '', room })),
+        sharedRoomAcks: Array.isArray(sharedRoomAcks) ? sharedRoomAcks : [],
+        arrivalDate: $('edit-arrival-date').value,
+        arrivalTime: $('edit-arrival-time').value,
+        departureDate: $('edit-departure-date').value,
+        departureTime: $('edit-departure-time').value,
+        pickupRequired: $('edit-pickup-required').checked,
+        pickupDate: $('edit-pickup-date').value,
+        pickupTime: $('edit-pickup-time').value,
+        pickupFrom: $('edit-pickup-from').value.trim(),
+        pickupDetails: $('edit-pickup-details').value.trim(),
+        pickupBookingConfirmed: $('edit-pickup-booking-confirmed').checked,
+        pickupConfirmationIntent: $('edit-pickup-booking-confirmed').dataset.confirmationIntent || 'none',
+        dropoffRequired: $('edit-dropoff-required').checked,
+        dropoffDate: $('edit-dropoff-date').value,
+        dropoffTime: $('edit-dropoff-time').value,
+        dropoffTo: $('edit-dropoff-to').value.trim(),
+        dropoffDetails: $('edit-dropoff-details').value.trim(),
+        dropoffBookingConfirmed: $('edit-dropoff-booking-confirmed').checked,
+        dropoffConfirmationIntent: $('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none',
+        travelLegs: collectTravelLegPayloads()
+      };
+    }
+
+    function saveVisitFromEditor() {
+      const arrivalMs = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
+      const arrivalLockMs = getArrivalLockTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value);
+      const departureMs = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
+      if (arrivalMs && departureMs && departureMs < arrivalMs) {
+        showToast('Departure cannot be earlier than arrival.', 'error');
+        return;
+      }
+
+      const pickupRequired = $('edit-pickup-required').checked;
+      const dropoffRequired = $('edit-dropoff-required').checked;
+      const pickupDateValue = pickupRequired ? $('edit-pickup-date').value : '';
+      const pickupTimeValue = pickupRequired ? $('edit-pickup-time').value : '';
+      const dropoffDateValue = dropoffRequired ? $('edit-dropoff-date').value : '';
+      const dropoffTimeValue = dropoffRequired ? $('edit-dropoff-time').value : '';
+
+      const originalPickupRequired = $('edit-pickup-required').dataset.originalChecked === 'true';
+      const originalDropoffRequired = $('edit-dropoff-required').dataset.originalChecked === 'true';
+      const originalPickupDate = $('edit-pickup-date').dataset.originalValue || '';
+      const originalPickupTime = $('edit-pickup-time').dataset.originalValue || '';
+      const originalPickupDetails = $('edit-pickup-details').dataset.originalValue || '';
+      const originalDropoffDate = $('edit-dropoff-date').dataset.originalValue || '';
+      const originalDropoffTime = $('edit-dropoff-time').dataset.originalValue || '';
+      const originalDropoffDetails = $('edit-dropoff-details').dataset.originalValue || '';
+      const originalPickupFrom = $('edit-pickup-from').dataset.originalValue || '';
+      const originalDropoffTo = $('edit-dropoff-to').dataset.originalValue || '';
+      const pickupBooking = $('edit-pickup-booking-confirmed');
+      const dropoffBooking = $('edit-dropoff-booking-confirmed');
+      const pickupEffectiveConfirmed = pickupBooking.dataset.confirmationIntent === 'preserve'
+        ? pickupBooking.dataset.originalConfirmed === 'true'
+        : pickupBooking.checked;
+      const dropoffEffectiveConfirmed = dropoffBooking.dataset.confirmationIntent === 'preserve'
+        ? dropoffBooking.dataset.originalConfirmed === 'true'
+        : dropoffBooking.checked;
+      const pickupUnchanged = pickupRequired === originalPickupRequired
+        && pickupDateValue === originalPickupDate
+        && pickupTimeValue === originalPickupTime
+        && $('edit-pickup-details').value.trim() === originalPickupDetails
+        && $('edit-pickup-from').value.trim() === originalPickupFrom
+        && pickupEffectiveConfirmed === (pickupBooking.dataset.originalConfirmed === 'true');
+      const dropoffUnchanged = dropoffRequired === originalDropoffRequired
+        && dropoffDateValue === originalDropoffDate
+        && dropoffTimeValue === originalDropoffTime
+        && $('edit-dropoff-details').value.trim() === originalDropoffDetails
+        && $('edit-dropoff-to').value.trim() === originalDropoffTo
+        && dropoffEffectiveConfirmed === (dropoffBooking.dataset.originalConfirmed === 'true');
+
+      if (!validateCabEditorBeforeSave('pickup') || !validateCabEditorBeforeSave('dropoff')) return;
+
+      if (arrivalLockMs && arrivalLockMs <= Date.now() && !pickupUnchanged) {
+        showToast('Pickup responsibility, booking, and details cannot be changed after the guest has arrived.', 'error');
+        return;
+      }
+      if (departureMs && departureMs <= Date.now() && !dropoffUnchanged) {
+        showToast('Drop-off responsibility, booking, and details cannot be changed after the guest has departed.', 'error');
+        return;
+      }
+
+      if (!validateTravelLegEditors()) return;
+
+      const hasUnavailableRoomSelection = [...$('room-list').querySelectorAll('.room-row')].some(row => {
+        const selected = row.querySelector('.room-select').selectedOptions[0];
+        return selected && selected.value && selected.disabled;
+      });
+      if (hasUnavailableRoomSelection) {
+        showToast('One of the selected rooms is occupied during those dates.', 'error');
+        return;
+      }
+
+      const pendingShares = getRoomsNeedingShareConfirmation();
+      if (pendingShares.length) {
+        showRoomShareConfirmation_(pendingShares);
+        return;
+      }
+
+      proceedWithVisitSave_([]);
+    }
+
+    // Rooms this card has picked that would create or extend a deliberate
+    // overlap with someone else — excluding any room that was ALREADY on
+    // the card when it was opened, since that share was already agreed and
+    // the backend carries it forward on its own (see getExistingSharedOkVisitRooms_
+    // in Code-V3.gs). Only a room picked or changed just now needs asking about.
+    function getRoomsNeedingShareConfirmation() {
+      const originalRooms = new Set(roomsOriginalForShareCheck);
+      const rows = [...$('room-list').querySelectorAll('.room-row')];
+      const pending = [];
+      rows.forEach(row => {
+        const selected = row.querySelector('.room-select').selectedOptions[0];
+        if (!selected || !selected.value || !selected.dataset.shareWith) return;
+        if (originalRooms.has(selected.value)) return;
+        pending.push({ room: selected.value, shareWith: selected.dataset.shareWith });
+      });
+      return pending;
+    }
+
+    let pendingRoomShareAcks_ = [];
+
+    function showRoomShareConfirmation_(pending) {
+      pendingRoomShareAcks_ = pending.map(entry => entry.room);
+      const list = $('room-share-sheet-list');
+      list.replaceChildren();
+      pending.forEach(entry => {
+        list.appendChild(createElement('div', 'room-share-item', `${entry.room} — share with ${entry.shareWith}`));
+      });
+      $('room-share-sheet-title').textContent = pending.length === 1 ? 'Share this room?' : 'Share these rooms?';
+      $('room-share-sheet').hidden = false;
+    }
+
+    function closeRoomShareSheet_() {
+      $('room-share-sheet').hidden = true;
+      pendingRoomShareAcks_ = [];
+    }
+
+    function proceedWithVisitSave_(sharedRoomAcks) {
+      const payload = collectVisitPayload(sharedRoomAcks);
+      apiCall('saveVisitPlan', { payload })
+        .then(() => {
+          closeVisitEditor();
+          showToast('Visit saved.', 'success');
+          loadAccommodationWorkspaceList();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => {
+          showToast(`Save failed: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
+    function cancelCurrentVisit_() {
+      const visitId = $('visit-editor-visit-id').value;
+      const version = $('visit-editor-version').value;
+      if (!visitId) return;
+      apiCall('cancelVisit', { visitId, version })
+        .then(() => {
+          closeVisitEditor();
+          showToast('Visit cancelled.', 'success');
+          loadAccommodationWorkspaceList();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't cancel visit: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function restoreCurrentVisit_() {
+      const visitId = $('visit-editor-visit-id').value;
+      const version = $('visit-editor-version').value;
+      if (!visitId) return;
+      apiCall('restoreVisit', { visitId, version })
+        .then(() => {
+          closeVisitEditor();
+          showToast('Visit restored.', 'success');
+          loadAccommodationWorkspaceList();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't restore visit: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    // ============================================================
+    // V3 Operational Workspaces Architecture — Phase F. Meals workspace:
+    // pick a date, see every guest's meal inclusion for that day, toggle
+    // individual meals — fully row-level via upsertMealOverride (plan §2),
+    // replacing the old bulk-replace-per-guest path whose 60-day grid cap
+    // silently dropped exclusions past day 60 on any unrelated save.
+    // ============================================================
+
+    function todayDateKey_() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    }
+
+    function openMealsWorkspace() {
+      if (!$('meals-workspace-date').value) $('meals-workspace-date').value = todayDateKey_();
+      $('meals-workspace-modal').style.display = 'flex';
+      $('meals-workspace-modal').setAttribute('aria-hidden', 'false');
+      loadMealsWorkspaceList();
+    }
+
+    function closeMealsWorkspace() {
+      $('meals-workspace-modal').style.display = 'none';
+      $('meals-workspace-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function loadMealsWorkspaceList() {
+      const listEl = $('meals-workspace-list');
+      const emptyEl = $('meals-workspace-empty');
+      const date = $('meals-workspace-date').value || todayDateKey_();
+      listEl.replaceChildren();
+      emptyEl.hidden = true;
+      apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
+        .then(data => {
+          const rows = Array.isArray(data.guests) ? data.guests : [];
+          if (!rows.length) {
+            emptyEl.hidden = false;
+            return;
+          }
+          rows.forEach(row => listEl.appendChild(createMealsWorkspaceRow(row, date)));
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function createMealsWorkspaceRow(row, date) {
+      const card = createElement('article', 'card');
+      card.appendChild(createElement('div', 'guest-name', row.name || 'Unnamed Guest'));
+      const badges = createElement('div', 'badge-row');
+      badges.appendChild(createBadge(row.personType || 'Invited Guest', 'badge-salmon'));
+      if (row.isResident) badges.appendChild(createBadge('Resident today', 'badge-teal'));
+      card.appendChild(badges);
+
+      const mealsRow = createElement('div', 'checkbox-row');
+      ALLOWED_MEALS.forEach(meal => {
+        const state = row.meals[meal] || { included: false, overrideId: null, isException: false };
+        const label = createElement('label', 'checkbox-label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'checkbox-input';
+        checkbox.checked = Boolean(state.included);
+        checkbox.addEventListener('change', () => handleMealToggle_(row.guestId, meal, date, checkbox, state.overrideId));
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(state.isException ? `${meal} (modified)` : meal));
+        mealsRow.appendChild(label);
+      });
+      card.appendChild(mealsRow);
+
+      return card;
+    }
+
+    function handleMealToggle_(guestId, meal, date, checkbox, overrideId) {
+      const included = checkbox.checked;
+      checkbox.disabled = true;
+      const payload = { guestId, date, meal, included };
+      if (overrideId) payload.overrideId = overrideId;
+      apiCall('upsertMealOverride', { payload })
+        .then(() => {
+          loadMealsWorkspaceList();
+        })
+        .catch(error => handleApiError(error, err => {
+          checkbox.disabled = false;
+          checkbox.checked = !included;
+          showToast(`Couldn't update meal: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
+    // ============================================================
+    // V3 Operational Workspaces Architecture — Phase G. Meetings with
+    // Swamiji workspace: Today/Upcoming/Past–Needs Completion/Completed/
+    // Cancelled, backed by getWorkspaceData('meetings') — Past–Needs
+    // Completion is purely a display bucket (date < today, still Scheduled)
+    // computed server-side, never its own stored status (plan §1.5). Each
+    // meeting is its own upsertMeeting/setMeetingStatus call — an unfilled
+    // draft simply never gets submitted, since there's no bulk save to
+    // silently include it in.
+    // ============================================================
+
+    const MEETING_SECTIONS_ = [
+      { key: 'today', label: 'Today' },
+      { key: 'upcoming', label: 'Upcoming' },
+      { key: 'needsCompletion', label: 'Past – Needs Completion' },
+      { key: 'completed', label: 'Completed' },
+      { key: 'cancelled', label: 'Cancelled' }
+    ];
+
+    function openMeetingsWorkspace() {
+      $('meetings-workspace-modal').style.display = 'flex';
+      $('meetings-workspace-modal').setAttribute('aria-hidden', 'false');
+      loadMeetingsWorkspaceList();
+    }
+
+    function closeMeetingsWorkspace() {
+      $('meetings-workspace-modal').style.display = 'none';
+      $('meetings-workspace-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function loadMeetingsWorkspaceList() {
+      const container = $('meetings-workspace-sections');
+      const emptyEl = $('meetings-workspace-empty');
+      container.replaceChildren();
+      apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
+        .then(data => {
+          const total = MEETING_SECTIONS_.reduce((sum, sec) => sum + (Array.isArray(data[sec.key]) ? data[sec.key].length : 0), 0);
+          if (!total) {
+            emptyEl.hidden = false;
+            return;
+          }
+          emptyEl.hidden = true;
+          MEETING_SECTIONS_.forEach(sec => {
+            const items = Array.isArray(data[sec.key]) ? data[sec.key] : [];
+            if (!items.length) return;
+            container.appendChild(createElement('h3', 'travel-section-title', `${sec.label} (${items.length})`));
+            const grid = createElement('div', 'card-grid');
+            items.forEach(meeting => grid.appendChild(createMeetingWorkspaceCard(meeting, sec.key)));
+            container.appendChild(grid);
+          });
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function createMeetingWorkspaceCard(meeting, sectionKey) {
+      const card = createElement('article', 'card');
+      card.appendChild(createElement('div', 'guest-name', meeting.name || 'Unnamed Guest'));
+      const dateText = meeting.time ? `${formatDateKeyDisplay(meeting.date)} · ${meeting.time}` : formatDateKeyDisplay(meeting.date);
+      card.appendChild(createDetailLine('icon-calendar', dateText));
+      if (meeting.notes) card.appendChild(createDetailLine('icon-user', meeting.notes));
+
+      const actions = createElement('div', 'seva-team-row-actions');
+      if (sectionKey === 'today' || sectionKey === 'upcoming' || sectionKey === 'needsCompletion') {
+        const rescheduleBtn = createElement('button', 'travel-remove-btn', 'Reschedule');
+        rescheduleBtn.type = 'button';
+        rescheduleBtn.addEventListener('click', () => openMeetingEditor_(meeting.guestId, meeting));
+        actions.appendChild(rescheduleBtn);
+
+        const completeBtn = createElement('button', '', 'Mark Completed');
+        completeBtn.type = 'button';
+        completeBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Completed'));
+        actions.appendChild(completeBtn);
+
+        const cancelBtn = createElement('button', 'travel-remove-btn', 'Cancel');
+        cancelBtn.type = 'button';
+        cancelBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Cancelled'));
+        actions.appendChild(cancelBtn);
+      } else if (sectionKey === 'cancelled') {
+        const restoreBtn = createElement('button', '', 'Restore to Scheduled');
+        restoreBtn.type = 'button';
+        restoreBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled'));
+        actions.appendChild(restoreBtn);
+      } else if (sectionKey === 'completed') {
+        const reopenBtn = createElement('button', 'travel-remove-btn', 'Reopen');
+        reopenBtn.type = 'button';
+        reopenBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled'));
+        actions.appendChild(reopenBtn);
+      }
+      card.appendChild(actions);
+
+      return card;
+    }
+
+    function setMeetingStatusAction_(meetingId, version, status) {
+      apiCall('setMeetingStatus', { meetingId, status, version })
+        .then(() => {
+          showToast(`Meeting marked ${status.toLowerCase()}.`, 'success');
+          loadMeetingsWorkspaceList();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't update meeting: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    // meeting === null means a brand-new meeting for this guest.
+    function openMeetingEditor_(guestId, meeting) {
+      apiCall('getGuestProfile', { guestId })
+        .then(profile => {
+          $('meeting-editor-guest-id').value = profile.guestId;
+          $('meeting-editor-guest-name').textContent = profile.name || '';
+          $('meeting-editor-meeting-id').value = meeting ? meeting.meetingId : '';
+          $('meeting-editor-version').value = meeting ? meeting.version : '';
+          $('meeting-editor-date').value = meeting ? meeting.date : '';
+          $('meeting-editor-time').value = meeting ? meeting.time : '';
+          $('meeting-editor-notes').value = meeting ? meeting.notes : '';
+          $('meeting-editor-modal-title').textContent = meeting ? 'Reschedule Meeting' : 'Add Meeting with Swamiji';
+          $('meeting-editor-modal').style.display = 'flex';
+          $('meeting-editor-modal').setAttribute('aria-hidden', 'false');
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't open guest: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function closeMeetingEditor_() {
+      $('meeting-editor-modal').style.display = 'none';
+      $('meeting-editor-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function saveMeetingFromEditor_() {
+      const date = $('meeting-editor-date').value;
+      if (!date) {
+        showToast('A meeting date is required.', 'error');
+        return;
+      }
+      const payload = {
+        guestId: $('meeting-editor-guest-id').value,
+        meetingId: $('meeting-editor-meeting-id').value,
+        version: $('meeting-editor-version').value,
+        date,
+        time: $('meeting-editor-time').value,
+        notes: $('meeting-editor-notes').value.trim()
+      };
+      apiCall('upsertMeeting', { payload })
+        .then(() => {
+          closeMeetingEditor_();
+          showToast('Meeting saved.', 'success');
+          loadMeetingsWorkspaceList();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't save meeting: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function handleAddMeetingClick_() {
+      openGuestPicker_(guestId => openMeetingEditor_(guestId, null));
+    }
+
+    // ============================================================
+    // V3 Operational Workspaces Architecture — Phase I. Trips workspace:
+    // shared, multi-participant travel independent of any one guest's
+    // personal Visit Travel Legs. No Person-Type restriction anywhere here
+    // — a Visitor can participate and a trip can freely have both
+    // participants and Travel Legs at once (plan Context/§1.4). Reuses the
+    // same travel-leg editor as the Visit Editor (renderTravelLegEditors
+    // etc., now parameterized by list/empty element ID).
+    // ============================================================
+
+    let tripsWorkspaceData_ = { trips: [] };
+    let tripEditorOriginalLegIds_ = [];
+
+    function openTripsWorkspace() {
+      loadTripsWorkspaceData_();
+      $('trips-workspace-modal').style.display = 'flex';
+      $('trips-workspace-modal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeTripsWorkspace() {
+      $('trips-workspace-modal').style.display = 'none';
+      $('trips-workspace-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function loadTripsWorkspaceData_() {
+      const listEl = $('trips-workspace-list');
+      const emptyEl = $('trips-workspace-empty');
+      apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
+        .then(data => {
+          tripsWorkspaceData_ = data;
+          listEl.replaceChildren();
+          const trips = Array.isArray(data.trips) ? data.trips : [];
+          if (!trips.length) {
+            emptyEl.hidden = false;
+            return;
+          }
+          emptyEl.hidden = true;
+          trips.forEach(trip => listEl.appendChild(createTripCard_(trip)));
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function createTripCard_(trip) {
+      const card = createElement('article', 'card');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Open ${trip.name || 'trip'}`);
+      card.addEventListener('click', () => openTripEditor_(trip.tripId));
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openTripEditor_(trip.tripId);
+        }
+      });
+
+      card.appendChild(createElement('div', 'guest-name', trip.name || 'Unnamed Trip'));
+      const badges = createElement('div', 'badge-row');
+      badges.appendChild(createBadge(trip.status, trip.status === 'Cancelled' ? 'badge-gray' : 'badge-teal'));
+      card.appendChild(badges);
+
+      const dateRange = [msToDateDisplay_(trip.startMs), msToDateDisplay_(trip.endMs)].filter(Boolean).join(' – ');
+      if (dateRange) card.appendChild(createDetailLine('icon-calendar', dateRange));
+      if (trip.purpose) card.appendChild(createDetailLine('icon-user', trip.purpose));
+      card.appendChild(createDetailLine('icon-people', `${trip.participantCount} participant${trip.participantCount === 1 ? '' : 's'}`));
+      if (trip.unresolvedLegCount) {
+        card.appendChild(createDetailLine('icon-flight', `${trip.unresolvedLegCount} leg${trip.unresolvedLegCount === 1 ? '' : 's'} to arrange`));
+      }
+
+      return card;
+    }
+
+    function handleAddTripClick_() {
+      openTripEditor_(null);
+    }
+
+    // tripId === null means a brand-new trip.
+    function openTripEditor_(tripId) {
+      const trip = tripId ? tripsWorkspaceData_.trips.find(t => t.tripId === tripId) : null;
+      $('edit-trip-id').value = trip ? trip.tripId : '';
+      $('edit-trip-version').value = trip ? trip.version : '';
+      $('edit-trip-name').value = trip ? trip.name : '';
+      $('edit-trip-purpose').value = trip ? trip.purpose : '';
+      $('edit-trip-start').value = trip ? msToDateInputValue_(trip.startMs) : '';
+      $('edit-trip-end').value = trip ? msToDateInputValue_(trip.endMs) : '';
+      $('edit-trip-notes').value = trip ? trip.notes : '';
+      $('edit-trip-cancelled').checked = Boolean(trip && trip.cancelled);
+      $('trip-editor-message').textContent = '';
+      $('trip-editor-modal-title').textContent = trip ? 'Edit Trip' : 'New Trip';
+
+      renderTripParticipants_(trip ? trip.participants : []);
+
+      const legs = trip && Array.isArray(trip.legs) ? trip.legs : [];
+      tripEditorOriginalLegIds_ = legs.map(leg => leg.legId).filter(Boolean);
+      renderTravelLegEditors(
+        legs.map(leg => ({ ...leg, travelId: leg.legId, travelOrder: leg.order })),
+        'trip-travel-leg-list', 'trip-travel-empty'
+      );
+
+      $('trip-editor-modal').style.display = 'flex';
+      $('trip-editor-modal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeTripEditor_() {
+      $('trip-editor-modal').style.display = 'none';
+      $('trip-editor-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function renderTripParticipants_(participants) {
+      const list = $('trip-participants-list');
+      list.replaceChildren();
+      const items = Array.isArray(participants) ? participants : [];
+      items.forEach(participant => {
+        const item = createElement('div', 'seva-team-roster-item');
+        item.appendChild(document.createTextNode(`${participant.name || 'Unnamed Guest'} (${participant.personType}) `));
+        const removeBtn = createElement('button', 'travel-remove-btn', 'Remove');
+        removeBtn.type = 'button';
+        removeBtn.addEventListener('click', () => removeTripParticipantAction_(participant.participantId));
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+      $('trip-participants-empty').hidden = items.length > 0;
+    }
+
+    function handleAddParticipantClick_() {
+      const tripId = $('edit-trip-id').value;
+      if (!tripId) {
+        showToast('Save the trip before adding participants.', 'error');
+        return;
+      }
+      openGuestPicker_(guestId => addTripParticipantAction_(tripId, guestId));
+    }
+
+    function addTripParticipantAction_(tripId, guestId) {
+      apiCall('addTripParticipant', { tripId, guestId })
+        .then(() => {
+          showToast('Participant added.', 'success');
+          return reloadTripParticipants_(tripId);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't add participant: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function removeTripParticipantAction_(participantId) {
+      const tripId = $('edit-trip-id').value;
+      apiCall('removeTripParticipant', { participantId })
+        .then(() => {
+          showToast('Participant removed.', 'success');
+          return reloadTripParticipants_(tripId);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't remove participant: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    // Re-fetches just enough to refresh the roster in place, leaving the
+    // rest of the open editor (basics form, travel legs) untouched.
+    function reloadTripParticipants_(tripId) {
+      return apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
+        .then(data => {
+          tripsWorkspaceData_ = data;
+          const trip = data.trips.find(t => t.tripId === tripId);
+          renderTripParticipants_(trip ? trip.participants : []);
+        });
+    }
+
+    // Trip basics save as one saveTrip call, same as every other workspace's
+    // editor. Travel legs are different — upsertTripTravelLeg/
+    // deleteTripTravelLeg are per-row actions on the backend (plan §2), not
+    // bundled into saveTrip — so Save Trip walks the editor's current leg
+    // rows and issues one call per row (plus a delete for any row removed
+    // since the editor opened), sequentially so ordering stays predictable.
+    function saveTripFromEditor_() {
+      const name = $('edit-trip-name').value.trim();
+      if (!name) {
+        $('trip-editor-message').textContent = 'Trip name is required.';
+        return;
+      }
+      const startDate = $('edit-trip-start').value;
+      const endDate = $('edit-trip-end').value;
+      if (startDate && endDate && endDate < startDate) {
+        $('trip-editor-message').textContent = 'End date cannot be earlier than start date.';
+        return;
+      }
+      if (!validateTravelLegEditors('trip-travel-leg-list')) return;
+
+      const payload = {
+        tripId: $('edit-trip-id').value,
+        version: $('edit-trip-version').value,
+        name,
+        purpose: $('edit-trip-purpose').value.trim(),
+        startDate,
+        endDate,
+        notes: $('edit-trip-notes').value.trim(),
+        cancelled: $('edit-trip-cancelled').checked
+      };
+
+      $('trip-editor-save-btn').disabled = true;
+      apiCall('saveTrip', { payload })
+        .then(data => {
+          $('edit-trip-id').value = data.tripId;
+          $('edit-trip-version').value = data.version;
+          return saveTripTravelLegsFromEditor_(data.tripId);
+        })
+        .then(() => {
+          $('trip-editor-save-btn').disabled = false;
+          showToast('Trip saved.', 'success');
+          closeTripEditor_();
+          loadTripsWorkspaceData_();
+          loadHomeSummary();
+        })
+        .catch(error => handleApiError(error, err => {
+          $('trip-editor-save-btn').disabled = false;
+          $('trip-editor-message').textContent = getErrorMessage(err);
+        }));
+    }
+
+    function saveTripTravelLegsFromEditor_(tripId) {
+      const currentLegs = collectTravelLegPayloads('trip-travel-leg-list');
+      const currentIds = new Set(currentLegs.map(leg => leg.travelId).filter(Boolean));
+      const removedIds = tripEditorOriginalLegIds_.filter(id => !currentIds.has(id));
+
+      let chain = Promise.resolve();
+      currentLegs.forEach((leg, index) => {
+        chain = chain.then(() => apiCall('upsertTripTravelLeg', {
+          payload: {
+            tripId,
+            legId: leg.travelId,
+            direction: leg.direction,
+            transportType: leg.transportType,
+            from: leg.from,
+            to: leg.to,
+            travelDate: leg.travelDate,
+            travelTime: leg.travelTime,
+            status: leg.status,
+            serviceNumber: leg.serviceNumber,
+            bookingReference: leg.bookingReference,
+            notes: leg.notes,
+            order: index + 1
+          }
+        }));
+      });
+      removedIds.forEach(legId => {
+        chain = chain.then(() => apiCall('deleteTripTravelLeg', { legId }));
+      });
+      return chain;
     }
 
     function getRoomCategoryBadgeClass(category) {
@@ -5041,18 +6117,16 @@
       return `${name} booking ${needsReconfirmation ? 'reconfirmed' : 'confirmed'}`;
     }
 
-    function initializeCabBookingEditorState(type, guest) {
+    // V3 Operational Workspaces Architecture — Phase E. Takes a Visit object
+    // (getGuestProfile's shape — readVisitsByGuest_ in Code-V3.gs), not the
+    // old allGuests-shaped guest object this used to read.
+    function initializeCabBookingEditorState(type, visit) {
       const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
       const checkbox = $(`edit-${prefix}-booking-confirmed`);
-      const state = guest
-        ? normalizeCabBookingState(
-          guest[`${prefix}BookingState`],
-          guest[type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed']
-        )
+      const state = visit
+        ? normalizeCabBookingState(visit[`${prefix}BookingState`], visit[`${prefix}BookingConfirmed`])
         : 'Requested';
-      const confirmed = Boolean(guest && guest[
-        type === 'pickup' ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed'
-      ]);
+      const confirmed = Boolean(visit && visit[`${prefix}BookingConfirmed`]);
       const needsReview = state === 'Needs Reconfirmation' || state === 'Needs Rescheduling';
       const fingerprint = getCabScheduleFingerprint(type);
 
@@ -5103,10 +6177,13 @@
       updateTransportConstraints();
     }
 
+    // V3 Operational Workspaces Architecture — Phase E. Only guest basics
+    // plus the still-embedded Seva/Meals/Meetings sections are populated
+    // here now — arrival/departure/accommodation/rooms/cabs/travel legs are
+    // exclusively the Visit Editor's job (openVisitEditor below).
     function openModal(mode, guestId = '') {
       resetDeleteButton();
       resetCloseConfirm();
-      closeAllRoomRowLists();
       modalDirty = false;
       document.querySelector('.modal-content').scrollTop = 0;
       [...$('modal-section-nav').querySelectorAll('.section-nav-pill')].forEach(pill => {
@@ -5115,24 +6192,6 @@
       $('modal-mode').value = mode;
       $('edit-guest-id').value = guestId;
       $('edit-version').value = '';
-      $('room-warning').textContent = '';
-      $('edit-pickup-required').dataset.originalChecked = 'false';
-      $('edit-dropoff-required').dataset.originalChecked = 'false';
-      $('edit-pickup-details').dataset.originalValue = '';
-      $('edit-dropoff-details').dataset.originalValue = '';
-      $('edit-pickup-from').dataset.originalValue = '';
-      $('edit-dropoff-to').dataset.originalValue = '';
-      resetCabBookingEditorState('pickup');
-      resetCabBookingEditorState('dropoff');
-      $('pickup-warning').textContent = '';
-      $('pickup-warning').classList.remove('info');
-      $('dropoff-warning').textContent = '';
-      $('dropoff-warning').classList.remove('info');
-      $('edit-pickup-required').dataset.locked = 'false';
-      $('edit-dropoff-required').dataset.locked = 'false';
-      $('edit-departure-date').min = '';
-      $('edit-dropoff-date').min = '';
-      $('edit-dropoff-time').min = '';
 
       if (mode === 'edit') {
         const guest = allGuests.find(item => item.guestId === guestId);
@@ -5143,129 +6202,44 @@
         $('delete-btn').style.display = 'inline-flex';
         $('edit-name').value = guest.Name || '';
         $('edit-person-type').value = guest.personType || 'Invited Guest';
-        $('edit-accommodation').value = guest.accommodation || 'TBD';
-        $('edit-outside-accommodation-details').value = guest.outsideAccommodationDetails || '';
-        $('edit-outside-accommodation-confirmed').checked = Boolean(guest.outsideAccommodationConfirmed);
-        $('edit-self-arranged-staying-at').value = guest.selfArrangedStayingAt || '';
         setPurposeCheckboxes(guest.invitedPurpose || []);
         $('edit-purpose-other-text').value = guest.invitedPurposeOther || '';
         $('edit-staff-assignment').value = guest.staffAssignment || '';
         updatePurposeOtherVisibility();
-        renderGuestSevaTeamCheckboxes(guest.sevaTeamIds || []);
-        renderSpecificSevaEditors(guest.specificSeva || []);
-        modalMealOverrides = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
-        renderMeetingEditors(guest.swamijiMeetings || []);
         $('edit-foreign').checked = Boolean(guest['Foreign National']);
-        $('edit-cform').checked = Boolean(guest['C-form complete']);
-        $('edit-arrival-date').value = guest.arrivalDate || '';
-        $('edit-arrival-time').value = guest.arrivalTime || '';
-        $('edit-arrival-date').dataset.originalValue = guest.arrivalDate || '';
-        $('edit-arrival-time').dataset.originalValue = guest.arrivalTime || '';
-        $('edit-departure-date').value = guest.departureDate || '';
-        $('edit-departure-time').value = guest.departureTime || '';
-        $('edit-departure-date').dataset.originalValue = guest.departureDate || '';
-        $('edit-departure-time').dataset.originalValue = guest.departureTime || '';
-        $('edit-pickup-required').checked = Boolean(guest['Pickup Required']);
-        $('edit-pickup-required').dataset.originalChecked = String(Boolean(guest['Pickup Required']));
-        $('edit-pickup-date').value = guest.pickupDate || '';
-        $('edit-pickup-time').value = guest.pickupTime || '';
-        $('edit-pickup-date').dataset.originalValue = guest.pickupDate || '';
-        $('edit-pickup-time').dataset.originalValue = guest.pickupTime || '';
-        $('edit-pickup-details').value = guest['Pickup Cab details'] || '';
-        $('edit-pickup-details').dataset.originalValue = guest['Pickup Cab details'] || '';
-        $('edit-pickup-from').value = guest.pickupFrom || '';
-        $('edit-pickup-from').dataset.originalValue = guest.pickupFrom || '';
-        initializeCabBookingEditorState('pickup', guest);
-        $('edit-dropoff-required').checked = Boolean(guest['Dropoff Required']);
-        $('edit-dropoff-required').dataset.originalChecked = String(Boolean(guest['Dropoff Required']));
-        $('edit-dropoff-date').value = guest.dropoffDate || '';
-        $('edit-dropoff-time').value = guest.dropoffTime || '';
-        $('edit-dropoff-date').dataset.originalValue = guest.dropoffDate || '';
-        $('edit-dropoff-time').dataset.originalValue = guest.dropoffTime || '';
-        $('edit-dropoff-details').value = guest['Dropoff Cab details'] || '';
-        $('edit-dropoff-details').dataset.originalValue = guest['Dropoff Cab details'] || '';
-        $('edit-dropoff-to').value = guest.dropoffTo || '';
-        $('edit-dropoff-to').dataset.originalValue = guest.dropoffTo || '';
-        initializeCabBookingEditorState('dropoff', guest);
-        setRoomRows(guest.Rooms || []);
-        // Rooms already on the card when it was opened never need a fresh
-        // share confirmation — only a NEWLY picked shareable room does (see
-        // getRoomsNeedingShareConfirmation). An already-agreed share is
-        // carried forward by the backend regardless of what this sends.
-        roomsOriginalForShareCheck = Array.isArray(guest.Rooms) ? guest.Rooms.slice() : [];
-        renderTravelLegEditors(guest.travelLegs || []);
       } else {
         $('modal-title').textContent = 'Add New Guest';
         $('delete-btn').style.display = 'none';
         $('edit-name').value = '';
         $('edit-person-type').value = 'Invited Guest';
-        $('edit-accommodation').value = 'TBD';
-        $('edit-outside-accommodation-details').value = '';
-        $('edit-outside-accommodation-confirmed').checked = false;
-        $('edit-self-arranged-staying-at').value = '';
         setPurposeCheckboxes([]);
         $('edit-purpose-other-text').value = '';
         $('edit-staff-assignment').value = '';
         updatePurposeOtherVisibility();
-        renderGuestSevaTeamCheckboxes([]);
-        renderSpecificSevaEditors([]);
-        modalMealOverrides = [];
-        renderMeetingEditors([]);
         $('edit-foreign').checked = false;
-        $('edit-cform').checked = false;
-        $('edit-arrival-date').value = '';
-        $('edit-arrival-time').value = '';
-        $('edit-arrival-date').dataset.originalValue = '';
-        $('edit-arrival-time').dataset.originalValue = '';
-        $('edit-departure-date').value = '';
-        $('edit-departure-time').value = '';
-        $('edit-departure-date').dataset.originalValue = '';
-        $('edit-departure-time').dataset.originalValue = '';
-        $('edit-pickup-required').checked = false;
-        $('edit-pickup-date').value = '';
-        $('edit-pickup-time').value = '';
-        $('edit-pickup-date').dataset.originalValue = '';
-        $('edit-pickup-time').dataset.originalValue = '';
-        $('edit-pickup-details').value = '';
-        $('edit-pickup-from').value = '';
-        initializeCabBookingEditorState('pickup', null);
-        $('edit-dropoff-required').checked = false;
-        $('edit-dropoff-date').value = '';
-        $('edit-dropoff-time').value = '';
-        $('edit-dropoff-date').dataset.originalValue = '';
-        $('edit-dropoff-time').dataset.originalValue = '';
-        $('edit-dropoff-details').value = '';
-        $('edit-dropoff-to').value = '';
-        initializeCabBookingEditorState('dropoff', null);
-        setRoomRows([]);
-        roomsOriginalForShareCheck = [];
-        renderTravelLegEditors([]);
       }
 
-      toggleCForm();
-      handleDateChange();
-      toggleAccommodationFields();
       togglePurposeAssignmentFields();
-      toggleCabTravelSections();
-      toggleSevaSectionVisibility();
-      toggleMealsSectionMode();
-      updateTransportConstraints();
       modalIsOpen = true;
       $('modal').style.display = 'flex';
       $('modal').setAttribute('aria-hidden', 'false');
       window.setTimeout(() => $('edit-name').focus(), 0);
     }
 
-    function renderTravelLegEditors(legs) {
-      const list = $('travel-leg-list');
+    // listId/emptyId default to the Visit Editor's own IDs — every existing
+    // call site passes neither, so this stays byte-for-byte unchanged there.
+    // The Trip Editor (Phase I) passes its own IDs to reuse this same
+    // editor for Trip Travel Legs, per plan §6's "reused travel-leg editor".
+    function renderTravelLegEditors(legs, listId = 'travel-leg-list', emptyId = 'travel-empty') {
+      const list = $(listId);
       list.replaceChildren();
-      (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg));
-      updateTravelEmptyState();
-      updateTravelDateConstraints();
+      (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg, listId, emptyId));
+      updateTravelEmptyState(listId, emptyId);
+      updateTravelDateConstraints(listId);
     }
 
-    function addTravelLegEditor(leg = {}) {
-      const list = $('travel-leg-list');
+    function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty') {
+      const list = $(listId);
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
       editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -5361,11 +6335,11 @@
 
       editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
         editor.remove();
-        refreshAllLegSummaries();
-        updateTravelEmptyState();
-        updateTravelDateConstraints();
+        refreshAllLegSummaries(listId);
+        updateTravelEmptyState(listId, emptyId);
+        updateTravelDateConstraints(listId);
       });
-      editor.querySelector('[data-field="travelDate"]').addEventListener('input', updateTravelDateConstraints);
+      editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => updateTravelDateConstraints(listId));
       ['direction', 'transportType', 'from', 'to', 'travelDate'].forEach(field => {
         editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateLegSummary(editor));
       });
@@ -5380,8 +6354,8 @@
       setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExistingLeg);
       editor.classList.toggle('leg-expanded', !isExistingLeg);
       updateLegSummary(editor);
-      updateTravelEmptyState();
-      updateTravelDateConstraints();
+      updateTravelEmptyState(listId, emptyId);
+      updateTravelDateConstraints(listId);
     }
 
     function toggleLegExpanded(editor, expanded) {
@@ -5411,16 +6385,16 @@
       editor.querySelector('.travel-leg-summary-text use').setAttribute('href', `#${getTravelIconId(type)}`);
     }
 
-    function refreshAllLegSummaries() {
-      [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')].forEach(updateLegSummary);
+    function refreshAllLegSummaries(listId = 'travel-leg-list') {
+      [...$(listId).querySelectorAll('.travel-leg-editor')].forEach(updateLegSummary);
     }
 
-    function updateTravelEmptyState() {
-      $('travel-empty').style.display = $('travel-leg-list').children.length ? 'none' : 'block';
+    function updateTravelEmptyState(listId = 'travel-leg-list', emptyId = 'travel-empty') {
+      $(emptyId).style.display = $(listId).children.length ? 'none' : 'block';
     }
 
-    function updateTravelDateConstraints() {
-      const editors = [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')];
+    function updateTravelDateConstraints(listId = 'travel-leg-list') {
+      const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
       editors.forEach((editor, index) => {
         const dateInput = editor.querySelector('[data-field="travelDate"]');
         let previousDate = '';
@@ -5451,8 +6425,8 @@
       });
     }
 
-    function collectTravelLegPayloads() {
-      return [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')].map(editor => {
+    function collectTravelLegPayloads(listId = 'travel-leg-list') {
+      return [...$(listId).querySelectorAll('.travel-leg-editor')].map(editor => {
         const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
         return {
           travelId: editor.dataset.travelId || '',
@@ -5470,8 +6444,8 @@
       });
     }
 
-    function validateTravelLegEditors() {
-      const editors = [...$('travel-leg-list').querySelectorAll('.travel-leg-editor')];
+    function validateTravelLegEditors(listId = 'travel-leg-list') {
+      const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
       let previousDatedLeg = null;
 
       for (let index = 0; index < editors.length; index += 1) {
@@ -5588,13 +6562,6 @@
       $('close-btn').setAttribute('aria-label', 'Close dialog');
     }
 
-    function toggleCForm() {
-      const enabled = $('edit-foreign').checked;
-      $('cform-control').hidden = !enabled;
-      $('edit-cform').disabled = !enabled;
-      if (!enabled) $('edit-cform').checked = false;
-    }
-
     // Capability predicates — keep in sync with Code-V3.gs. Each answers one
     // real-world question rather than comparing a category value directly,
     // so the rule stays correct as Person Types/Accommodation values change.
@@ -5676,10 +6643,6 @@
       return personType !== 'Visitor';
     }
 
-    function isSevaTeamEligible(personType) {
-      return ['Friend', 'Visitor', 'Other'].includes(personType);
-    }
-
     // Governing rule: Ashram residents are included for meals by default
     // during their stay (arrival/departure day included); everyone else is
     // excluded by default. Mirrors isAshramResidentOnDate_ in Code-V3.gs.
@@ -5698,202 +6661,8 @@
       return isAshramResidentOnDate(guest, dateKey);
     }
 
-    // Purely presentational, like every other Person-Type-driven toggle
-    // here — cab/travel data is never cleared by this, so a Visitor
-    // reclassified back to an eligible type gets their prior data back
-    // untouched.
-    function toggleCabTravelSections() {
-      const eligible = isCabTravelEligible($('edit-person-type').value);
-      $('sec-cabs').hidden = !eligible;
-      $('sec-travel').hidden = !eligible;
-      const cabsPill = document.querySelector('.section-nav-pill[data-target="sec-cabs"]');
-      const travelPill = document.querySelector('.section-nav-pill[data-target="sec-travel"]');
-      if (cabsPill) cabsPill.hidden = !eligible;
-      if (travelPill) travelPill.hidden = !eligible;
-    }
-
-    // Presentational only, same as every other Person-Type-driven toggle —
-    // if a save is later rejected because the checked memberships conflict
-    // with an ineligible Person Type, the backend's error message is what
-    // tells the admin to go remove them (see validateGuestSevaTeamMembership_).
-    function toggleSevaSectionVisibility() {
-      const eligible = isSevaTeamEligible($('edit-person-type').value);
-      $('sec-seva').hidden = !eligible;
-      const sevaPill = document.querySelector('.section-nav-pill[data-target="sec-seva"]');
-      if (sevaPill) sevaPill.hidden = !eligible;
-    }
-
-    // ============================================================
-    // Meals — no Person Type eligibility gate (applies to everyone), but
-    // switches between two entirely different UIs depending on residency:
-    // residents get an exceptions grid defaulting to fully included,
-    // non-residents get an explicit opt-in list. Rebuilds from
-    // modalMealOverrides (the guest's real saved data) on every toggle,
-    // same "rebuild fresh on structural change" pattern already used by
-    // toggleAccommodationFields for Room Allocation.
-    function toggleMealsSectionMode() {
-      const isResident = $('edit-accommodation').value === 'Ashram';
-      $('meal-exceptions-group').hidden = !isResident;
-      $('meal-add-group').hidden = isResident;
-      if (isResident) {
-        renderMealExceptionsGrid(modalMealOverrides);
-      } else {
-        renderMealAddList(modalMealOverrides);
-      }
-    }
-
-    // yyyy-MM-dd strings only, inclusive of both ends — capped so a mistyped
-    // far-future date (e.g. a stray extra digit in the year) can't generate
-    // tens of thousands of rows and hang the browser.
-    // maxDays caps the returned list (so a mistyped far-future date can't
-    // generate tens of thousands of rows and hang the browser) without
-    // needing a second, separate enumeration just to learn the true count —
-    // callers that need "N of M days" can get M via totalDaysInRange.
-    function enumerateDateRange(startDateKey, endDateKey, maxDays) {
-      const dates = [];
-      const start = new Date(`${startDateKey}T00:00:00`);
-      const end = new Date(`${endDateKey}T00:00:00`);
-      if (isNaN(start) || isNaN(end) || end < start) return dates;
-      const limit = maxDays || Infinity;
-      const cursor = new Date(start);
-      while (dates.length < limit && cursor <= end) {
-        const y = cursor.getFullYear();
-        const m = String(cursor.getMonth() + 1).padStart(2, '0');
-        const d = String(cursor.getDate()).padStart(2, '0');
-        dates.push(`${y}-${m}-${d}`);
-        cursor.setDate(cursor.getDate() + 1);
-      }
-      return dates;
-    }
-
-    function totalDaysInRange(startDateKey, endDateKey) {
-      const start = new Date(`${startDateKey}T00:00:00`);
-      const end = new Date(`${endDateKey}T00:00:00`);
-      if (isNaN(start) || isNaN(end) || end < start) return 0;
-      return Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1;
-    }
-
     function formatDateKeyDisplay(dateKey) {
       return String(localDateInfo(dateKey, '', false).display || dateKey).replace(/^[A-Za-z]{3},\s*/, '');
-    }
-
-    function renderMealExceptionsGrid(overrides) {
-      const arrivalDate = $('edit-arrival-date').value;
-      const departureDate = $('edit-departure-date').value;
-      const list = $('meal-exceptions-list');
-      list.replaceChildren();
-
-      if (!arrivalDate || !departureDate) {
-        $('meal-exceptions-missing-dates').hidden = false;
-        list.hidden = true;
-        return;
-      }
-      $('meal-exceptions-missing-dates').hidden = true;
-      list.hidden = false;
-
-      const excludedSet = new Set(
-        overrides.filter(entry => entry.included === false).map(entry => `${entry.date}|${entry.meal}`)
-      );
-
-      const dates = enumerateDateRange(arrivalDate, departureDate, 60);
-      const totalDays = totalDaysInRange(arrivalDate, departureDate);
-
-      dates.forEach(dateKey => {
-        const row = createElement('div', 'meal-exception-row');
-        row.appendChild(createElement('span', 'meal-exception-date', formatDateKeyDisplay(dateKey)));
-        const mealsWrap = createElement('div', 'meal-exception-meals');
-        ALLOWED_MEALS.forEach(meal => {
-          const label = createElement('label', 'checkbox-label meal-exception-checkbox-label');
-          const input = document.createElement('input');
-          input.type = 'checkbox';
-          input.className = 'checkbox-input meal-exception-checkbox';
-          input.dataset.date = dateKey;
-          input.dataset.meal = meal;
-          input.checked = !excludedSet.has(`${dateKey}|${meal}`);
-          label.appendChild(input);
-          label.appendChild(document.createTextNode(meal));
-          mealsWrap.appendChild(label);
-        });
-        row.appendChild(mealsWrap);
-        list.appendChild(row);
-      });
-
-      if (totalDays > dates.length) {
-        list.appendChild(createElement(
-          'div',
-          'meal-exceptions-truncated-note',
-          `Showing the first ${dates.length} of ${totalDays} days.`
-        ));
-      }
-    }
-
-    function renderMealAddList(overrides) {
-      const container = $('meal-add-list');
-      container.replaceChildren();
-      overrides.filter(entry => entry.included !== false).forEach(entry => addMealRow(entry));
-      updateMealAddEmptyState();
-    }
-
-    function addMealRow(entry = {}) {
-      const container = $('meal-add-list');
-      const row = createElement('div', 'meal-add-row');
-      row.dataset.overrideId = entry.overrideId || '';
-
-      const dateInput = document.createElement('input');
-      dateInput.type = 'date';
-      dateInput.className = 'edit-input';
-      dateInput.dataset.field = 'date';
-      dateInput.setAttribute('aria-label', 'Meal date');
-      dateInput.value = entry.date || '';
-
-      const mealSelect = document.createElement('select');
-      mealSelect.className = 'edit-input';
-      mealSelect.dataset.field = 'meal';
-      mealSelect.setAttribute('aria-label', 'Meal');
-      ALLOWED_MEALS.forEach(meal => {
-        const option = document.createElement('option');
-        option.value = meal;
-        option.textContent = meal;
-        mealSelect.appendChild(option);
-      });
-      mealSelect.value = entry.meal || 'Breakfast';
-
-      const removeBtn = createElement('button', 'travel-remove-btn', 'Remove');
-      removeBtn.type = 'button';
-      removeBtn.addEventListener('click', () => {
-        row.remove();
-        updateMealAddEmptyState();
-      });
-
-      row.appendChild(dateInput);
-      row.appendChild(mealSelect);
-      row.appendChild(removeBtn);
-      container.appendChild(row);
-      updateMealAddEmptyState();
-    }
-
-    function updateMealAddEmptyState() {
-      $('meal-add-empty').style.display = $('meal-add-list').children.length ? 'none' : 'block';
-    }
-
-    // Residents: only unchecked cells become overrides (Included=false) —
-    // checked cells match the default already, so writing them out would
-    // just be noise. Non-residents: every row is an explicit Included=true
-    // override, since nothing is included for them without one.
-    function collectMealOverridesPayload() {
-      if ($('edit-accommodation').value === 'Ashram') {
-        return [...document.querySelectorAll('.meal-exception-checkbox')]
-          .filter(box => !box.checked)
-          .map(box => ({ overrideId: '', date: box.dataset.date, meal: box.dataset.meal, included: false }));
-      }
-      return [...document.querySelectorAll('.meal-add-row')]
-        .map(row => ({
-          overrideId: row.dataset.overrideId || '',
-          date: row.querySelector('[data-field="date"]').value,
-          meal: row.querySelector('[data-field="meal"]').value
-        }))
-        .filter(entry => entry.date && entry.meal)
-        .map(entry => ({ ...entry, included: true }));
     }
 
     function setPurposeCheckboxes(purposes) {
@@ -6369,6 +7138,13 @@
       return false;
     }
 
+    // V3 Operational Workspaces Architecture — Phase E. Arrival/departure,
+    // accommodation, rooms, cabs, and travel legs are edited exclusively in
+    // the Visit Editor now (see openVisitEditor/saveVisitFromEditor below) —
+    // this modal only ever collects/validates guest basics plus the
+    // still-embedded Seva/Meals/Meetings sections (Phases F–H's job to move
+    // out). The former room-share-confirmation flow moved with the rooms —
+    // see confirmPendingVisitRoomShares_.
     function saveGuestFromModal() {
       const name = $('edit-name');
       if (!name.value.trim()) {
@@ -6377,128 +7153,14 @@
         return;
       }
 
-      const arrivalMs = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
-      const arrivalLockMs = getArrivalLockTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value);
-      const departureMs = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
-      if (arrivalMs && departureMs && departureMs < arrivalMs) {
-        showToast('Departure cannot be earlier than arrival.', 'error');
-        return;
-      }
-
-      const pickupRequired = $('edit-pickup-required').checked;
-      const dropoffRequired = $('edit-dropoff-required').checked;
-      const pickupDateValue = pickupRequired ? $('edit-pickup-date').value : '';
-      const pickupTimeValue = pickupRequired ? $('edit-pickup-time').value : '';
-      const dropoffDateValue = dropoffRequired ? $('edit-dropoff-date').value : '';
-      const dropoffTimeValue = dropoffRequired ? $('edit-dropoff-time').value : '';
-
-      const originalPickupRequired = $('edit-pickup-required').dataset.originalChecked === 'true';
-      const originalDropoffRequired = $('edit-dropoff-required').dataset.originalChecked === 'true';
-      const originalPickupDate = $('edit-pickup-date').dataset.originalValue || '';
-      const originalPickupTime = $('edit-pickup-time').dataset.originalValue || '';
-      const originalPickupDetails = $('edit-pickup-details').dataset.originalValue || '';
-      const originalDropoffDate = $('edit-dropoff-date').dataset.originalValue || '';
-      const originalDropoffTime = $('edit-dropoff-time').dataset.originalValue || '';
-      const originalDropoffDetails = $('edit-dropoff-details').dataset.originalValue || '';
-      const originalPickupFrom = $('edit-pickup-from').dataset.originalValue || '';
-      const originalDropoffTo = $('edit-dropoff-to').dataset.originalValue || '';
-      const pickupBooking = $('edit-pickup-booking-confirmed');
-      const dropoffBooking = $('edit-dropoff-booking-confirmed');
-      const pickupEffectiveConfirmed = pickupBooking.dataset.confirmationIntent === 'preserve'
-        ? pickupBooking.dataset.originalConfirmed === 'true'
-        : pickupBooking.checked;
-      const dropoffEffectiveConfirmed = dropoffBooking.dataset.confirmationIntent === 'preserve'
-        ? dropoffBooking.dataset.originalConfirmed === 'true'
-        : dropoffBooking.checked;
-      const pickupUnchanged = pickupRequired === originalPickupRequired
-        && pickupDateValue === originalPickupDate
-        && pickupTimeValue === originalPickupTime
-        && $('edit-pickup-details').value.trim() === originalPickupDetails
-        && $('edit-pickup-from').value.trim() === originalPickupFrom
-        && pickupEffectiveConfirmed === (pickupBooking.dataset.originalConfirmed === 'true');
-      const dropoffUnchanged = dropoffRequired === originalDropoffRequired
-        && dropoffDateValue === originalDropoffDate
-        && dropoffTimeValue === originalDropoffTime
-        && $('edit-dropoff-details').value.trim() === originalDropoffDetails
-        && $('edit-dropoff-to').value.trim() === originalDropoffTo
-        && dropoffEffectiveConfirmed === (dropoffBooking.dataset.originalConfirmed === 'true');
-
-      if (!validateCabEditorBeforeSave('pickup') || !validateCabEditorBeforeSave('dropoff')) return;
-
-      if (arrivalLockMs && arrivalLockMs <= Date.now() && !pickupUnchanged) {
-        showToast('Pickup responsibility, booking, and details cannot be changed after the guest has arrived.', 'error');
-        return;
-      }
-
-      if (departureMs && departureMs <= Date.now() && !dropoffUnchanged) {
-        showToast('Drop-off responsibility, booking, and details cannot be changed after the guest has departed.', 'error');
-        return;
-      }
-
-      if (!validateTravelLegEditors()) return;
-
-      const hasUnavailableRoomSelection = [...$('room-list').querySelectorAll('.room-row')].some(row => {
-        const selected = row.querySelector('.room-select').selectedOptions[0];
-        return selected && selected.value && selected.disabled;
-      });
-      if (hasUnavailableRoomSelection) {
-        showToast('One of the selected rooms is occupied during those dates.', 'error');
-        return;
-      }
-
-      // A newly picked shareable room needs an explicit yes before the save
-      // goes through — everything else about this save (name, dates, cabs)
-      // proceeds immediately, same as always.
-      const pendingShares = getRoomsNeedingShareConfirmation();
-      if (pendingShares.length) {
-        showRoomShareConfirmation_(pendingShares);
-        return;
-      }
-
-      proceedWithGuestSave_([]);
+      proceedWithGuestSave_();
     }
 
-    // Rooms this card has picked that would create or extend a deliberate
-    // overlap with someone else — excluding any room that was ALREADY on
-    // the card when it was opened, since that share was already agreed and
-    // the backend carries it forward on its own (see getExistingSharedOkRooms_
-    // in Code.gs). Only a room picked or changed just now needs asking about.
-    function getRoomsNeedingShareConfirmation() {
-      const originalRooms = new Set(roomsOriginalForShareCheck);
-      const rows = [...$('room-list').querySelectorAll('.room-row')];
-      const pending = [];
-      rows.forEach(row => {
-        const selected = row.querySelector('.room-select').selectedOptions[0];
-        if (!selected || !selected.value || !selected.dataset.shareWith) return;
-        if (originalRooms.has(selected.value)) return;
-        pending.push({ room: selected.value, shareWith: selected.dataset.shareWith });
-      });
-      return pending;
-    }
-
-    let pendingRoomShareAcks_ = [];
-
-    function showRoomShareConfirmation_(pending) {
-      pendingRoomShareAcks_ = pending.map(entry => entry.room);
-      const list = $('room-share-sheet-list');
-      list.replaceChildren();
-      pending.forEach(entry => {
-        list.appendChild(createElement('div', 'room-share-item', `${entry.room} — share with ${entry.shareWith}`));
-      });
-      $('room-share-sheet-title').textContent = pending.length === 1 ? 'Share this room?' : 'Share these rooms?';
-      $('room-share-sheet').hidden = false;
-    }
-
-    function closeRoomShareSheet_() {
-      $('room-share-sheet').hidden = true;
-      pendingRoomShareAcks_ = [];
-    }
-
-    // The actual save — split out from saveGuestFromModal so the room-share
-    // confirmation sheet can pause here and resume it once the user answers,
-    // instead of the whole save flow needing to become async.
-    function proceedWithGuestSave_(sharedRoomAcks) {
-      const payload = collectGuestPayload(sharedRoomAcks);
+    // The actual save — kept as its own function so a caller (or a future
+    // confirmation step) can invoke it directly without re-running
+    // validation above.
+    function proceedWithGuestSave_() {
+      const payload = collectGuestPayload();
       const mode = $('modal-mode').value;
       const snapshot = cloneGuests(allGuests);
       const optimisticId = mode === 'add' ? `temporary-${Date.now()}` : payload.guestId;
@@ -6539,55 +7201,22 @@
     // fingerprint state is correctly re-derived from the current (snapshot-
     // restored) guest data; the user's actual entries are then overlaid on
     // top of that correctly-initialized form.
+    // V3 Operational Workspaces Architecture — Phase E. payload here is
+    // whatever collectGuestPayload() built, which no longer carries
+    // accommodation/dates/rooms/cabs/travel legs at all — only guest basics
+    // need restoring after a failed save; Seva/Meals/Meetings all moved to
+    // their own workspaces by now (Phases F–H).
     function reopenModalWithPayload_(mode, payload) {
       openModal(mode, mode === 'edit' ? payload.guestId : '');
 
       $('edit-name').value = payload.name || '';
       $('edit-person-type').value = payload.personType || 'Invited Guest';
-      $('edit-accommodation').value = payload.accommodation || 'TBD';
-      $('edit-outside-accommodation-details').value = payload.outsideAccommodationDetails || '';
-      $('edit-outside-accommodation-confirmed').checked = Boolean(payload.outsideAccommodationConfirmed);
-      $('edit-self-arranged-staying-at').value = payload.selfArrangedStayingAt || '';
       setPurposeCheckboxes(Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : []);
       $('edit-purpose-other-text').value = payload.invitedPurposeOther || '';
       $('edit-staff-assignment').value = payload.staffAssignment || '';
       updatePurposeOtherVisibility();
-      renderGuestSevaTeamCheckboxes(Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : []);
-      renderSpecificSevaEditors(Array.isArray(payload.specificSeva) ? payload.specificSeva : []);
-      renderMeetingEditors(Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : []);
       togglePurposeAssignmentFields();
-      toggleCabTravelSections();
-      toggleSevaSectionVisibility();
       $('edit-foreign').checked = Boolean(payload.isForeign);
-      $('edit-cform').checked = Boolean(payload.isForeign && payload.isCformComplete);
-      toggleCForm();
-
-      $('edit-arrival-date').value = payload.arrivalDate || '';
-      $('edit-arrival-time').value = payload.arrivalTime || '';
-      $('edit-departure-date').value = payload.departureDate || '';
-      $('edit-departure-time').value = payload.departureTime || '';
-      toggleAccommodationFields();
-      if (payload.accommodation === 'Ashram') {
-        setRoomRows(Array.isArray(payload.rooms) ? payload.rooms : []);
-      }
-      modalMealOverrides = Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [];
-      toggleMealsSectionMode();
-
-      $('edit-pickup-required').checked = Boolean(payload.pickupRequired);
-      $('edit-pickup-date').value = payload.pickupDate || '';
-      $('edit-pickup-time').value = payload.pickupTime || '';
-      $('edit-pickup-details').value = payload.pickupDetails || '';
-      $('edit-pickup-from').value = payload.pickupFrom || '';
-
-      $('edit-dropoff-required').checked = Boolean(payload.dropoffRequired);
-      $('edit-dropoff-date').value = payload.dropoffDate || '';
-      $('edit-dropoff-time').value = payload.dropoffTime || '';
-      $('edit-dropoff-details').value = payload.dropoffDetails || '';
-      $('edit-dropoff-to').value = payload.dropoffTo || '';
-
-      renderTravelLegEditors(Array.isArray(payload.travelLegs) ? payload.travelLegs : []);
-      handleDateChange();
-      updateTransportConstraints();
     }
 
     // V3 Operational Workspaces Architecture — Phase B. Accommodation, stay
@@ -6606,11 +7235,7 @@
         personType: $('edit-person-type').value,
         invitedPurpose: getSelectedPurposes(),
         invitedPurposeOther: $('edit-purpose-other-text').value.trim(),
-        staffAssignment: $('edit-staff-assignment').value.trim(),
-        sevaTeamIds: getSelectedGuestSevaTeamIds(),
-        specificSeva: collectSpecificSevaPayloads(),
-        mealOverrides: collectMealOverridesPayload(),
-        swamijiMeetings: collectMeetingPayloads()
+        staffAssignment: $('edit-staff-assignment').value.trim()
       };
     }
 
