@@ -3555,10 +3555,7 @@
 
     // Multiple chips can be active at once — activeChipQueries is the
     // source of truth for which, and the search bar's text is just a
-    // space-joined rendering of it. Combining phrases this way works for
-    // free: matchesSearch() already ANDs every whitespace-separated term,
-    // so "room not assigned" + "foreign national" naturally narrows to
-    // guests matching both, the same as if you'd typed all of it by hand.
+    // space-joined rendering of it.
     // Whatever the user typed by hand, with the active chips' own phrases
     // stripped back out. Without this, rebuilding the bar from chip state
     // alone would silently wipe a name someone was midway through typing.
@@ -3598,19 +3595,6 @@
       // chips out from under the finger mid-selection, so picking a second
       // filter meant chasing a target that had just jumped position.
       if (activeChipQueries.size === 0) reorderQuickFilters();
-    }
-
-    function updateQuickFilterActiveState() {
-      [...$('quick-filters').querySelectorAll('.filter-chip')].forEach(chip => {
-        const isActive = activeChipQueries.has(chip.dataset.query);
-        chip.classList.toggle('active', isActive);
-        // The .active styling (colour + ✕) is invisible to a screen reader;
-        // aria-pressed is what actually announces on/off for a toggle button.
-        chip.setAttribute('aria-pressed', String(isActive));
-      });
-      // Visibility depends on which chips are active (see applyChipVisibility),
-      // so it has to be re-evaluated whenever that changes.
-      applyChipVisibility();
     }
 
     function initSectionNav() {
@@ -3809,11 +3793,9 @@
     // tier-tab/createZone rendering — this now just toggles between the
     // homepage tiles and search results, both living outside #app (which
     // is unused going forward but left in the DOM rather than removed, in
-    // case a later phase wants it). renderTierTabs_/createZone_/
-    // createSearchResults_/matchesSearch_ etc. are deliberately left
-    // defined-but-uncalled below rather than deleted — same "hide, don't
-    // excise" posture as the quick-filters/tier-tabs markup, since a later
-    // cleanup phase (Phase J) is the one that actually retires this code.
+    // case a later phase wants it). The old tier-tab/zone/search-match
+    // renderer functions were retired outright in Phase J once nothing
+    // called them.
     // A monotonically increasing token guards against an older, slower
     // search response landing after a newer one and clobbering its results
     // — a real risk now that search is a network round trip, not a
@@ -3853,30 +3835,6 @@
           if (requestToken !== searchRequestToken_) return;
           showToast(`Search failed: ${getErrorMessage(err)}`, 'error');
         }));
-    }
-
-    // Counts always reflect every tier regardless of which is active, so
-    // switching tabs never costs you the at-a-glance totals.
-    function renderTierTabs() {
-      const container = $('tier-tabs');
-      container.replaceChildren();
-      [1, 2, 3, 4, 5].forEach(tier => {
-        const meta = TIER_META[tier];
-        const count = allGuests.filter(guest => Number(guest.priorityTier) === tier).length;
-        const tab = createElement('button', `tier-tab${tier === activeTier ? ' active' : ''}`);
-        tab.type = 'button';
-        tab.style.setProperty('--accent', TIER_ACCENT[tier]);
-        tab.setAttribute('role', 'tab');
-        tab.setAttribute('aria-selected', String(tier === activeTier));
-        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
-        tab.appendChild(createElement('span', 'tier-tab-label', meta.shortLabel));
-        tab.addEventListener('click', () => {
-          if (activeTier === tier) return;
-          activeTier = tier;
-          renderApp();
-        });
-        container.appendChild(tab);
-      });
     }
 
     // Touch-only (mouse drags never fire touch events, so desktop is
@@ -3972,229 +3930,19 @@
       });
     }
 
-    function matchesSearch(guest, query) {
-      if (!query) return true;
-      const terms = query.split(/\s+/).filter(Boolean);
-      return terms.every(term => String(guest.searchIndex || '').includes(term));
-    }
-
-    function createSearchResults(guests) {
-      const container = createElement('section', 'zone zone-today');
-      const header = createElement('div', 'zone-header');
-      header.appendChild(createElement('span', 'zone-title', 'Search Results'));
-      header.appendChild(createElement('span', 'zone-count', String(guests.length)));
-      header.appendChild(createElement('span', 'zone-description', 'Matches across names, rooms, buildings, room types, and dates'));
-      container.appendChild(header);
-
-      const grid = createElement('div', 'card-grid');
-      const fragment = document.createDocumentFragment();
-      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
-      grid.appendChild(fragment);
-      container.appendChild(grid);
-      return container;
-    }
-
-    // Only ever called for the single active tier now — the old
-    // Past-Guests-specific lazy-build-on-expand logic is gone because it's
-    // moot: since exactly one tier renders at a time, Past Guests' cards
-    // are already never built at all unless that tab is the active one.
-    function createZone(tier, guests) {
-      const meta = TIER_META[tier];
-      const container = createElement('section', `zone ${meta.className}`);
-
-      const header = createElement('div', 'zone-header');
-      header.appendChild(createElement('span', 'zone-title', meta.label));
-      header.appendChild(createElement('span', 'zone-count', String(guests.length)));
-      header.appendChild(createElement('span', 'zone-description', meta.description));
-      container.appendChild(header);
-
-      if (guests.length === 0) {
-        container.appendChild(createElement('div', 'zone-empty', `No ${meta.label.toLowerCase()} guests.`));
-        return container;
-      }
-
-      // Tier 3 alone gets split — "Currently Residing" now covers anyone
-      // date-active regardless of Accommodation (see isCurrentlyActiveStay),
-      // but only an Ashram resident is actually "residing" anywhere the
-      // Ashram is responsible for. Splitting here keeps that distinction
-      // visible without inventing a whole extra tier.
-      if (tier === 3) {
-        const nowMs = Date.now();
-        const residents = guests.filter(guest => isCurrentlyResidingGuest(guest, nowMs));
-        const stayingOutside = guests.filter(guest => !isCurrentlyResidingGuest(guest, nowMs));
-        container.appendChild(createResidencySubgroup('Residing in Ashram', residents));
-        container.appendChild(createResidencySubgroup('Non-resident / Staying Outside', stayingOutside));
-        return container;
-      }
-
-      const grid = createElement('div', 'card-grid');
-      const fragment = document.createDocumentFragment();
-      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
-      grid.appendChild(fragment);
-      container.appendChild(grid);
-      return container;
-    }
-
-    function createResidencySubgroup(label, guests) {
-      const section = createElement('div', 'residency-subgroup');
-      const header = createElement('div', 'residency-subgroup-header');
-      header.appendChild(createElement('span', null, label));
-      header.appendChild(createElement('span', 'residency-subgroup-count', String(guests.length)));
-      section.appendChild(header);
-
-      if (!guests.length) {
-        section.appendChild(createElement('div', 'zone-empty', `No ${label.toLowerCase()} guests.`));
-        return section;
-      }
-
-      const grid = createElement('div', 'card-grid');
-      const fragment = document.createDocumentFragment();
-      guests.forEach(guest => fragment.appendChild(createGuestCard(guest)));
-      grid.appendChild(fragment);
-      section.appendChild(grid);
-      return section;
-    }
-
     function hasGuestArrived(guest) {
       return Boolean(guest && guest.arrivalMs && guest.arrivalMs <= Date.now());
     }
 
-    function createGuestCard(guest) {
-      const isPending = pendingGuestIds.has(guest.guestId);
-      const card = createElement('article', `card${isPending ? ' pending' : ''}`);
-
-      if (!isPending) {
-        card.tabIndex = 0;
-        card.setAttribute('role', 'button');
-        card.setAttribute('aria-label', `Edit ${guest.Name || 'guest'}`);
-        card.addEventListener('click', () => {
-          // A long-press that just opened the action sheet also ends in a
-          // touchend/click on this same card — without this check, tapping
-          // "Delete" would be immediately followed by the edit modal
-          // popping open underneath the (now-closing) action sheet.
-          if (card._longPressTriggered) {
-            card._longPressTriggered = false;
-            return;
-          }
-          openModal('edit', guest.guestId);
-        });
-        card.addEventListener('keydown', event => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openModal('edit', guest.guestId);
-          }
-        });
-        attachCardLongPress(card, guest.guestId);
-      } else {
-        card.setAttribute('aria-busy', 'true');
-      }
-
-      card.appendChild(createElement('div', 'guest-name', guest.Name || 'Unnamed Guest'));
-
-      const topBadges = createElement('div', 'badge-row');
-      const personTypeClass = guest.personType === PERSON_TYPE_NEEDS_REVIEW
-        ? 'badge-warning'
-        : ({
-            Friend: 'badge-blue',
-            Visitor: 'badge-purple',
-            'Event Staff': 'badge-teal',
-            Other: 'badge-silver'
-          })[guest.personType] || 'badge-salmon';
-      topBadges.appendChild(createBadge(guest.personType || 'Invited Guest', personTypeClass));
-
-      // Purpose is identity/role — why this Invited Guest is here at all —
-      // not logistics, so it earns a badge alongside Person Type rather
-      // than an info line, per the card-redesign principle.
-      if (isInvitedGuestPurposeApplicable(guest.personType) && Array.isArray(guest.invitedPurpose)) {
-        guest.invitedPurpose.forEach(purpose => {
-          topBadges.appendChild(createBadge(purpose, 'badge-gray'));
-        });
-      }
-
-      // Membership in a Seva Team is identity/role too ("this is a seva
-      // volunteer") — which team, and its dates/status, is logistics and
-      // belongs in an info line below, not a second badge per team.
-      if (Array.isArray(guest.sevaTeamIds) && guest.sevaTeamIds.length) {
-        topBadges.appendChild(createBadge('Seva Team', 'badge-teal'));
-      }
-
-      if (guest.Room && guest.roomCategory) {
-        topBadges.appendChild(createBadge(
-          guest.roomCategory,
-          getRoomCategoryBadgeClass(guest.roomCategory)
-        ));
-      }
-
-      if (guest['Foreign National'] && !guest['C-form complete']
-          && isAshramResponsibleForAccommodation(guest) && hasGuestArrived(guest)) {
-        topBadges.appendChild(createBadge('C-form pending', 'badge-pink'));
-      }
-
-      if (isPending) topBadges.appendChild(createBadge('Saving', 'badge-saving'));
-      card.appendChild(topBadges);
-
-      // Major travel that still needs arranging is deliberately shown before
-      // stay, room and cab planning.
-      appendRequiredTravelDetails(card, guest);
-
-      if (!guest.arrivalDate) {
-        const arrivalBadges = createElement('div', 'badge-row');
-        arrivalBadges.appendChild(createBadge('Arrival date not set', 'badge-action'));
-        card.appendChild(arrivalBadges);
-        card.appendChild(createElement(
-          'div',
-          'card-supporting-text',
-          requiresAshramRoom(guest)
-            ? 'Add stay dates to plan room & transport.'
-            : 'Add stay dates to plan transport.'
-        ));
-
-        if (guest.Departure) {
-          card.appendChild(createDetailLine('icon-calendar', `Departs ${guest.Departure}`));
-        }
-      } else {
-        const arrivalLabel = hasGuestArrived(guest) ? 'Arrived' : 'Arrives';
-        card.appendChild(createDetailLine('icon-calendar', `${arrivalLabel} ${guest.Arrival}`));
-
-        if (guest.Departure) {
-          card.appendChild(createDetailLine('icon-calendar', `Departs ${guest.Departure}`));
-        } else if (hasGuestArrived(guest)) {
-          const departureBadges = createElement('div', 'badge-row');
-          departureBadges.appendChild(createBadge('Departure date not set', 'badge-action'));
-          card.appendChild(departureBadges);
-        } else {
-          card.appendChild(createDetailLine('icon-calendar', 'Departure not set'));
-        }
-      }
-
-      appendRoomDetails(card, guest);
-      appendOutsideAccommodationDetails(card, guest);
-      appendAssignmentDetails(card, guest);
-      appendSevaDetails(card, guest);
-      appendMealsDetails(card, guest);
-      appendMeetingDetails(card, guest);
-      appendTransportDetails(card, guest);
-      appendConfirmedTravelDetails(card, guest);
-
-      return card;
-    }
-
     // V3 Operational Workspaces Architecture — Phase D. The "full guest
-    // card" for the new Directory/homepage-search, deliberately NOT reusing
-    // createGuestCard above: that renderer (and its append*Details helpers)
-    // reads from two global, full-dataset arrays — allGuests (for
-    // findRoomSharingPartners' cross-guest room lookup) and allSevaTeams
-    // (for Seva team name/date lookup by ID) — which only exist because the
-    // old getAppData always loaded every guest into memory. getDirectory/
-    // searchGuestCards/getGuestCardSummaries deliberately don't do that
-    // (the whole point of this revision's performance goals), so this
-    // renders straight from one self-contained card-summary object instead
-    // — the backend has already joined in everything it needs (accommodation/
-    // visit, Seva team names+status, Specific Seva, today's meals, upcoming
-    // meetings, trips). Operational warning badges (Room missing, C-form
-    // pending, cab booking state, etc.) are deliberately NOT reproduced here
-    // — those move to the Accommodation & Travel workspace in Phase E, which
-    // is where they're actually actionable; this card is informational only.
+    // card" for the new Directory/homepage-search renders straight from one
+    // self-contained card-summary object — the backend has already joined
+    // in everything it needs (accommodation/visit, Seva team names+status,
+    // Specific Seva, today's meals, upcoming meetings, trips). Operational
+    // warning badges (Room missing, C-form pending, cab booking state, etc.)
+    // are deliberately NOT reproduced here — those live in the Accommodation
+    // & Travel workspace, which is where they're actually actionable; this
+    // card is informational only.
     function createFullGuestCard(summary) {
       const card = createElement('article', 'card');
       card.tabIndex = 0;
@@ -5420,87 +5168,6 @@
       return 'badge-gray';
     }
 
-    function appendRoomDetails(card, guest) {
-      // Non-Ashram accommodation gets its own info lines from
-      // appendOutsideAccommodationDetails below — this only ever
-      // shows/warns about a room for guests who actually need an Ashram
-      // one, so nobody self-arranged or non-resident can ever see a false
-      // "Room not assigned" warning.
-      if (!requiresAshramRoom(guest) || !guest.arrivalDate) return;
-
-      if (guest.Room) {
-        card.appendChild(createDetailLine('icon-bed', guest.Room));
-        const sharingWith = findRoomSharingPartners(guest);
-        if (sharingWith.length) {
-          card.appendChild(createDetailLine('icon-user', `Sharing with ${sharingWith.join(' and ')}`));
-        }
-        return;
-      }
-
-      if (hasPriorityReason(guest, 'Room missing')) {
-        const row = createElement('div', 'badge-row');
-        row.appendChild(createBadge('Room not assigned', 'badge-action'));
-        card.appendChild(row);
-      } else {
-        card.appendChild(createDetailLine('icon-bed', 'Room not assigned'));
-      }
-    }
-
-    // The non-Ashram counterpart to appendRoomDetails above — one line per
-    // Accommodation value, warning badges only for the two states that are
-    // an actual operational problem (TBD, or an unconfirmed outside
-    // booking), matching Room missing's own badge-vs-line split.
-    function appendOutsideAccommodationDetails(card, guest) {
-      if (requiresAshramRoom(guest)) return;
-
-      if (guest.accommodation === 'Outside - Arranged by Ashram') {
-        if (!guest.outsideAccommodationConfirmed && hasPriorityReason(guest, 'Outside accommodation not confirmed')) {
-          const row = createElement('div', 'badge-row');
-          row.appendChild(createBadge('Outside accommodation not confirmed', 'badge-action'));
-          card.appendChild(row);
-        }
-        const details = guest.outsideAccommodationDetails
-          ? `Outside · ${guest.outsideAccommodationDetails}`
-          : 'Outside · Arranged by Ashram';
-        card.appendChild(createDetailLine('icon-bed', guest.outsideAccommodationConfirmed ? `${details} · Confirmed` : details));
-        return;
-      }
-
-      if (guest.accommodation === 'Outside - Self-arranged') {
-        const details = guest.selfArrangedStayingAt
-          ? `Outside · Self-arranged · ${guest.selfArrangedStayingAt}`
-          : 'Outside · Self-arranged';
-        card.appendChild(createDetailLine('icon-bed', details));
-        return;
-      }
-
-      if (guest.accommodation === 'No overnight stay') {
-        card.appendChild(createDetailLine('icon-bed', 'No overnight stay'));
-        return;
-      }
-
-      if (guest.accommodation === 'TBD') {
-        if (hasPriorityReason(guest, 'Accommodation not decided')) {
-          const row = createElement('div', 'badge-row');
-          row.appendChild(createBadge('Accommodation not decided', 'badge-action'));
-          card.appendChild(row);
-        } else {
-          card.appendChild(createDetailLine('icon-bed', 'Accommodation: TBD'));
-        }
-      }
-    }
-
-    function appendAssignmentDetails(card, guest) {
-      if (isEventStaffAssignmentApplicable(guest.personType) && guest.staffAssignment) {
-        card.appendChild(createDetailLine('icon-user', guest.staffAssignment));
-      }
-      if (isInvitedGuestPurposeApplicable(guest.personType)
-          && Array.isArray(guest.invitedPurpose) && guest.invitedPurpose.includes('Other')
-          && guest.invitedPurposeOther) {
-        card.appendChild(createDetailLine('icon-user', guest.invitedPurposeOther));
-      }
-    }
-
     function formatSevaDateRange(startDate, endDate) {
       if (startDate && endDate) {
         return startDate === endDate
@@ -5510,295 +5177,11 @@
       return formatDateKeyDisplay(startDate || endDate || '');
     }
 
-    // Team membership shows as a badge (identity); which team, and its live
-    // status, is logistics and belongs here as an info line — one per
-    // membership, since a person can be on several teams at once. Specific
-    // Seva entries get no badge at all (per the card-redesign principle,
-    // an individual task is logistics, not identity), just their own lines.
-    function appendSevaDetails(card, guest) {
-      const nowMs = Date.now();
-
-      (Array.isArray(guest.sevaTeamIds) ? guest.sevaTeamIds : []).forEach(teamId => {
-        const team = allSevaTeams.find(t => t.teamId === teamId);
-        if (!team) return;
-        const status = computeSevaTeamStatus(team, nowMs);
-        let statusText = status;
-        if (status === 'Seva active' && team.endDate) statusText = `Seva active · until ${formatDateKeyDisplay(team.endDate)}`;
-        else if (status === 'Seva not started' && team.startDate) statusText = `Seva not started · from ${formatDateKeyDisplay(team.startDate)}`;
-        card.appendChild(createDetailLine('icon-people', `${team.name} · ${statusText}`));
-      });
-
-      (Array.isArray(guest.specificSeva) ? guest.specificSeva : []).forEach(entry => {
-        const status = computeSpecificSevaStatus(entry, nowMs);
-        const dateText = status === 'Seva dates TBD' ? 'dates TBD' : formatSevaDateRange(entry.startDate, entry.endDate);
-        card.appendChild(createDetailLine('icon-people', `${entry.description}${dateText ? ` · ${dateText}` : ''}`));
-      });
-    }
-
-    // Residents get one compact line (their whole stay defaults to
-    // included, so there's nothing to list day-by-day here); non-residents
-    // get one line per explicit invite, since for them each one is a
-    // deliberate addition rather than a default.
-    function appendMealsDetails(card, guest) {
-      const overrides = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
-
-      if (requiresAshramRoom(guest)) {
-        const exclusions = overrides.filter(entry => entry.included === false);
-        card.appendChild(createDetailLine(
-          'icon-meal',
-          exclusions.length
-            ? `Meals during stay · ${exclusions.length} exception${exclusions.length > 1 ? 's' : ''}`
-            : 'Meals included during stay'
-        ));
-        return;
-      }
-
-      overrides
-        .filter(entry => entry.included !== false)
-        .forEach(entry => {
-          card.appendChild(createDetailLine('icon-meal', `${entry.meal} · ${formatDateKeyDisplay(entry.date)}`));
-        });
-    }
-
-    function appendMeetingDetails(card, guest) {
-      (Array.isArray(guest.swamijiMeetings) ? guest.swamijiMeetings : []).forEach(meeting => {
-        if (!meeting.date) return;
-        const dateText = formatDateKeyDisplay(meeting.date);
-        const text = meeting.time
-          ? `Meeting with Swamiji · ${dateText} · ${meeting.time}`
-          : `Meeting with Swamiji · ${dateText}`;
-        card.appendChild(createDetailLine('icon-calendar', text));
-      });
-    }
-
-    // Never stored — recomputed on every render from whoever else currently
-    // holds one of this guest's rooms with an overlapping stay. That means
-    // it can never go stale: if either guest's dates change, this simply
-    // stops (or starts) matching on the next render, with nothing to clean
-    // up on either card.
-    function findRoomSharingPartners(guest) {
-      const guestRooms = Array.isArray(guest.Rooms) ? guest.Rooms : [];
-      if (!guestRooms.length || !guest.arrivalMs) return [];
-      const guestEnd = guest.departureMs || Number.POSITIVE_INFINITY;
-      const partners = new Set();
-
-      allGuests.forEach(other => {
-        if (other.guestId === guest.guestId || !other.arrivalMs) return;
-        const otherRooms = Array.isArray(other.Rooms) ? other.Rooms : [];
-        if (!otherRooms.length) return;
-        const sharedRooms = guestRooms.filter(room => otherRooms.includes(room));
-        if (!sharedRooms.length) return;
-        const otherEnd = other.departureMs || Number.POSITIVE_INFINITY;
-        if (!(guest.arrivalMs < otherEnd && guestEnd > other.arrivalMs)) return;
-        sharedRooms.forEach(room => {
-          partners.add(resolveRoomOccupantName(other.Name, otherRooms, room));
-        });
-      });
-
-      return [...partners];
-    }
-
-    const LONG_PRESS_MS = 550;
-    const LONG_PRESS_MOVE_TOLERANCE = 10;
-
-    // Touch-only by design (there's no equivalent gesture on desktop — the
-    // card is already a click away from the full edit view, which has its
-    // own Delete button). Cancels itself the moment the touch moves more
-    // than a few pixels, so a scroll or the tier swipe gesture never gets
-    // mistaken for a long-press.
-    function attachCardLongPress(card, guestId) {
-      let timer = null;
-      let moved = false;
-      let startX = 0;
-      let startY = 0;
-
-      card.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1) return;
-        moved = false;
-        card._longPressTriggered = false;
-        startX = event.touches[0].clientX;
-        startY = event.touches[0].clientY;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          if (moved) return;
-          card._longPressTriggered = true;
-          if (navigator.vibrate) navigator.vibrate(15);
-          showCardActionSheet(guestId);
-        }, LONG_PRESS_MS);
-      }, { passive: true });
-
-      card.addEventListener('touchmove', event => {
-        if (!event.touches.length) return;
-        const dx = Math.abs(event.touches[0].clientX - startX);
-        const dy = Math.abs(event.touches[0].clientY - startY);
-        if (dx > LONG_PRESS_MOVE_TOLERANCE || dy > LONG_PRESS_MOVE_TOLERANCE) {
-          moved = true;
-          window.clearTimeout(timer);
-        }
-      }, { passive: true });
-
-      card.addEventListener('touchend', event => {
-        window.clearTimeout(timer);
-        // Suppresses the synthetic click this same tap-and-release would
-        // otherwise fire — the click handler's own _longPressTriggered
-        // check is the real safety net (this is just belt-and-suspenders,
-        // since not every browser guarantees preventDefault here skips it).
-        if (card._longPressTriggered) event.preventDefault();
-      });
-
-      card.addEventListener('touchcancel', () => window.clearTimeout(timer));
-    }
-
     let cardActionSheetGuestId = '';
-
-    function showCardActionSheet(guestId) {
-      const guest = allGuests.find(item => item.guestId === guestId);
-      if (!guest || pendingGuestIds.has(guestId)) return;
-      cardActionSheetGuestId = guestId;
-      $('card-action-sheet-name').textContent = guest.Name || 'Guest';
-      $('card-action-sheet').hidden = false;
-    }
 
     function closeCardActionSheet() {
       $('card-action-sheet').hidden = true;
       cardActionSheetGuestId = '';
-    }
-
-    // Cabs render like travel legs: the badge says what still needs doing,
-    // the line underneath says what the journey actually is. Previously the
-    // date lived in the badge for some states and in a shared line above for
-    // others, which left nowhere consistent to put the From/To location.
-    function appendTransportDetails(card, guest) {
-      if (!isCabTravelEligible(guest.personType)) return;
-      const pickupRequired = Boolean(guest['Pickup Required']);
-      const dropoffRequired = Boolean(guest['Dropoff Required']);
-      if (!pickupRequired && !dropoffRequired) return;
-
-      const entries = [];
-      if (pickupRequired) entries.push(buildCabCardEntry('pickup', guest));
-      if (dropoffRequired) entries.push(buildCabCardEntry('dropoff', guest));
-
-      // Nothing scheduled or located on either cab yet — the badges already
-      // say everything there is to say, so keep them side by side on one row
-      // instead of spending a stacked block each to add nothing.
-      if (entries.every(entry => !entry.detail)) {
-        const row = createElement('div', 'badge-row');
-        entries.forEach(entry => row.appendChild(createBadge(entry.label, entry.badgeClass)));
-        card.appendChild(row);
-        return;
-      }
-
-      const stack = createElement('div', 'travel-stack');
-      entries.forEach(entry => {
-        const item = createElement('div', 'travel-item');
-        const row = createElement('div', 'badge-row');
-        row.appendChild(createBadge(entry.label, entry.badgeClass));
-        item.appendChild(row);
-        if (entry.detail) item.appendChild(createDetailLine('icon-car', entry.detail));
-        stack.appendChild(item);
-      });
-      card.appendChild(stack);
-    }
-
-    function buildCabCardEntry(type, guest) {
-      const isPickup = type === 'pickup';
-      const name = isPickup ? 'Pickup' : 'Drop-off';
-      const state = normalizeCabBookingState(
-        isPickup ? guest.pickupBookingState : guest.dropoffBookingState,
-        guest[isPickup ? 'Pickup Booking Confirmed' : 'Dropoff Booking Confirmed']
-      );
-      const dateValue = isPickup ? guest.pickupDate : guest.dropoffDate;
-      const timeValue = isPickup ? guest.pickupTime : guest.dropoffTime;
-      const msValue = isPickup ? guest.pickupMs : guest.dropoffMs;
-      const location = (isPickup ? guest.pickupFrom : guest.dropoffTo) || '';
-
-      let label;
-      let badgeClass;
-      if (state === 'Confirmed') {
-        const past = isSchedulePast(dateValue, msValue, Boolean(timeValue));
-        label = `${name} arranged`;
-        badgeClass = past ? 'badge-gray' : (isPickup ? 'badge-pickup' : 'badge-dropoff');
-      } else if (state === 'Needs Rescheduling') {
-        label = `${name} needs rescheduling`;
-        badgeClass = 'badge-warning';
-      } else if (state === 'Needs Reconfirmation') {
-        label = `${name} needs reconfirmation`;
-        badgeClass = 'badge-cab-action';
-      } else {
-        label = `${name} requested`;
-        badgeClass = hasPriorityReason(guest, isPickup ? 'Pickup not arranged' : 'Drop-off not arranged')
-          ? 'badge-action'
-          : 'badge-cab-action';
-      }
-
-      const parts = [];
-      if (location) parts.push(`${isPickup ? 'From' : 'To'} ${location}`);
-      // "Date not set" is only worth saying next to a location — on its own
-      // it just restates a bare "requested" badge.
-      if (dateValue) parts.push(formatCabScheduleText(dateValue, timeValue));
-      else if (location) parts.push('Date not set');
-
-      return { label, badgeClass, detail: parts.join(' · ') };
-    }
-
-    function formatCabScheduleText(dateValue, timeValue) {
-      const info = localDateInfo(dateValue, timeValue || '', false);
-      const display = String(info.display || dateValue);
-      return timeValue ? display : `${display} · time not set`;
-    }
-
-    function appendRequiredTravelDetails(card, guest) {
-      if (!isCabTravelEligible(guest.personType)) return;
-      const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
-        .filter(leg => leg.status === 'Required');
-      if (!legs.length) return;
-
-      const stack = createElement('div', 'travel-stack');
-      legs.forEach(leg => {
-        const item = createElement('div', 'travel-item');
-        const badgeRow = createElement('div', 'badge-row');
-        const label = `${leg.direction} ${leg.transportType} to arrange`;
-        badgeRow.appendChild(createBadge(
-          label,
-          leg.travelDate ? 'badge-travel-action' : 'badge-travel-critical'
-        ));
-        item.appendChild(badgeRow);
-        item.appendChild(createTravelDetailLine(leg));
-        stack.appendChild(item);
-      });
-      card.appendChild(stack);
-    }
-
-    function appendConfirmedTravelDetails(card, guest) {
-      if (!isCabTravelEligible(guest.personType)) return;
-      const legs = (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
-        .filter(leg => leg.status === 'Confirmed');
-      if (!legs.length) return;
-
-      const stack = createElement('div', 'travel-stack');
-      legs.forEach(leg => {
-        const item = createElement('div', 'travel-item');
-        const badgeRow = createElement('div', 'badge-row');
-        const past = isSchedulePast(leg.travelDate, leg.travelMs, Boolean(leg.travelTime));
-        badgeRow.appendChild(createBadge(
-          `${leg.direction} ${leg.transportType} confirmed`,
-          past ? 'badge-gray' : 'badge-confirmed'
-        ));
-        item.appendChild(badgeRow);
-        item.appendChild(createTravelDetailLine(leg));
-        stack.appendChild(item);
-      });
-      card.appendChild(stack);
-    }
-
-    function createTravelDetailLine(leg) {
-      const route = [leg.from, leg.to].filter(Boolean).join(' → ');
-      const dateText = leg.travelDisplay || 'Date not set';
-      const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
-      return createDetailLine(
-        getTravelIconId(leg.transportType),
-        `${route || leg.transportType} · ${dateText}${service}`
-      );
     }
 
     function getTravelIconId(transportType) {
@@ -5809,29 +5192,6 @@
         Taxi: 'icon-taxi',
         Other: 'icon-other'
       })[transportType] || 'icon-other';
-    }
-
-    function hasPriorityReason(guest, reason) {
-      return Array.isArray(guest.priorityReasons) && guest.priorityReasons.includes(reason);
-    }
-
-    function joinNaturalLanguage(values) {
-      if (values.length <= 1) return values[0] || '';
-      if (values.length === 2) return `${values[0]} and ${values[1]}`;
-      return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
-    }
-
-    function isSchedulePast(dateValue, timestamp, timeConfirmed) {
-      if (!dateValue) return false;
-      const exactMs = finiteTimestamp(timestamp);
-      if (timeConfirmed && exactMs !== null) return exactMs < Date.now();
-      return String(dateValue) < getAppDateKey(Date.now());
-    }
-
-    function extractTimeForCard(displayValue) {
-      if (!displayValue) return 'TBD';
-      const parts = String(displayValue).split(/\s+at\s+/i);
-      return parts[1] || String(displayValue);
     }
 
     function createDetailLine(iconId, text) {
