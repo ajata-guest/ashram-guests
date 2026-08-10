@@ -1450,6 +1450,17 @@
     .page { display: none; }
     .page.active { display: block; }
 
+    /* The one place a page's width is decided. Everything inside a page
+       inherits this column, so a card grid, an empty state or a form can
+       never drift wider than the header above it — which is exactly what
+       happened while the header centred itself and the content below ran
+       to the window edges. Components that keep their own max-width (used
+       by the pages with no wrapper) simply resolve to 100% in here. */
+    .page-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
     .page-header {
       display: flex;
       max-width: 1200px;
@@ -2207,7 +2218,7 @@
   </main>
 
   <main id="page-accommodation" class="page" aria-label="Accommodation and Travel">
-    <div style="--accent:#6fbaf0">
+    <div class="page-content" style="--accent:#6fbaf0">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
@@ -2250,7 +2261,7 @@
   </div>
 
   <main id="page-meals" class="page" aria-label="Meals">
-    <div style="--accent:#71d99d">
+    <div class="page-content" style="--accent:#71d99d">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
@@ -2275,7 +2286,7 @@
   </main>
 
   <main id="page-meetings" class="page" aria-label="Meetings with Swamiji">
-    <div style="--accent:#fa8072">
+    <div class="page-content" style="--accent:#fa8072">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
@@ -2324,7 +2335,7 @@
   </div>
 
   <main id="page-trips" class="page" aria-label="Trips">
-    <div style="--accent:#b878d6">
+    <div class="page-content" style="--accent:#b878d6">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
@@ -2346,7 +2357,7 @@
   <!-- Like a Visit, a Trip carries basics, a roster and a whole shared
        itinerary, so it gets its own page rather than an overlay. -->
   <main id="page-trip" class="page" aria-label="Trip">
-    <div style="--accent:#b878d6">
+    <div class="page-content" style="--accent:#b878d6">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#trips"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Trips</button>
@@ -2415,7 +2426,7 @@
   </main>
 
   <main id="page-seva" class="page" aria-label="Seva Teams and Tasks">
-    <div style="--accent:#1abc9c">
+    <div class="page-content" style="--accent:#1abc9c">
       <div class="page-header">
         <div class="page-title-block">
           <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
@@ -3630,8 +3641,28 @@
           showToast(archiving ? 'Guest archived.' : 'Guest restored.', 'success');
           return loadGuestProfile_(profile.guestId);
         })
-        .then(() => loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ }))
+        .then(() => refreshDirectoryInBackground_())
         .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+    }
+
+    // Reloading every guest is the single most expensive call the app makes,
+    // so nothing waits on it. After a write it is kicked off quietly and the
+    // page it affects is redrawn if and when it lands — the alternative,
+    // blocking the interface on a full directory fetch after each small
+    // edit, is what made every change feel like a stall. Overlapping calls
+    // collapse into one.
+    let directoryRefreshPending_ = null;
+
+    function refreshDirectoryInBackground_() {
+      if (directoryRefreshPending_) return directoryRefreshPending_;
+      directoryRefreshPending_ = loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ })
+        .then(() => {
+          if (currentRoute_.name === 'directory') renderDirectory_();
+          else if (currentRoute_.name === 'home') renderHome_();
+        })
+        .catch(err => console.error('Background directory refresh failed:', err))
+        .then(() => { directoryRefreshPending_ = null; });
+      return directoryRefreshPending_;
     }
 
     function deleteCurrentGuest_() {
@@ -3641,9 +3672,12 @@
       apiCall('deleteGuest', { guestId: profile.guestId, version: profile.version })
         .then(() => {
           showToast('Guest deleted.', 'success');
-          return loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ });
+          // Drop them from the in-memory copy so the Directory is already
+          // correct when it opens, then reconcile with the server quietly.
+          directoryRecords_ = directoryRecords_.filter(r => r.guestId !== profile.guestId);
+          refreshDirectoryInBackground_();
+          navigate('#directory');
         })
-        .then(() => navigate('#directory'))
         .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
     }
 
@@ -3752,22 +3786,52 @@
       return row;
     }
 
+    // Roster edits redraw from the copy already in memory rather than
+    // refetching the workspace, so a name appears or disappears the moment
+    // it is clicked instead of after a second round trip.
     function addTeamMemberAction_(guestId, teamId) {
+      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
+      const guest = directoryRecords_.find(r => r.guestId === guestId);
+      if (team && guest) {
+        team.roster = (team.roster || []).concat([{
+          guestId,
+          membershipId: '',           // filled in from the response below
+          name: guest.name,
+          personType: guest.personType
+        }]);
+        renderSevaLists_();
+      }
+
       apiCall('addTeamMember', { guestId, teamId })
-        .then(() => {
+        .then(result => {
           showToast('Member added.', 'success');
-          loadSevaWorkspaceData_();
+          if (team && result && result.membershipId) {
+            const added = team.roster.find(m => m.guestId === guestId && !m.membershipId);
+            if (added) added.membershipId = result.membershipId;
+            renderSevaLists_();
+          }
         })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't add member: ${getErrorMessage(err)}`, 'error')));
+        .catch(error => handleApiError(error, err => {
+          loadSevaWorkspaceData_();
+          showToast(`Couldn't add member: ${getErrorMessage(err)}`, 'error');
+        }));
     }
 
     function removeTeamMemberAction_(membershipId, teamId) {
+      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
+      const removed = team ? (team.roster || []).find(m => m.membershipId === membershipId) : null;
+      if (team) {
+        team.roster = (team.roster || []).filter(m => m.membershipId !== membershipId);
+        renderSevaLists_();
+      }
+
       apiCall('removeTeamMember', { membershipId })
-        .then(() => {
-          showToast('Member removed.', 'success');
-          loadSevaWorkspaceData_();
-        })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't remove member: ${getErrorMessage(err)}`, 'error')));
+        .then(() => showToast('Member removed.', 'success'))
+        .catch(error => handleApiError(error, err => {
+          if (team && removed) team.roster = team.roster.concat([removed]);
+          renderSevaLists_();
+          showToast(`Couldn't remove member: ${getErrorMessage(err)}`, 'error');
+        }));
     }
 
     function openSevaTeamForm(team) {
@@ -5047,20 +5111,42 @@
       return card;
     }
 
+    // Applied locally and drawn immediately; the write goes out in the
+    // background. Waiting for the round trip and then refetching the whole
+    // day meant two server trips and a frozen checkbox for every single
+    // tick — the sheet is the record of truth, but it doesn't have to be
+    // consulted before the interface is allowed to respond. If the write
+    // fails the change is rolled back and said out loud.
     function handleMealToggle_(guestId, meal, date, checkbox, overrideId) {
       const included = checkbox.checked;
-      checkbox.disabled = true;
+      const row = (mealsData_.guests || []).find(r => r.guestId === guestId);
+      if (!row) return;
+
+      const previous = Object.assign({}, row.meals[meal]);
+      row.meals[meal] = { included, overrideId: overrideId || previous.overrideId, isException: true };
+      applyMealCountDelta_(meal, included ? 1 : -1);
+      renderMealsList_();
+
       const payload = { guestId, date, meal, included };
       if (overrideId) payload.overrideId = overrideId;
+
       apiCall('upsertMealOverride', { payload })
-        .then(() => {
-          loadMealsPage_(date);
+        .then(result => {
+          // Keep the row's override ID in step so a second tick on the same
+          // meal updates that row instead of racing to create another.
+          if (result && result.overrideId) row.meals[meal].overrideId = result.overrideId;
         })
         .catch(error => handleApiError(error, err => {
-          checkbox.disabled = false;
-          checkbox.checked = !included;
+          row.meals[meal] = previous;
+          applyMealCountDelta_(meal, included ? -1 : 1);
+          renderMealsList_();
           showToast(`Couldn't update meal: ${getErrorMessage(err)}`, 'error');
         }));
+    }
+
+    function applyMealCountDelta_(meal, delta) {
+      if (!mealsData_.counts) mealsData_.counts = {};
+      mealsData_.counts[meal] = Math.max(0, (mealsData_.counts[meal] || 0) + delta);
     }
 
     // ============================================================
@@ -5199,13 +5285,58 @@
     }
 
     function setMeetingStatusAction_(meetingId, version, status) {
+      moveMeetingLocally_(meetingId, status);
+      renderMeetingsList_();
+
       apiCall('setMeetingStatus', { meetingId, status, version })
-        .then(() => {
+        .then(result => {
           showToast(`Meeting marked ${status.toLowerCase()}.`, 'success');
-          loadMeetingsPage_();
-          loadHomeSummary_().then(renderHome_);
+          if (result && result.version) {
+            const found = findMeetingLocally_(meetingId);
+            if (found) found.meeting.version = result.version;
+          }
+          // The homepage tile counts meetings too, so it is brought back
+          // into step quietly — never blocking this page.
+          loadHomeSummary_()
+            .then(() => { if (currentRoute_.name === 'home') renderHome_(); })
+            .catch(() => {});
         })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't update meeting: ${getErrorMessage(err)}`, 'error')));
+        .catch(error => handleApiError(error, err => {
+          // The local move was a guess that turned out wrong, so go back to
+          // whatever the server actually holds.
+          loadMeetingsPage_();
+          showToast(`Couldn't update meeting: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
+    // Meetings are grouped into their sections client-side, so a status
+    // change is just a move between those lists — nothing needs refetching
+    // to show it.
+    const MEETING_STATUS_SECTION_ = Object.freeze({ Completed: 'completed', Cancelled: 'cancelled' });
+
+    function findMeetingLocally_(meetingId) {
+      if (!meetingsData_) return null;
+      for (const sec of MEETING_SECTIONS_) {
+        const list = meetingsData_[sec.key] || [];
+        const index = list.findIndex(m => m.meetingId === meetingId);
+        if (index !== -1) return { sectionKey: sec.key, index, meeting: list[index] };
+      }
+      return null;
+    }
+
+    function moveMeetingLocally_(meetingId, status) {
+      const found = findMeetingLocally_(meetingId);
+      if (!found) return;
+      const [meeting] = meetingsData_[found.sectionKey].splice(found.index, 1);
+      meeting.status = status;
+
+      let target = MEETING_STATUS_SECTION_[status];
+      if (!target) {
+        // Reopened — it belongs wherever its own date now puts it.
+        const today = todayDateKey_();
+        target = meeting.date === today ? 'today' : (meeting.date > today ? 'upcoming' : 'needsCompletion');
+      }
+      (meetingsData_[target] = meetingsData_[target] || []).push(meeting);
     }
 
     // meeting === null means a brand-new meeting for this guest.
@@ -6935,16 +7066,26 @@
         .then(() => {
           pendingGuestIds.delete(pendingKey);
           showToast(mode === 'add' ? 'Guest added.' : 'Guest updated.', 'success');
-          // The snapshot is the source of truth for every list showing this
-          // guest, so it is refetched rather than patched in place: tier and
-          // priority are decided server-side, and guessing at them locally
-          // is exactly the drift this rework set out to remove.
-          return loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ });
-        })
-        .then(() => {
-          if (currentRoute_.name === 'guest') return loadGuestProfile_(currentRoute_.arg);
-          refreshCurrentPage_({ silent: true });
-          return null;
+
+          // The edited fields are patched straight into the in-memory copy so
+          // the change is on screen at once. Tier and priority stay untouched
+          // here — those are the server's to decide, and guessing at them
+          // locally is the drift this rework removed — so the full snapshot
+          // is refetched in the background to settle them.
+          const record = directoryRecords_.find(r => r.guestId === payload.guestId);
+          if (record) {
+            record.name = payload.name;
+            record.personType = payload.personType;
+            record.isForeign = payload.isForeign;
+            record.invitedPurpose = payload.invitedPurpose || [];
+            record.invitedPurposeOther = payload.invitedPurposeOther;
+            record.staffAssignment = payload.staffAssignment;
+            prepareRecordForDisplay_(record);
+            if (currentRoute_.name === 'directory') renderDirectory_();
+          }
+
+          refreshDirectoryInBackground_();
+          if (currentRoute_.name === 'guest') loadGuestProfile_(currentRoute_.arg);
         })
         .catch(error => handleApiError(error, err => {
           pendingGuestIds.delete(pendingKey);
