@@ -3001,11 +3001,16 @@
       });
 
       switch (currentRoute_.name) {
+        // Home and Directory both come from the bootstrap payload, so one
+        // call refreshes either of them — and keeps the device cache current
+        // at the same time.
         case 'home':
-          loadHomeSummary_().then(() => { renderHome_(); done(); }).catch(fail);
+          loadBootstrap_().then(() => { renderHome_(); done(); }).catch(fail);
           break;
         case 'directory':
-          loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ })
+          (directoryShowArchived_
+            ? loadDirectorySnapshot_({ includeArchived: true })
+            : loadBootstrap_())
             .then(() => { renderDirectory_(); done(); }).catch(fail);
           break;
         case 'guest':
@@ -3178,16 +3183,72 @@
       const opts = options || {};
       return apiCall('getDirectorySnapshot', { options: { includeArchived: opts.includeArchived } })
         .then(data => {
-          directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
-          directoryTierCounts_ = data.tierCounts || directoryTierCounts_;
-          directoryIncludesArchived_ = Boolean(opts.includeArchived);
-          roomInventory = Array.isArray(data.rooms) ? data.rooms : [];
-          roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
-          appTimezone = String(data.timezone || '');
-          buildRoomOptions();
-          updateLastRefreshed(data.generatedAt);
+          applyDirectoryPayload_(data, Boolean(opts.includeArchived));
           return data;
         });
+    }
+
+    function applyDirectoryPayload_(data, includeArchived) {
+      // Rooms first: the search index below looks up each room's building and
+      // category through roomMetadataMap, so indexing before it is populated
+      // would silently drop those terms from every guest's search text.
+      roomInventory = Array.isArray(data.rooms) ? data.rooms : [];
+      roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
+      appTimezone = String(data.timezone || '');
+      buildRoomOptions();
+
+      directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
+      directoryTierCounts_ = data.tierCounts || directoryTierCounts_;
+      directoryIncludesArchived_ = Boolean(includeArchived);
+      updateLastRefreshed(data.generatedAt);
+    }
+
+    // ============================================================
+    // DEVICE CACHE
+    // The last good startup payload, kept on the device so opening the app
+    // draws from it at once instead of waiting on the network. The copy is
+    // refreshed in the background every time and replaced when the new one
+    // lands, so it is never more than one launch behind — the same
+    // read-from-local, revalidate-behind pattern a phone app uses.
+    // ============================================================
+
+    const BOOTSTRAP_CACHE_KEY = 'ashram-app-v3-bootstrap';
+
+    function readCachedBootstrap_() {
+      try {
+        const raw = localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return (parsed && parsed.summary && parsed.directory) ? parsed : null;
+      } catch (error) {
+        // Corrupt or unreadable — not worth failing over, just fetch fresh.
+        return null;
+      }
+    }
+
+    function writeCachedBootstrap_(payload) {
+      try {
+        localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        // Quota exceeded on a large guest list. The app works without the
+        // cache — it simply waits for the network on open, as it used to.
+        console.warn('Could not cache startup data on this device:', error);
+      }
+    }
+
+    function applyBootstrapPayload_(payload) {
+      homeSummary_ = payload.summary;
+      applyDirectoryPayload_(payload.directory, false);
+    }
+
+    // One call where there were two, each of which used to rebuild the same
+    // records independently on the server.
+    function loadBootstrap_() {
+      return apiCall('getBootstrap').then(payload => {
+        applyBootstrapPayload_(payload);
+        writeCachedBootstrap_(payload);
+        return payload;
+      });
     }
 
     function loadHomeSummary_() {
@@ -3265,21 +3326,27 @@
           .catch(err => console.error('createSession failed — will retry next reopen, falling back to the ID-token path meanwhile:', err));
       }
 
-      // Both in parallel: the two calls don't depend on each other, so
-      // waiting for them one after the other would double the wait for no
-      // reason.
-      Promise.all([
-        loadHomeSummary_(),
-        loadDirectorySnapshot_({ includeArchived: false })
-      ])
+      // If this device has been here before, draw from what it already holds
+      // and let the gate go straight away — then refresh behind the finished
+      // app. Nothing is waited on that can already be shown.
+      const cached = readCachedBootstrap_();
+      if (cached) {
+        applyBootstrapPayload_(cached);
+        renderHome_();
+        handleRouteChange_().then(() => { $('signin-gate').style.display = 'none'; });
+        refreshBootstrapInBackground_();
+        return;
+      }
+
+      // First run on this device: nothing to show yet, so the gate holds
+      // until the data arrives. One call now, where there were two that each
+      // rebuilt the same records on the server.
+      loadBootstrap_()
         .then(() => {
           renderHome_();
           return handleRouteChange_();
         })
-        .then(() => {
-
-          $('signin-gate').style.display = 'none';
-        })
+        .then(() => { $('signin-gate').style.display = 'none'; })
         .catch(error => handleApiError(error, err => {
           // Report inside the gate rather than behind it — the gate is what
           // is on screen, and removing .verifying brings the sign-in button
@@ -3288,6 +3355,19 @@
           gate.classList.remove('verifying');
           $('signin-message').textContent = `Couldn't load your data: ${getErrorMessage(err)}`;
         }));
+    }
+
+    // Revalidation after a cache-first start. Failure is deliberately quiet:
+    // the app is already usable on cached data, and interrupting with an
+    // error about a refresh nobody asked for would be worse than carrying on
+    // and surfacing it at the next explicit refresh.
+    function refreshBootstrapInBackground_() {
+      loadBootstrap_()
+        .then(() => {
+          if (currentRoute_.name === 'home') renderHome_();
+          else if (currentRoute_.name === 'directory') renderDirectory_();
+        })
+        .catch(err => console.warn('Background startup refresh failed; showing cached data.', err));
     }
 
     // ============================================================
@@ -3655,7 +3735,13 @@
 
     function refreshDirectoryInBackground_() {
       if (directoryRefreshPending_) return directoryRefreshPending_;
-      directoryRefreshPending_ = loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ })
+      // Goes through the bootstrap call rather than the directory alone, so
+      // the homepage counts and the device cache are brought back into step
+      // by the same round trip instead of needing their own.
+      const refresh = directoryShowArchived_
+        ? loadDirectorySnapshot_({ includeArchived: true })
+        : loadBootstrap_();
+      directoryRefreshPending_ = refresh
         .then(() => {
           if (currentRoute_.name === 'directory') renderDirectory_();
           else if (currentRoute_.name === 'home') renderHome_();
