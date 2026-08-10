@@ -1486,6 +1486,348 @@
 
     .filter-chip-toggle:hover { border-color: #4a4a4a; color: var(--text); }
 
+    /* ====================================================================
+       PAGES
+       Every destination is a page, not an overlay: the Directory and all
+       five workspaces replace the main content area, keep their own URL,
+       and answer the browser's Back button. Only small focused edits —
+       one meeting, one meal, one Seva task, a guest's basic details —
+       remain dialogs, because those genuinely are interruptions rather
+       than places you navigate to.
+       ==================================================================== */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 18px;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .page-back {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      margin-bottom: 6px;
+      padding: 5px 10px 5px 6px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    .page-back:hover { border-color: #4a4a4a; color: var(--text); }
+    .page-back .icon { width: 15px; height: 15px; margin: 0; flex: none; }
+
+    .page-title-block { flex: 1; min-width: 0; }
+
+    .page-title {
+      display: flex;
+      margin: 0;
+      gap: 11px;
+      align-items: center;
+      color: #fff;
+      font-size: 1.55rem;
+      line-height: 1.15;
+    }
+
+    .page-title .icon { width: 24px; height: 24px; margin: 0; flex: none; color: var(--accent, var(--salmon)); }
+    .page-subtitle { margin-top: 5px; color: var(--subtle); font-size: 0.84rem; }
+
+    .page-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .page-search { position: relative; }
+
+    .page-search input {
+      width: 240px;
+      padding: 9px 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      outline: none;
+      background: var(--surface);
+      color: #fff;
+    }
+
+    .page-search input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15); }
+
+    .primary-btn {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      padding: 9px 15px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--salmon);
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .primary-btn:hover { background: #e96f62; }
+    .primary-btn .icon { width: 17px; height: 17px; margin: 0; flex: none; }
+
+    .page-summary {
+      display: grid;
+      max-width: 1200px;
+      margin: 0 auto 20px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-tile {
+      padding: 13px 15px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+    }
+
+    /* Amber only ever means "unresolved" — the same meaning it carries on
+       every badge — so an attention tile can never be mistaken for a
+       neutral count. */
+    .summary-tile.attention { border-color: rgba(243, 156, 18, 0.38); background: rgba(243, 156, 18, 0.07); }
+    .summary-value { color: #fff; font-size: 1.5rem; font-weight: 700; line-height: 1; }
+    .summary-tile.attention .summary-value { color: #f6bd55; }
+    .summary-label { margin-top: 5px; color: var(--subtle); font-size: 0.74rem; }
+
+    /* ====================================================================
+       HOMEPAGE — Directory ribbon + operational workspace cards
+       ==================================================================== */
+    /* Deliberately neither a card nor a chip: full width, shallow, its own
+       surface treatment and a leading accent rail, so the Directory reads as
+       a different KIND of destination from the five workspaces below it —
+       people-centric rather than task-centric. */
+    .directory-ribbon {
+      display: flex;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto 30px;
+      padding: 18px 22px;
+      gap: 18px;
+      align-items: center;
+      border: 1px solid #3d3d3d;
+      border-left: 4px solid var(--salmon);
+      border-radius: 10px;
+      background: linear-gradient(90deg, rgba(250, 128, 114, 0.10), rgba(250, 128, 114, 0.02) 45%, var(--surface-raised) 80%);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.18s ease;
+    }
+
+    .directory-ribbon:hover,
+    .directory-ribbon:focus-visible { border-color: var(--salmon); outline: none; }
+
+    .ribbon-icon {
+      display: flex;
+      width: 46px; height: 46px; flex: 0 0 46px;
+      align-items: center; justify-content: center;
+      border-radius: 12px;
+      background: rgba(250, 128, 114, 0.18);
+      color: var(--salmon);
+    }
+
+    .ribbon-icon .icon { width: 24px; height: 24px; margin: 0; flex: none; }
+    .ribbon-body { display: block; min-width: 0; flex: 1; }
+    .ribbon-title-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+    .ribbon-title { color: #fff; font-size: 1.15rem; font-weight: 700; }
+    .ribbon-stats { color: var(--muted); font-size: 0.86rem; }
+    .ribbon-stats .attention { color: #f6bd55; font-weight: 600; }
+    .ribbon-desc { display: block; margin-top: 4px; color: var(--subtle); font-size: 0.82rem; }
+
+    .ribbon-go {
+      display: flex; gap: 6px; align-items: center; flex: 0 0 auto;
+      color: var(--salmon); font-size: 0.84rem; font-weight: 600;
+    }
+
+    .ribbon-go .icon { width: 18px; height: 18px; margin: 0; flex: none; }
+
+    .section-label {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 14px;
+      gap: 14px;
+      align-items: center;
+      color: var(--subtle);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+    }
+
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .workspace-grid {
+      display: grid;
+      max-width: 1200px;
+      margin: 0 auto;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+      gap: 18px;
+    }
+
+    /* One accent per workspace, set inline as --accent. Drawn only from the
+       identity hues (blue/green/salmon/teal/violet) and never from the amber
+       or red families, which stay reserved for attention badges — so a card's
+       accent can never be misread as a warning. */
+    .workspace-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 10px;
+      background: var(--surface-raised);
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .workspace-card:hover,
+    .workspace-card:focus-visible {
+      transform: translateY(-2px);
+      border-color: #4a4a4a;
+      outline: none;
+      background: var(--surface-hover);
+    }
+
+    .ws-head { display: flex; gap: 12px; align-items: center; }
+
+    .ws-icon {
+      display: flex;
+      width: 42px; height: 42px; flex: 0 0 42px;
+      align-items: center; justify-content: center;
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      color: var(--accent);
+    }
+
+    .ws-icon .icon { width: 22px; height: 22px; margin: 0; flex: none; }
+    .ws-title { flex: 1; min-width: 0; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
+    .ws-go { color: #5c5c5c; }
+    .ws-go .icon { width: 20px; height: 20px; margin: 0; flex: none; }
+    .workspace-card:hover .ws-go { color: var(--accent); }
+
+    .ws-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+    .ws-stat { display: block; min-width: 0; }
+    .ws-stat-value { display: block; color: #fff; font-size: 1.45rem; font-weight: 700; line-height: 1; }
+    .ws-stat-label { display: block; margin-top: 4px; color: var(--subtle); font-size: 0.72rem; letter-spacing: 0.02em; }
+    .ws-foot { display: block; margin-top: auto; padding-top: 2px; }
+    .ws-foot .badge { text-transform: none; }
+    .ws-quiet { color: #5f5f5f; font-size: 0.76rem; }
+
+    /* Inline fixes for the commonest states, so the obvious next action
+       doesn't require opening the full editor first. */
+    .card-actions { display: flex; margin-top: 4px; gap: 8px; flex-wrap: wrap; }
+
+    .row-btn {
+      padding: 6px 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    .row-btn:hover { border-color: #4a4a4a; color: var(--text); }
+    .row-btn.primary { border-color: rgba(250, 128, 114, 0.45); color: var(--salmon); }
+    .row-btn:disabled { cursor: wait; opacity: 0.55; }
+
+    /* Hairline group separator inside a full guest card — keeps eight lines
+       of merged cross-workspace information readable instead of one
+       undifferentiated run. */
+    .card-divider { margin: 3px 0 1px; border-top: 1px solid #313131; }
+    .card.archived { opacity: 0.62; border-style: dashed; }
+
+    .segmented {
+      display: flex;
+      width: max-content;
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .segmented button {
+      padding: 9px 18px;
+      border: 0;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .segmented button.active { background: rgba(46, 204, 113, 0.16); color: #71d99d; font-weight: 600; }
+
+    .page-toolbar {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 20px;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .warning-banner {
+      max-width: 1200px;
+      margin: 0 auto 18px;
+      padding: 12px 15px;
+      border: 1px solid rgba(243, 156, 18, 0.38);
+      border-radius: 9px;
+      background: rgba(243, 156, 18, 0.08);
+      color: #f6bd55;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .profile-section { max-width: 1200px; margin: 0 auto 26px; }
+
+    .profile-section-title {
+      display: flex;
+      margin: 0 0 12px;
+      gap: 9px;
+      align-items: center;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .profile-section-title .icon { width: 17px; height: 17px; margin: 0; flex: none; color: var(--salmon); }
+
+    .history-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .history-row.cancelled { opacity: 0.6; }
+    .history-row.cancelled .history-main { text-decoration: line-through; }
+    .history-main { flex: 1; min-width: 0; color: var(--text); font-size: 0.9rem; }
+    .history-meta { color: var(--subtle); font-size: 0.8rem; }
+
+    @media (max-width: 760px) {
+      .page-header { gap: 12px; }
+      .page-actions { width: 100%; }
+      .page-search { flex: 1; }
+      .page-search input { width: 100%; }
+      .page-summary { grid-template-columns: repeat(2, 1fr); }
+      .ribbon-desc { display: none; }
+      .ribbon-go span { display: none; }
+      .page-title { font-size: 1.3rem; }
+    }
+
     @media (max-width: 620px) {
       body { padding: 14px; }
       .header-container { align-items: stretch; }
@@ -1537,19 +1879,16 @@
         <input type="search" id="search-bar" placeholder="Search guests, rooms, travel, or dates..." aria-label="Search guests">
         <button id="search-clear-btn" class="search-clear-btn" type="button" aria-label="Clear search" hidden>&times;</button>
       </div>
-      <button id="directory-btn" class="icon-button" type="button" aria-label="Guest Directory" title="Guest Directory">
-        <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg>
-      </button>
-      <button id="seva-teams-btn" class="icon-button" type="button" aria-label="Manage Seva Teams" title="Manage Seva Teams">
-        <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
-      </button>
-      <button id="data-audit-btn" class="icon-button" type="button" aria-label="Data Integrity Audit" title="Data Integrity Audit">
-        <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
-      </button>
+<!-- The Guest Directory, Seva Teams and Data Audit icon buttons that used
+           to sit here are gone: the Directory has its own ribbon on the
+           homepage, Seva Teams is one of the five workspace cards, and the
+           audit is a Script Editor task rather than an app screen. An
+           icon-only button is a poor primary entrance to a whole area of
+           the app, and two entrances to Seva was one too many. -->
       <button id="notif-btn" class="icon-button" type="button" aria-label="Enable notifications" title="Enable notifications">
         <svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
       </button>
-      <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh dashboard" title="Refresh dashboard">
+      <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh this page" title="Refresh this page">
         <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
       </button>
       <button id="add-btn" class="add-btn" type="button" aria-label="Add guest" title="Add guest">
@@ -1558,77 +1897,80 @@
     </div>
   </header>
 
-  <!-- V3 Operational Workspaces Architecture — Phase D. Hidden, not deleted
-       — plan §12 redistributes these chips by workspace as each one ships
-       (Phase E–I), so the definitions stay here for reference/reuse. The
-       homepage keeps only free-text search (searchGuestCards) now. -->
-  <div id="quick-filters" class="quick-filters" role="group" aria-label="Quick filters" hidden>
-    <!-- Order here is only the starting point — chips re-sort by how often
-         each one actually gets used (see reorderQuickFilters). It decides
-         what a brand-new device sees first, so the "needs attention" group
-         leads, then buildings (injected here by syncBuildingFilterChips),
-         then browse-by-attribute. -->
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="room not assigned">Room not assigned</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="cabs arrange">Cabs to arrange</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="travel arrange">Travel to arrange</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="c-form pending">C-form pending</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="accommodation undecided">Accommodation TBD</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="outside accommodation unconfirmed">Outside accommodation to arrange</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="no arrival date">No arrival date</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-query="bookings complete">Booked</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="invited guest">Invited Guest</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="visitor">Visitor</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="friend">Friend</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="event staff">Event Staff</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="other">Other</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="currently residing">Currently Residing</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="ashram exclusively">Ashram Stay</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="ashram arranged">Outside — Ashram Arranged</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="self arranged">Self-arranged</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="no overnight">No Overnight Stay</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="discourse">Discourse</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="kirtan">Kirtan/Music</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="interreligious">Interreligious Presence</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="official diplomatic">Official/Diplomatic</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva team member">Seva Team</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="specific seva">Specific Seva</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva active">Active Seva</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva upcoming">Upcoming Seva</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="seva completed">Completed Seva</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="meals today">Meals Today</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="swamiji today">Meetings with Swamiji Today</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="flight">Flight</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="train">Train</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="bus">Bus</button>
-    <button type="button" class="filter-chip" aria-pressed="false" data-group="browse" data-query="taxi">Taxi</button>
-    <button type="button" id="quick-filters-toggle" class="filter-chip-toggle" aria-controls="quick-filters" aria-expanded="false"></button>
-  </div>
+  <div id="loading">Loading…</div>
+  <div id="page-error" class="error-state" hidden></div>
 
-  <div id="loading">Loading guests...</div>
+  <!-- ===================================================================
+       PAGES. Exactly one is active at a time, chosen by the hash router.
+       =================================================================== -->
 
-  <!-- V3 Operational Workspaces Architecture — Phase D. Replaces the
-       tier-tab dashboard as the homepage. The old tier-tabs/quick-filters
-       markup below is hidden, not deleted — quick-filters need somewhere to
-       redistribute to (plan §12) once each workspace exists (Phase E–I),
-       so their chip definitions stay available for reference/reuse rather
-       than being deleted and re-authored from scratch later. -->
-  <div id="tier-tabs" class="tier-tabs" role="tablist" aria-label="Guest priority tiers" hidden></div>
+  <main id="page-home" class="page" aria-label="Home">
+    <button id="directory-ribbon" class="directory-ribbon" type="button">
+      <span class="ribbon-icon"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg></span>
+      <span class="ribbon-body">
+        <span class="ribbon-title-row">
+          <span class="ribbon-title">Guest Directory</span>
+          <span id="ribbon-stats" class="ribbon-stats">Loading…</span>
+        </span>
+        <span class="ribbon-desc">Browse full guest records, priorities and activity</span>
+      </span>
+      <span class="ribbon-go"><span>Open Directory</span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></span>
+    </button>
 
-  <div id="home-tiles" class="card-grid" aria-label="Operational workspaces"></div>
+    <div class="section-label">Operational Workspaces</div>
+    <div id="workspace-grid" class="workspace-grid"></div>
 
-  <div id="home-search-results" class="card-grid" hidden></div>
-  <div id="home-search-empty" class="travel-empty" hidden>No guests match that search.</div>
+    <div id="home-search-wrap" hidden>
+      <div class="section-label">Search Results</div>
+      <div id="home-search-results" class="card-grid"></div>
+      <div id="home-search-empty" class="zone-empty" hidden>No guests match that search.</div>
+    </div>
+  </main>
 
-  <main id="app" aria-live="polite"></main>
+  <main id="page-directory" class="page" aria-label="Guest Directory">
+    <div class="page-header">
+      <div class="page-title-block">
+        <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+        <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Guest Directory</h2>
+        <div id="directory-subtitle" class="page-subtitle"></div>
+      </div>
+      <div class="page-actions">
+        <div class="page-search"><input type="search" id="directory-search" placeholder="Search this directory..." aria-label="Search the directory"></div>
+        <button id="directory-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Guest</button>
+      </div>
+    </div>
+    <div id="directory-tabs" class="tier-tabs" role="tablist" aria-label="Directory tiers"></div>
+    <div id="directory-chips" class="quick-filters" role="group" aria-label="Directory filters"></div>
+    <div id="directory-body" class="app-body"></div>
+  </main>
+
+  <main id="page-guest" class="page" aria-label="Guest profile">
+    <div class="page-header">
+      <div class="page-title-block">
+        <button class="page-back" type="button" data-nav="#directory"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Directory</button>
+        <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg> <span id="guest-profile-name">Guest</span></h2>
+        <div id="guest-profile-subtitle" class="page-subtitle"></div>
+      </div>
+      <div class="page-actions">
+        <button id="guest-profile-edit-btn" class="row-btn primary" type="button">Edit basic details</button>
+        <button id="guest-profile-archive-btn" class="row-btn" type="button">Archive</button>
+        <button id="guest-profile-delete-btn" class="row-btn" type="button" hidden>Delete permanently</button>
+      </div>
+    </div>
+    <div id="guest-profile-warning" class="warning-banner" hidden></div>
+    <div id="guest-profile-body"></div>
+  </main>
 
   <div id="modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-header">
         <h2 id="modal-title">Edit Guest</h2>
         <div class="modal-header-actions">
-          <button id="delete-btn" class="delete-btn" type="button" aria-label="Delete guest" title="Delete guest">
-            <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
-          </button>
+          <!-- No Delete here. Archiving and the guarded permanent delete live
+               on the guest's own profile page, where the backend has already
+               said whether a delete is possible at all — an interface that
+               offers Delete and then answers "archive instead" is worse than
+               one that never offered it. -->
           <button id="close-btn" class="close-btn" type="button" aria-label="Close dialog">
             <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
           </button>
@@ -1716,18 +2058,20 @@
     </div>
   </div>
 
-  <div id="visit-editor-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="visit-editor-modal-title">
-      <div class="modal-header">
-        <h2 id="visit-editor-modal-title">Edit Visit</h2>
-        <div class="modal-header-actions">
-          <button id="visit-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <!-- A Visit is the most involved editor in the app — dates, accommodation,
+       rooms, C-form, two cabs and a whole travel itinerary — so it gets a
+       page of its own rather than being squeezed into an overlay. -->
+  <main id="page-visit" class="page" aria-label="Visit">
+    <div class="page-content" style="--accent:#6fbaf0">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#accommodation"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Accommodation &amp; Travel</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> <span id="visit-editor-modal-title">Edit Visit</span></h2>
+          <div id="visit-editor-guest-name" class="page-subtitle"></div>
         </div>
       </div>
 
-      <div id="visit-editor-guest-name" class="app-subtitle" style="margin-bottom:16px;"></div>
+      <div id="visit-editor-warning" class="warning-banner" hidden></div>
       <input type="hidden" id="visit-editor-guest-id">
       <input type="hidden" id="visit-editor-visit-id">
       <input type="hidden" id="visit-editor-version">
@@ -1906,27 +2250,28 @@
         <button id="visit-editor-restore-visit-btn" type="button" class="travel-remove-btn" hidden>Restore Visit</button>
       </div>
     </div>
-  </div>
+  </main>
 
-  <div id="accommodation-workspace-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="accommodation-workspace-modal-title">
-      <div class="modal-header">
-        <h2 id="accommodation-workspace-modal-title">Accommodation &amp; Travel</h2>
-        <div class="modal-header-actions">
-          <button id="accommodation-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <main id="page-accommodation" class="page" aria-label="Accommodation and Travel">
+    <div style="--accent:#6fbaf0">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> Accommodation &amp; Travel</h2>
+          <div class="page-subtitle">Visits, rooms, C-forms, cabs and personal travel</div>
+        </div>
+        <div class="page-actions">
+          <div class="page-search"><input type="search" id="accommodation-search" placeholder="Search visits..." aria-label="Search visits"></div>
+          <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Visit</button>
         </div>
       </div>
-
-      <div class="travel-section-header">
-        <h3 class="travel-section-title">Visits</h3>
-        <button id="accommodation-workspace-add-btn" class="travel-add-btn" type="button">+ Add Visit</button>
-      </div>
+      <div id="accommodation-summary" class="page-summary"></div>
+      <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
+      <div id="accommodation-chips" class="quick-filters" role="group" aria-label="Accommodation filters"></div>
       <div id="accommodation-workspace-list" class="card-grid"></div>
-      <div id="accommodation-workspace-empty" class="travel-empty" hidden>No visits found.</div>
+      <div id="accommodation-workspace-empty" class="zone-empty" hidden>No visits found.</div>
     </div>
-  </div>
+  </main>
 
   <div id="add-to-workspace-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="add-to-workspace-modal-title">
@@ -1950,47 +2295,50 @@
     </div>
   </div>
 
-  <div id="meals-workspace-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meals-workspace-modal-title">
-      <div class="modal-header">
-        <h2 id="meals-workspace-modal-title">Meals</h2>
-        <div class="modal-header-actions">
-          <button id="meals-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <main id="page-meals" class="page" aria-label="Meals">
+    <div style="--accent:#71d99d">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
+          <div class="page-subtitle">Residents eat by default; anyone else can be invited</div>
+        </div>
+        <div class="page-actions">
+          <div class="page-search"><input type="search" id="meals-search" placeholder="Search guests..." aria-label="Search guests on this date"></div>
+          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Invite Guest</button>
         </div>
       </div>
 
-      <div class="input-group">
-        <label class="input-label" for="meals-workspace-date">Date</label>
-        <input type="date" id="meals-workspace-date" class="edit-input">
+      <div class="page-toolbar">
+        <input type="date" id="meals-workspace-date" class="edit-input" style="width:auto" aria-label="Meal date">
+        <div id="meals-meal-tabs" class="segmented" role="tablist" aria-label="Meal"></div>
       </div>
 
+      <div id="meals-summary" class="page-summary"></div>
       <div id="meals-workspace-list" class="card-grid"></div>
-      <div id="meals-workspace-empty" class="travel-empty" hidden>No guests to show for this date.</div>
+      <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
     </div>
-  </div>
+  </main>
 
-  <div id="meetings-workspace-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meetings-workspace-modal-title">
-      <div class="modal-header">
-        <h2 id="meetings-workspace-modal-title">Meetings with Swamiji</h2>
-        <div class="modal-header-actions">
-          <button id="meetings-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <main id="page-meetings" class="page" aria-label="Meetings with Swamiji">
+    <div style="--accent:#fa8072">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lotus"></use></svg> Meetings with Swamiji</h2>
+          <div class="page-subtitle">Open to every Person Type</div>
+        </div>
+        <div class="page-actions">
+          <div class="page-search"><input type="search" id="meetings-search" placeholder="Search meetings..." aria-label="Search meetings"></div>
+          <button id="meetings-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Meeting with Swamiji</button>
         </div>
       </div>
-
-      <div class="travel-section-header">
-        <h3 class="travel-section-title">Meetings</h3>
-        <button id="meetings-workspace-add-btn" class="travel-add-btn" type="button">+ Add Meeting with Swamiji</button>
-      </div>
-
+      <div id="meetings-summary" class="page-summary"></div>
+      <div id="meetings-tabs" class="tier-tabs" role="tablist" aria-label="Meeting sections"></div>
       <div id="meetings-workspace-sections"></div>
-      <div id="meetings-workspace-empty" class="travel-empty" hidden>No meetings with Swamiji yet.</div>
+      <div id="meetings-workspace-empty" class="zone-empty" hidden>No meetings with Swamiji yet.</div>
     </div>
-  </div>
+  </main>
 
   <div id="meeting-editor-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meeting-editor-modal-title">
@@ -2021,34 +2369,35 @@
     </div>
   </div>
 
-  <div id="trips-workspace-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="trips-workspace-modal-title">
-      <div class="modal-header">
-        <h2 id="trips-workspace-modal-title">Trips</h2>
-        <div class="modal-header-actions">
-          <button id="trips-workspace-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <main id="page-trips" class="page" aria-label="Trips">
+    <div style="--accent:#b878d6">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> Trips</h2>
+          <div class="page-subtitle">Shared group journeys, independent of personal travel</div>
+        </div>
+        <div class="page-actions">
+          <div class="page-search"><input type="search" id="trips-search" placeholder="Search trips..." aria-label="Search trips"></div>
+          <button id="add-trip-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Trip</button>
         </div>
       </div>
-
-      <div class="travel-section-header">
-        <h3 class="travel-section-title">Trips</h3>
-        <button id="add-trip-btn" class="travel-add-btn" type="button">+ Add Trip</button>
-      </div>
+      <div id="trips-summary" class="page-summary"></div>
+      <div id="trips-tabs" class="tier-tabs" role="tablist" aria-label="Trip status"></div>
       <div id="trips-workspace-list" class="card-grid"></div>
-      <div id="trips-workspace-empty" class="travel-empty" hidden>No trips yet.</div>
+      <div id="trips-workspace-empty" class="zone-empty" hidden>No trips yet.</div>
     </div>
-  </div>
+  </main>
 
-  <div id="trip-editor-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="trip-editor-modal-title">
-      <div class="modal-header">
-        <h2 id="trip-editor-modal-title">Trip</h2>
-        <div class="modal-header-actions">
-          <button id="trip-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <!-- Like a Visit, a Trip carries basics, a roster and a whole shared
+       itinerary, so it gets its own page rather than an overlay. -->
+  <main id="page-trip" class="page" aria-label="Trip">
+    <div style="--accent:#b878d6">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#trips"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Trips</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> <span id="trip-editor-modal-title">Trip</span></h2>
+          <div id="trip-editor-subtitle" class="page-subtitle"></div>
         </div>
       </div>
 
@@ -2109,18 +2458,22 @@
         <div id="trip-travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
       </div>
     </div>
-  </div>
+  </main>
 
-  <div id="seva-teams-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seva-teams-modal-title">
-      <div class="modal-header">
-        <h2 id="seva-teams-modal-title">Seva Teams &amp; Tasks</h2>
-        <div class="modal-header-actions">
-          <button id="seva-teams-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
+  <main id="page-seva" class="page" aria-label="Seva Teams and Tasks">
+    <div style="--accent:#1abc9c">
+      <div class="page-header">
+        <div class="page-title-block">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Seva Teams &amp; Tasks</h2>
+          <div class="page-subtitle">Team membership and independent individual seva</div>
+        </div>
+        <div class="page-actions">
+          <div class="page-search"><input type="search" id="seva-search" placeholder="Search seva..." aria-label="Search seva"></div>
         </div>
       </div>
+      <div id="seva-summary" class="page-summary"></div>
+      <div id="seva-view-tabs" class="tier-tabs" role="tablist" aria-label="Seva views"></div>
 
       <div id="seva-team-form" class="form-section" hidden>
         <input type="hidden" id="edit-seva-team-id">
@@ -2147,14 +2500,17 @@
         </div>
       </div>
 
-      <div class="travel-section-header">
-        <h3 class="travel-section-title">Teams</h3>
-        <button id="add-seva-team-btn" class="travel-add-btn" type="button">+ Add Seva Team</button>
+      <div id="seva-view-teams">
+        <div class="travel-section-header">
+          <h3 class="travel-section-title">Teams</h3>
+          <button id="add-seva-team-btn" class="travel-add-btn" type="button">+ Add Seva Team</button>
+        </div>
+        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual tasks.</p>
+        <div id="seva-teams-list" class="travel-leg-list"></div>
+        <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
       </div>
-      <div id="seva-teams-list" class="travel-leg-list"></div>
-      <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
 
-      <div class="section-divider">
+      <div id="seva-view-tasks" hidden>
         <div id="specific-seva-form" class="form-section" hidden>
           <input type="hidden" id="edit-task-guest-id">
           <input type="hidden" id="edit-task-seva-id">
@@ -2192,64 +2548,9 @@
         <div id="individual-tasks-empty" class="travel-empty">No individual tasks yet.</div>
       </div>
     </div>
-  </div>
-
-  <div id="data-audit-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="data-audit-modal-title">
-      <div class="modal-header">
-        <h2 id="data-audit-modal-title">Data Integrity Audit</h2>
-        <div class="modal-header-actions">
-          <button id="data-audit-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="travel-section-header">
-        <h3 class="travel-section-title">Report</h3>
-        <button id="data-audit-run-btn" class="travel-add-btn" type="button">Run Audit</button>
-      </div>
-      <div id="data-audit-status" class="field-message info" aria-live="polite">Not yet run.</div>
-      <div id="data-audit-results"></div>
-    </div>
-  </div>
-
-  <div id="directory-modal" aria-hidden="true">
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="directory-modal-title">
-      <div class="modal-header">
-        <h2 id="directory-modal-title">Guest Directory</h2>
-        <div class="modal-header-actions">
-          <button id="directory-close-btn" class="close-btn" type="button" aria-label="Close dialog">
-            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="input-group">
-        <label class="input-label" for="directory-search">Filter by name</label>
-        <input type="search" id="directory-search" class="edit-input" placeholder="Type a name..." autocomplete="off">
-      </div>
-
-      <div id="directory-list" class="card-grid"></div>
-      <div id="directory-empty" class="travel-empty" hidden>No guests found.</div>
-      <div class="seva-team-row-actions directory-pagination">
-        <button id="directory-prev-btn" type="button" class="travel-remove-btn">Previous</button>
-        <span id="directory-page-info" class="field-message info"></span>
-        <button id="directory-next-btn" type="button" class="travel-remove-btn">Next</button>
-      </div>
-    </div>
-  </div>
+  </main>
 
   <div id="toast-container" aria-live="assertive"></div>
-
-  <div id="card-action-sheet" class="card-action-sheet" hidden>
-    <div class="card-action-sheet-backdrop"></div>
-    <div class="card-action-sheet-panel" role="menu">
-      <div class="card-action-sheet-name" id="card-action-sheet-name"></div>
-      <button type="button" class="card-action-sheet-btn destructive" id="card-action-delete-btn">Delete Guest</button>
-      <button type="button" class="card-action-sheet-btn" id="card-action-cancel-btn">Cancel</button>
-    </div>
-  </div>
 
   <div id="room-share-sheet" class="card-action-sheet" hidden>
     <div class="card-action-sheet-backdrop"></div>
@@ -2276,6 +2577,11 @@
     <symbol id="icon-people" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></symbol>
     <symbol id="icon-meal" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></symbol>
     <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></symbol>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15.41 7.41 10.83 12l4.58 4.59L14 18l-6-6 6-6 1.41 1.41z"/></symbol>
+    <!-- Meetings with Swamiji. A lotus rather than a generic calendar: this
+         is the one workspace whose subject is a person, not a schedule. -->
+    <symbol id="icon-lotus" viewBox="0 0 24 24"><path d="M12 2c-1.6 1.9-2.4 3.8-2.4 5.7 0 1.3.4 2.6 1.1 3.9-1.3-1-2.7-1.6-4.1-1.8-1.5-.2-3 .1-4.6.9.7 2.3 1.9 3.9 3.5 5 1.6 1 3.5 1.6 5.7 1.7l.8.02.8-.02c2.2-.1 4.1-.7 5.7-1.7 1.6-1.1 2.8-2.7 3.5-5-1.6-.8-3.1-1.1-4.6-.9-1.4.2-2.8.8-4.1 1.8.7-1.3 1.1-2.6 1.1-3.9C14.4 5.8 13.6 3.9 12 2zm-9 16c2 2.6 5 4 9 4s7-1.4 9-4c-2.4 1.4-5.4 2.1-9 2.1S5.4 19.4 3 18z"/></symbol>
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
@@ -2284,37 +2590,17 @@
 
   <script>
     const REFRESH_INTERVAL_MS = 30000;
-    const TIER_META = {
-      1: { label: 'Priority', shortLabel: 'Priority', className: 'zone-urgent', description: 'Guests requiring immediate operational attention' },
-      2: { label: 'Today', shortLabel: 'Today', className: 'zone-today', description: 'Arrivals and departures scheduled today' },
-      3: { label: 'Currently Residing', shortLabel: 'Residing', className: 'zone-current', description: 'Guests who have arrived and have not departed' },
-      4: { label: 'Upcoming', shortLabel: 'Upcoming', className: 'zone-upcoming', description: 'Guests who have not yet arrived' },
-      5: { label: 'Past Guests', shortLabel: 'Past', className: 'zone-past', description: 'Departed guests' }
-    };
-
-    // Matches each tier's existing .zone-title color — kept as JS values too
-    // so the tab bar can set them as an inline custom property per tab.
-    const TIER_ACCENT = {
-      1: '#ff8b84',
-      2: '#6fbaf0',
-      3: 'var(--purple)',
-      4: '#71d99d',
-      5: '#aaa'
-    };
-
     // Mirrors Code-V3.gs's PERSON_TYPE_NEEDS_REVIEW — never offered in the
     // Person Type dropdown, only ever seen on a guest whose sheet row holds
     // an unrecognized value.
     const PERSON_TYPE_NEEDS_REVIEW = 'Needs Review';
 
     let activeTier = 1;
-    let allGuests = [];
-    let allSevaTeams = [];
     let roomInventory = [];
     const ALLOWED_MEALS = Object.freeze(['Breakfast', 'Lunch', 'Dinner']);
     let pendingGuestIds = new Set();
-    let deleteTimeout = null;
-    let isDeleteConfirm = false;
+
+
     let modalIsOpen = false;
     let modalDirty = false;
     let closeConfirmArmed = false;
@@ -2322,7 +2608,6 @@
     let searchTimer = null;
     let roomMetadataMap = new Map();
     let appTimezone = '';
-    let activeChipQueries = new Set();
 
     const $ = id => document.getElementById(id);
 
@@ -2453,7 +2738,7 @@
         // A gate shown mid-session (expired token) just needed a fresh
         // token — the app is already wired up, so resume instead of
         // re-running the full initializer and double-binding listeners.
-        loadAppData(true);
+        refreshCurrentPage_({ silent: true });
       }
     }
 
@@ -2480,7 +2765,7 @@
         appInitialized = true;
         initializeApp();
       } else {
-        loadAppData(true);
+        refreshCurrentPage_({ silent: true });
       }
     }
 
@@ -2578,49 +2863,33 @@
     window.handleForegroundPush = payload => {
       const title = (payload && payload.notification && payload.notification.title) || 'New notification';
       showToast(title, 'success');
-      if (appInitialized) loadAppData(true);
+      if (appInitialized) refreshCurrentPage_({ silent: true });
     };
 
     function initializeApp() {
+      window.addEventListener('hashchange', handleRouteChange_);
+      $('directory-ribbon').addEventListener('click', () => navigate('#directory'));
+      // One delegated handler for every page's Back button, so adding a page
+      // never means remembering to wire its own.
+      document.addEventListener('click', event => {
+        const backButton = event.target.closest('[data-nav]');
+        if (backButton) navigate(backButton.dataset.nav);
+      });
+
       $('search-bar').addEventListener('input', handleSearchInput);
       $('search-clear-btn').addEventListener('click', () => {
         $('search-bar').value = '';
-        activeChipQueries.clear();
         window.clearTimeout(searchTimer);
-        renderApp();
-        // Selection is back to zero, same as un-tapping the last chip — so
-        // this is a safe moment to let the usage re-sort land. All three
-        // "cleared everything" paths reorder here, or promotion would look
-        // arbitrary depending on how you happened to clear.
-        reorderQuickFilters();
+        $('search-clear-btn').hidden = true;
+        renderHomeSearch_();
         $('search-bar').focus();
       });
-      $('refresh-btn').addEventListener('click', () => loadAppData(false));
+      $('refresh-btn').addEventListener('click', () => refreshCurrentPage_({ silent: false }));
       $('notif-btn').addEventListener('click', handleNotifButtonClick);
       updateNotifButtonState();
-      // Delegated rather than bound per-chip: the building chips are
-      // generated from the Rooms sheet after this runs (see
-      // syncBuildingFilterChips), so anything bound here directly would miss
-      // them — and re-binding on every refresh would stack duplicate
-      // listeners.
-      $('quick-filters').addEventListener('click', event => {
-        const chip = event.target.closest('.filter-chip');
-        if (chip) applyQuickFilter(chip.dataset.query);
-      });
-      $('quick-filters-toggle').addEventListener('click', () => setQuickFiltersExpanded(!isQuickFiltersExpanded()));
-      reorderQuickFilters();
       initSectionNav();
-      initSwipeNavigation();
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
-      });
-      $('card-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeCardActionSheet);
-      $('card-action-cancel-btn').addEventListener('click', closeCardActionSheet);
-      $('card-action-delete-btn').addEventListener('click', () => {
-        const guestId = cardActionSheetGuestId;
-        const guest = allGuests.find(item => item.guestId === guestId);
-        closeCardActionSheet();
-        if (guest) deleteGuestById(guestId, guest.version, guest.Name);
       });
       $('room-share-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeRoomShareSheet_);
       $('room-share-cancel-btn').addEventListener('click', closeRoomShareSheet_);
@@ -2629,25 +2898,12 @@
         closeRoomShareSheet_();
         proceedWithVisitSave_(acks);
       });
-      document.addEventListener('click', event => {
-        // Opening a card is using the search results, not dismissing them —
-        // and once the modal is open, every exit path (overlay click, ×,
-        // Save, Delete) is itself a click inside #modal, so excluding that
-        // covers the whole open-edit-close lifecycle in one place.
-        if (event.target.closest('#search-bar, #search-clear-btn, #quick-filters, #modal, .card')) return;
-        if (!$('search-bar').value && activeChipQueries.size === 0) return;
-        $('search-bar').value = '';
-        activeChipQueries.clear();
-        window.clearTimeout(searchTimer);
-        renderApp();
-        reorderQuickFilters();
-      });
       $('add-btn').addEventListener('click', () => openModal('add'));
       $('close-btn').addEventListener('click', handleCloseButtonClick);
       $('modal').addEventListener('input', markModalDirty);
       $('modal').addEventListener('change', markModalDirty);
       $('save-btn').addEventListener('click', saveGuestFromModal);
-      $('delete-btn').addEventListener('click', handleDeleteClick);
+
       $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
       [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
         box.addEventListener('change', updatePurposeOtherVisibility);
@@ -2656,29 +2912,16 @@
         if (event.target === $('modal')) requestCloseModal();
       });
 
-      $('seva-teams-btn').addEventListener('click', openSevaTeamsModal);
-      $('data-audit-btn').addEventListener('click', openDataAuditModal);
-      $('data-audit-close-btn').addEventListener('click', closeDataAuditModal);
-      $('data-audit-run-btn').addEventListener('click', runDataAuditReport);
-      $('directory-btn').addEventListener('click', openDirectory);
-      $('directory-close-btn').addEventListener('click', closeDirectory);
-      $('directory-modal').addEventListener('click', event => {
-        if (event.target === $('directory-modal')) closeDirectory();
-      });
       $('directory-search').addEventListener('input', handleDirectorySearchInput);
-      $('directory-prev-btn').addEventListener('click', () => {
-        directoryOffset_ = Math.max(0, directoryOffset_ - DIRECTORY_PAGE_SIZE_);
-        loadDirectoryPage();
-      });
-      $('directory-next-btn').addEventListener('click', () => {
-        directoryOffset_ += DIRECTORY_PAGE_SIZE_;
-        loadDirectoryPage();
-      });
+      $('directory-add-btn').addEventListener('click', () => openModal('add'));
 
-      $('accommodation-workspace-close-btn').addEventListener('click', closeAccommodationWorkspace);
-      $('accommodation-workspace-modal').addEventListener('click', event => {
-        if (event.target === $('accommodation-workspace-modal')) closeAccommodationWorkspace();
+      $('guest-profile-edit-btn').addEventListener('click', () => {
+        if (currentGuestProfile_) openModal('edit', currentGuestProfile_.guestId);
       });
+      $('guest-profile-archive-btn').addEventListener('click', toggleArchiveCurrentGuest_);
+      $('guest-profile-delete-btn').addEventListener('click', deleteCurrentGuest_);
+
+      $('accommodation-search').addEventListener('input', () => renderAccommodationList_());
       $('accommodation-workspace-add-btn').addEventListener('click', handleAddVisitClick_);
 
       $('add-to-workspace-close-btn').addEventListener('click', closeGuestPicker_);
@@ -2688,24 +2931,19 @@
       $('add-to-workspace-search').addEventListener('input', handleGuestPickerSearchInput_);
       $('add-to-workspace-create-btn').addEventListener('click', createGuestFromPicker_);
 
-      $('visit-editor-close-btn').addEventListener('click', closeVisitEditor);
-      $('visit-editor-modal').addEventListener('click', event => {
-        if (event.target === $('visit-editor-modal')) closeVisitEditor();
-      });
+      $('page-visit').addEventListener('input', markModalDirty);
+      $('page-visit').addEventListener('change', markModalDirty);
       $('visit-editor-save-btn').addEventListener('click', saveVisitFromEditor);
       $('visit-editor-cancel-visit-btn').addEventListener('click', cancelCurrentVisit_);
       $('visit-editor-restore-visit-btn').addEventListener('click', restoreCurrentVisit_);
 
-      $('meals-workspace-close-btn').addEventListener('click', closeMealsWorkspace);
-      $('meals-workspace-modal').addEventListener('click', event => {
-        if (event.target === $('meals-workspace-modal')) closeMealsWorkspace();
+      $('meals-workspace-date').addEventListener('change', () => {
+        navigate(`#meals/${$('meals-workspace-date').value}`);
       });
-      $('meals-workspace-date').addEventListener('change', loadMealsWorkspaceList);
+      $('meals-search').addEventListener('input', () => renderMealsList_());
+      $('meals-workspace-add-btn').addEventListener('click', handleAddMealGuestClick_);
 
-      $('meetings-workspace-close-btn').addEventListener('click', closeMeetingsWorkspace);
-      $('meetings-workspace-modal').addEventListener('click', event => {
-        if (event.target === $('meetings-workspace-modal')) closeMeetingsWorkspace();
-      });
+      $('meetings-search').addEventListener('input', () => renderMeetingsList_());
       $('meetings-workspace-add-btn').addEventListener('click', handleAddMeetingClick_);
       $('meeting-editor-close-btn').addEventListener('click', closeMeetingEditor_);
       $('meeting-editor-modal').addEventListener('click', event => {
@@ -2713,15 +2951,10 @@
       });
       $('meeting-editor-save-btn').addEventListener('click', saveMeetingFromEditor_);
 
-      $('trips-workspace-close-btn').addEventListener('click', closeTripsWorkspace);
-      $('trips-workspace-modal').addEventListener('click', event => {
-        if (event.target === $('trips-workspace-modal')) closeTripsWorkspace();
-      });
+      $('trips-search').addEventListener('input', () => renderTripsList_());
       $('add-trip-btn').addEventListener('click', handleAddTripClick_);
-      $('trip-editor-close-btn').addEventListener('click', closeTripEditor_);
-      $('trip-editor-modal').addEventListener('click', event => {
-        if (event.target === $('trip-editor-modal')) closeTripEditor_();
-      });
+      $('page-trip').addEventListener('input', markModalDirty);
+      $('page-trip').addEventListener('change', markModalDirty);
       $('trip-editor-save-btn').addEventListener('click', saveTripFromEditor_);
       $('trip-add-participant-btn').addEventListener('click', handleAddParticipantClick_);
       $('add-trip-travel-leg-btn').addEventListener('click', () => addTravelLegEditor({}, 'trip-travel-leg-list', 'trip-travel-empty'));
@@ -2743,10 +2976,7 @@
       $('edit-dropoff-booking-confirmed').addEventListener('change', () => handleCabBookingConfirmationChange('dropoff'));
       $('edit-dropoff-details').addEventListener('input', updateTransportConstraints);
 
-      $('seva-teams-close-btn').addEventListener('click', closeSevaTeamsModal);
-      $('seva-teams-modal').addEventListener('click', event => {
-        if (event.target === $('seva-teams-modal')) closeSevaTeamsModal();
-      });
+      $('seva-search').addEventListener('input', () => renderSevaLists_());
       $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
       $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
@@ -2756,10 +2986,6 @@
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        if (!$('card-action-sheet').hidden) {
-          closeCardActionSheet();
-          return;
-        }
         if (!$('room-share-sheet').hidden) {
           closeRoomShareSheet_();
           return;
@@ -2768,93 +2994,418 @@
           closeAllRoomRowLists();
           return;
         }
-        if ($('seva-teams-modal').style.display === 'flex') {
-          closeSevaTeamsModal();
-          return;
-        }
+        if (isGuestPickerOpen_()) { closeGuestPicker_(); return; }
+        if ($('meeting-editor-modal').style.display === 'flex') { closeMeetingEditor_(); return; }
         if (modalIsOpen) requestCloseModal();
       });
 
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && !modalIsOpen && pendingGuestIds.size === 0) loadAppData(true);
+        if (!document.hidden) refreshCurrentPage_({ silent: true });
       });
 
-      loadAppData(false);
-      // V3 Operational Workspaces Architecture — Phase D. The homepage
-      // tiles refresh off getHomeSummary — the lightest read in the whole
-      // API — independently of the (still-running, still full-dataset)
-      // getAppData poll above, which the guest edit modal's Seva/room
-      // pickers still depend on for now. Fully replacing that full-dataset
-      // poll everywhere is Phase J's job, not this one.
-      loadHomeSummary();
+      startSession_();
+
+      // One timer, and it only ever refreshes the page actually on screen.
+      // Never over a dirty editor or a pending save — a background refresh
+      // that overwrites half-typed input is worse than slightly stale data.
       window.setInterval(() => {
-        if (!modalIsOpen && pendingGuestIds.size === 0 && !document.hidden) loadAppData(true);
-      }, REFRESH_INTERVAL_MS);
-      window.setInterval(() => {
-        if (!modalIsOpen && !document.hidden) loadHomeSummary();
+        if (document.hidden || modalIsOpen || isEditorDirty_() || pendingGuestIds.size) return;
+        refreshCurrentPage_({ silent: true });
       }, REFRESH_INTERVAL_MS);
     }
 
-    function loadAppData(silent) {
-      const refreshButton = $('refresh-btn');
-      refreshButton.disabled = true;
-      if (!silent && allGuests.length === 0) $('loading').style.display = 'block';
+    // The header Refresh button, the 30-second timer, a foreground push and
+    // returning to the tab all come through here, so "refresh" always means
+    // the same thing: reload whatever is currently being looked at, and
+    // nothing else.
+    function refreshCurrentPage_(options) {
+      const opts = options || {};
+      const button = $('refresh-btn');
+      if (!opts.silent) button.disabled = true;
 
-      apiCall('getAppData')
+      const done = () => { button.disabled = false; };
+      const fail = error => handleApiError(error, err => {
+        button.disabled = false;
+        const message = getErrorMessage(err);
+        if (opts.silent) console.error('Background refresh failed:', message);
+        else showToast(`Refresh failed: ${message}`, 'error');
+      });
+
+      switch (currentRoute_.name) {
+        case 'home':
+          loadHomeSummary_().then(() => { renderHome_(); done(); }).catch(fail);
+          break;
+        case 'directory':
+          loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ })
+            .then(() => { renderDirectory_(); done(); }).catch(fail);
+          break;
+        case 'guest':
+          loadGuestProfile_(currentRoute_.arg).then(done, fail);
+          break;
+        case 'accommodation':
+          loadAccommodationPage_(currentRoute_.arg).then(done, fail);
+          break;
+        case 'meals':
+          loadMealsPage_(currentRoute_.arg).then(done, fail);
+          break;
+        case 'meetings':
+          loadMeetingsPage_(currentRoute_.arg).then(done, fail);
+          break;
+        case 'seva':
+          loadSevaPage_(currentRoute_.arg).then(done, fail);
+          break;
+        case 'trips':
+          loadTripsPage_(currentRoute_.arg).then(done, fail);
+          break;
+        default:
+          // Visit and Trip editors deliberately don't auto-refresh — they
+          // hold unsaved input by nature.
+          done();
+      }
+    }
+
+    // ============================================================
+    // ROUTER
+    // Every destination is a real page with its own hash, so Back works,
+    // a view survives a reload, and a link can point at one. Editing a
+    // Visit or a Trip is itself a destination; only small focused edits
+    // stay dialogs.
+    // ============================================================
+
+    const ROUTES_ = Object.freeze({
+      home: { page: 'page-home', load: () => renderHome_() },
+      directory: { page: 'page-directory', load: arg => renderDirectory_(arg) },
+      accommodation: { page: 'page-accommodation', load: arg => loadAccommodationPage_(arg) },
+      meals: { page: 'page-meals', load: arg => loadMealsPage_(arg) },
+      meetings: { page: 'page-meetings', load: arg => loadMeetingsPage_(arg) },
+      seva: { page: 'page-seva', load: arg => loadSevaPage_(arg) },
+      trips: { page: 'page-trips', load: arg => loadTripsPage_(arg) },
+      guest: { page: 'page-guest', load: arg => loadGuestProfile_(arg) },
+      visit: { page: 'page-visit', load: arg => loadVisitPage_(arg) },
+      trip: { page: 'page-trip', load: arg => loadTripPage_(arg) }
+    });
+
+    let currentRoute_ = { name: 'home', arg: '' };
+    // Set while the router itself is rewriting location.hash, so the
+    // resulting hashchange isn't mistaken for the user pressing Back.
+    let suppressHashHandler_ = false;
+
+    function parseHash_(hash) {
+      const raw = String(hash || '').replace(/^#/, '');
+      if (!raw) return { name: 'home', arg: '' };
+      const slash = raw.indexOf('/');
+      const name = slash === -1 ? raw : raw.slice(0, slash);
+      const arg = slash === -1 ? '' : decodeURIComponent(raw.slice(slash + 1));
+      return ROUTES_[name] ? { name, arg } : { name: 'home', arg: '' };
+    }
+
+    function navigate(hash) {
+      if (String(location.hash) === String(hash)) {
+        handleRouteChange_();
+        return;
+      }
+      location.hash = hash;
+    }
+
+    // Back out of an editor without leaving a half-typed record behind. The
+    // guard has to run before the page swaps, and because a hashchange has
+    // already happened by the time we hear about it, declining means putting
+    // the old hash back rather than simply not moving.
+    function handleRouteChange_() {
+      if (suppressHashHandler_) { suppressHashHandler_ = false; return; }
+      const next = parseHash_(location.hash);
+
+      if (isEditorDirty_() && next.name !== currentRoute_.name) {
+        if (!window.confirm('You have unsaved changes on this page. Leave without saving?')) {
+          suppressHashHandler_ = true;
+          location.hash = routeToHash_(currentRoute_);
+          return;
+        }
+        clearEditorDirty_();
+      }
+
+      currentRoute_ = next;
+      showPage_(ROUTES_[next.name].page);
+      $('page-error').hidden = true;
+      try {
+        ROUTES_[next.name].load(next.arg);
+      } catch (error) {
+        showPageError_(getErrorMessage(error));
+      }
+    }
+
+    function routeToHash_(route) {
+      return route.arg ? `#${route.name}/${encodeURIComponent(route.arg)}` : `#${route.name}`;
+    }
+
+    function showPage_(pageId) {
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.toggle('active', page.id === pageId);
+      });
+      window.scrollTo(0, 0);
+    }
+
+    function showPageError_(message) {
+      const box = $('page-error');
+      box.textContent = message;
+      box.hidden = false;
+    }
+
+    function isEditorDirty_() {
+      return (currentRoute_.name === 'visit' || currentRoute_.name === 'trip') && modalDirty;
+    }
+
+    function clearEditorDirty_() { modalDirty = false; }
+
+    // ============================================================
+    // DATA LOADING
+    // Two calls at startup and nothing on a timer that isn't scoped to the
+    // page you are actually looking at.
+    // ============================================================
+
+    // Every guest, once, with tier/priority/archive state already decided by
+    // the backend. Assembling one card there costs the same reads as all of
+    // them, so paging would have bought nothing while turning search into a
+    // network round trip per keystroke. Held in memory, the Directory opens
+    // instantly and search is local across every field a card displays.
+    let directoryRecords_ = [];
+    let directoryTierCounts_ = { priority: 0, today: 0, upcoming: 0, past: 0, all: 0 };
+    let directoryIncludesArchived_ = false;
+    let homeSummary_ = null;
+
+    function loadDirectorySnapshot_(options) {
+      const opts = options || {};
+      return apiCall('getDirectorySnapshot', { options: { includeArchived: opts.includeArchived } })
         .then(data => {
-          refreshButton.disabled = false;
-          applyAppData(data);
-        })
-        .catch(error => handleApiError(error, error => {
-          refreshButton.disabled = false;
-          $('loading').style.display = 'none';
-          const message = getErrorMessage(error);
-          if (allGuests.length === 0) showFatalError(message);
-          else showToast(`Refresh failed: ${message}`, 'error');
-        }));
+          directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
+          directoryTierCounts_ = data.tierCounts || directoryTierCounts_;
+          directoryIncludesArchived_ = Boolean(opts.includeArchived);
+          roomInventory = Array.isArray(data.rooms) ? data.rooms : [];
+          roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
+          appTimezone = String(data.timezone || '');
+          buildRoomOptions();
+          updateLastRefreshed(data.generatedAt);
+          return data;
+        });
     }
 
-    function applyAppData(data) {
-      // Only reached on a genuinely successful API response, so this is the
-      // one place it's safe to hide the gate — hiding it eagerly in
-      // handleCredentialResponse showed the empty app shell for a beat even
-      // for accounts that turn out not to be whitelisted.
+    function loadHomeSummary_() {
+      return apiCall('getHomeSummary').then(summary => {
+        homeSummary_ = summary;
+        return summary;
+      });
+    }
+
+    // A searchable blob per guest, built once when the snapshot lands. This
+    // is what makes the search bar honest about the fields it promises —
+    // rooms, dates, travel, seva, meetings and trips are all in here, and
+    // matching happens locally instead of asking the server to re-derive it.
+    function prepareRecordForDisplay_(record) {
+      const visit = record.visit || null;
+      const parts = [
+        record.name,
+        record.personType,
+        record.isForeign ? 'foreign national' : '',
+        (record.invitedPurpose || []).join(' '),
+        record.invitedPurposeOther,
+        record.staffAssignment,
+        record.archived ? 'archived' : '',
+        record.residingInAshram ? 'currently residing resident' : '',
+        (record.priorityReasons || []).join(' ')
+      ];
+
+      if (visit) {
+        parts.push(visit.accommodation, visit.outsideAccommodationDetails, visit.selfArrangedStayingAt);
+        parts.push(visit.arrivalDate, visit.departureDate, visit.arrivalDisplay, visit.departureDisplay);
+        (visit.rooms || []).forEach(room => {
+          parts.push(room);
+          const meta = roomMetadataMap.get(room);
+          if (meta) parts.push(meta.building, meta.category);
+        });
+        if (visit.pickupRequired) parts.push('pickup', visit.pickupFrom, visit.pickupDate, visit.pickupBookingState);
+        if (visit.dropoffRequired) parts.push('drop-off dropoff', visit.dropoffTo, visit.dropoffDate, visit.dropoffBookingState);
+        (visit.travelLegs || []).forEach(leg => {
+          parts.push(leg.transportType, leg.direction, leg.from, leg.to, leg.serviceNumber, leg.travelDate, leg.status);
+        });
+      }
+
+      (record.sevaTeams || []).forEach(team => parts.push('seva team', team.name, team.status));
+      (record.specificSeva || []).forEach(entry => parts.push('seva task', entry.description, entry.status));
+      (record.upcomingMeetings || []).forEach(meeting => parts.push('meeting with swamiji', meeting.date));
+      (record.mealsToday || []).forEach(meal => parts.push('meal', meal.meal, meal.included ? 'included' : 'excluded'));
+      (record.trips || []).forEach(trip => parts.push('trip', trip.name, trip.status));
+
+      record.searchText = normalizeSearchText(parts.filter(Boolean).join(' '));
+      return record;
+    }
+
+    function matchesRecordSearch_(record, query) {
+      const normalized = normalizeSearchText(query);
+      if (!normalized) return true;
+      return normalized.split(/\s+/).every(term => record.searchText.includes(term));
+    }
+
+    // The one successful-response path, so this is where the sign-in gate
+    // finally drops — hiding it any earlier flashed the empty app shell at
+    // accounts that turn out not to be authorized.
+    function startSession_() {
       $('signin-gate').style.display = 'none';
-      // Keep the short-lived ID token as a safety net even though session
-      // tokens are the primary mechanism now — if createSession fails below
-      // (backend not yet redeployed, sheet/API hiccup, etc.) this is what
-      // stops a reopen from regressing all the way back to "tap every time."
-      // Blank on a pure session-token resume (resumeWithSession_ never sets
-      // currentIdToken), which is fine — the session token already works.
+      // The short-lived ID token stays as a safety net: if createSession
+      // below fails, this is what stops the next reopen regressing to
+      // "sign in every time". Blank on a pure session resume, which is
+      // fine — that token already works.
       if (currentIdToken) localStorage.setItem(STORED_TOKEN_KEY, currentIdToken);
-      // Mint our own long-lived session token the first time we get here
-      // without one — either a fresh sign-in, or a resume off the
-      // short-lived STORED_TOKEN_KEY fallback — so every later reopen can
-      // skip Google entirely via resumeWithSession_() above. Already having
-      // one means we got here by resuming with it, so there's nothing to do.
       if (!localStorage.getItem(SESSION_TOKEN_KEY)) {
         apiCall('createSession')
           .then(result => localStorage.setItem(SESSION_TOKEN_KEY, result.sessionToken))
           .catch(err => console.error('createSession failed — will retry next reopen, falling back to the ID-token path meanwhile:', err));
       }
-      roomInventory = Array.isArray(data && data.rooms) ? data.rooms : [];
-      appTimezone = String(data && data.timezone || '');
-      roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
-      allSevaTeams = Array.isArray(data && data.sevaTeams) ? data.sevaTeams : [];
-      allGuests = (Array.isArray(data && data.guests) ? data.guests : [])
-        .map(prepareGuestForDisplay);
-      sortGuestsLocally();
-      pendingGuestIds.clear();
-      buildRoomOptions();
-      syncBuildingFilterChips();
-      $('loading').style.display = 'none';
-      updateLastRefreshed(data && data.generatedAt);
-      renderApp();
-      // The Seva Teams screen is a separate surface from the guest cards —
-      // if it's open when a refresh lands (e.g. right after saving a team),
-      // reflect the new data there too instead of leaving it stale until
-      // the next manual open.
-      if ($('seva-teams-modal').style.display === 'flex') renderSevaTeamsList();
+
+      // The homepage renders off the small summary call so the first paint
+      // doesn't wait on the whole directory; the directory then loads in the
+      // background and is warm by the time anyone opens it.
+      $('loading').style.display = 'block';
+      loadHomeSummary_()
+        .then(() => {
+          $('loading').style.display = 'none';
+          handleRouteChange_();
+          return loadDirectorySnapshot_({ includeArchived: false });
+        })
+        .then(() => { if (currentRoute_.name === 'home' || currentRoute_.name === 'directory') refreshCurrentPage_({ silent: true }); })
+        .catch(error => handleApiError(error, err => {
+          $('loading').style.display = 'none';
+          showFatalError(getErrorMessage(err));
+        }));
+    }
+
+    // ============================================================
+    // HOMEPAGE
+    // ============================================================
+
+    const WORKSPACE_CARDS_ = Object.freeze([
+      {
+        route: '#accommodation', accent: '#6fbaf0', icon: 'icon-bed', title: 'Accommodation & Travel',
+        stats: s => [
+          { value: s.accommodation.arrivingToday, label: 'ARRIVING TODAY' },
+          { value: s.accommodation.departingToday, label: 'DEPARTING TODAY' },
+          { value: s.accommodation.currentlyResiding, label: 'RESIDING' }
+        ],
+        attention: s => s.accommodation.attentionNeeded,
+        attentionLabel: n => `${n} need attention`
+      },
+      {
+        route: '#meals', accent: '#71d99d', icon: 'icon-meal', title: 'Meals',
+        stats: s => ALLOWED_MEALS.map(meal => ({ value: (s.meals.counts || {})[meal] || 0, label: meal.toUpperCase() })),
+        quiet: s => `Expected attendance today · ${s.meals.exceptionCount || 0} exception${s.meals.exceptionCount === 1 ? '' : 's'}`
+      },
+      {
+        route: '#meetings', accent: '#fa8072', icon: 'icon-lotus', title: 'Meetings with Swamiji',
+        stats: s => [
+          { value: s.meetings.today, label: 'TODAY' },
+          { value: s.meetings.upcoming, label: 'UPCOMING' }
+        ],
+        attention: s => s.meetings.needsCompletion,
+        attentionLabel: n => `${n} need completion`
+      },
+      {
+        route: '#seva', accent: '#1abc9c', icon: 'icon-people', title: 'Seva Teams & Tasks',
+        stats: s => [
+          { value: s.seva.activeTeams, label: 'ACTIVE TEAMS' },
+          { value: s.seva.activeTeamMembers, label: 'MEMBERS' },
+          { value: s.seva.activeSpecificSeva, label: 'ACTIVE TASKS' }
+        ],
+        quiet: s => (s.seva.startingSoon ? `${s.seva.startingSoon} team${s.seva.startingSoon === 1 ? '' : 's'} not started yet` : '')
+      },
+      {
+        route: '#trips', accent: '#b878d6', icon: 'icon-bus', title: 'Trips',
+        stats: s => [
+          { value: s.trips.active, label: 'ACTIVE' },
+          { value: s.trips.upcoming, label: 'UPCOMING' }
+        ],
+        attention: s => s.trips.needingTravel,
+        attentionLabel: n => `${n} trip${n === 1 ? '' : 's'} need travel`
+      }
+    ]);
+
+    function renderHome_() {
+      const summary = homeSummary_;
+      const grid = $('workspace-grid');
+      grid.replaceChildren();
+      if (!summary) return;
+
+      $('ribbon-stats').replaceChildren(
+        document.createTextNode(`${summary.directory.total} guest${summary.directory.total === 1 ? '' : 's'}`)
+      );
+      if (summary.directory.needsAttention) {
+        $('ribbon-stats').appendChild(document.createTextNode(' · '));
+        const attention = createElement('span', 'attention', `${summary.directory.needsAttention} need attention`);
+        $('ribbon-stats').appendChild(attention);
+      }
+
+      WORKSPACE_CARDS_.forEach(def => {
+        const card = createElement('button', 'workspace-card');
+        card.type = 'button';
+        card.style.setProperty('--accent', def.accent);
+        card.addEventListener('click', () => navigate(def.route));
+
+        const head = createElement('span', 'ws-head');
+        const iconWrap = createElement('span', 'ws-icon');
+        iconWrap.appendChild(createIcon_(def.icon));
+        head.appendChild(iconWrap);
+        head.appendChild(createElement('span', 'ws-title', def.title));
+        const go = createElement('span', 'ws-go');
+        go.appendChild(createIcon_('icon-chevron-right'));
+        head.appendChild(go);
+        card.appendChild(head);
+
+        const stats = createElement('span', 'ws-stats');
+        def.stats(summary).forEach(stat => {
+          const wrap = createElement('span', 'ws-stat');
+          wrap.appendChild(createElement('span', 'ws-stat-value', String(stat.value)));
+          wrap.appendChild(createElement('span', 'ws-stat-label', stat.label));
+          stats.appendChild(wrap);
+        });
+        card.appendChild(stats);
+
+        const foot = createElement('span', 'ws-foot');
+        const attentionCount = def.attention ? def.attention(summary) : 0;
+        if (attentionCount) {
+          foot.appendChild(createBadge(def.attentionLabel(attentionCount), 'badge-action'));
+        } else if (def.quiet) {
+          const text = def.quiet(summary);
+          if (text) foot.appendChild(createElement('span', 'ws-quiet', text));
+        }
+        card.appendChild(foot);
+
+        grid.appendChild(card);
+      });
+
+      renderHomeSearch_();
+    }
+
+    function createIcon_(iconId) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'icon');
+      svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', `#${iconId}`);
+      svg.appendChild(use);
+      return svg;
+    }
+
+    function renderHomeSearch_() {
+      const query = $('search-bar').value.trim();
+      const wrap = $('home-search-wrap');
+      const results = $('home-search-results');
+      const empty = $('home-search-empty');
+
+      if (!query) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      results.replaceChildren();
+
+      const matches = directoryRecords_.filter(record => matchesRecordSearch_(record, query)).slice(0, 60);
+      matches.forEach(record => results.appendChild(createFullGuestCard(record)));
+      empty.hidden = matches.length > 0;
     }
 
     // ============================================================
@@ -2891,102 +3442,208 @@
     let sevaWorkspaceData_ = { teams: [], individualTasks: [] };
 
     function loadSevaWorkspaceData_() {
+      return loadSevaPage_();
+    }
+
+    // Two views over the same fetched data — Teams, and the individual tasks
+    // that are deliberately independent of them. Somebody can hold both, and
+    // the two views say so rather than one hiding the other.
+    const SEVA_VIEWS_ = Object.freeze([
+      { key: 'teams', label: 'Seva Teams', accent: '#1abc9c' },
+      { key: 'tasks', label: 'Individual Tasks', accent: '#71d99d' }
+    ]);
+
+    let sevaView_ = 'teams';
+
+    function loadSevaPage_(view) {
+      if (view && SEVA_VIEWS_.some(v => v.key === view)) sevaView_ = view;
+      closeSevaTeamForm();
+      closeSpecificSevaForm_();
       return apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
         .then(data => {
           sevaWorkspaceData_ = data;
-          renderSevaTeamsList();
-          renderIndividualTasksList_();
+          renderSevaLists_();
         })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error')));
-    }
-
-    function openSevaTeamsModal() {
-      closeSevaTeamForm();
-      closeSpecificSevaForm_();
-      loadSevaWorkspaceData_();
-      $('seva-teams-modal').style.display = 'flex';
-      $('seva-teams-modal').setAttribute('aria-hidden', 'false');
-    }
-
-    function closeSevaTeamsModal() {
-      $('seva-teams-modal').style.display = 'none';
-      $('seva-teams-modal').setAttribute('aria-hidden', 'true');
-    }
-
-    // Phase A — minimal admin-readable view for auditDataIntegrity_impl_'s
-    // report. Read-only: this screen never fixes anything, it only shows
-    // what the backend found, same as the backend function it calls.
-    function openDataAuditModal() {
-      $('data-audit-modal').style.display = 'flex';
-      $('data-audit-modal').setAttribute('aria-hidden', 'false');
-    }
-
-    function closeDataAuditModal() {
-      $('data-audit-modal').style.display = 'none';
-      $('data-audit-modal').setAttribute('aria-hidden', 'true');
-    }
-
-    function runDataAuditReport() {
-      const statusEl = $('data-audit-status');
-      const resultsEl = $('data-audit-results');
-      statusEl.className = 'field-message info';
-      statusEl.textContent = 'Running audit...';
-      resultsEl.replaceChildren();
-      apiCall('runDataAudit')
-        .then(report => {
-          statusEl.className = 'field-message info';
-          statusEl.textContent = 'Generated ' + new Date(report.generatedAt).toLocaleString();
-          renderDataAuditResults(report);
-        })
-        .catch(error => handleApiError(error, () => {
-          statusEl.className = 'field-message';
-          statusEl.textContent = 'Audit failed: ' + error.message;
-        }));
-    }
-
-    // [report key, section label, one-line formatter] — one entry per check
-    // auditDataIntegrity_impl_ runs, in the same order the backend runs them.
-    const DATA_AUDIT_SECTIONS_ = [
-      ['duplicateGuestIds', 'Duplicate Guest IDs',
-        item => `Guest ID ${item.guestId} appears in rows ${item.rowNumbers.join(', ')}`],
-      ['missingChildIds', 'Missing child-record IDs',
-        item => `${item.sheet}, row ${item.rowNumber} (Guest ${item.guestId})`],
-      ['orphanedChildRows', 'Orphaned child rows (unknown Guest ID)',
-        item => `${item.sheet}, row ${item.rowNumber}: Guest ID ${item.guestId} not found`],
-      ['duplicateMealEntries', 'Duplicate meal entries (same guest, date, and meal)',
-        item => `Guest ${item.guestId}, ${item.date} ${item.meal} — rows ${item.rowNumbers.join(', ')}`],
-      ['membershipsMissingTeam', 'Memberships referencing a missing Seva Team',
-        item => `Guest ${item.guestId}, Team ${item.teamId}, row ${item.rowNumber}`],
-      ['ineligibleSevaMemberships', 'Ineligible Seva Team memberships',
-        item => `${item.name || item.guestId} (${item.personType}) — team(s): ${item.teamIds.join(', ')}`],
-      ['visitorsWithCabTravel', 'Visitors with active Cab/Travel records',
-        item => `${item.name || item.guestId} — ${item.reasons.join(', ')}`],
-      ['possibleGroupNames', 'Possible group/collective names (flagged only, never auto-split)',
-        item => `${item.name || item.guestId} — matched "${item.matchedKeyword}"`]
-    ];
-
-    function renderDataAuditResults(report) {
-      const container = $('data-audit-results');
-      container.replaceChildren();
-
-      DATA_AUDIT_SECTIONS_.forEach(([key, label, formatLine]) => {
-        const items = report[key] || [];
-
-        const header = createElement('div', 'travel-section-header');
-        header.appendChild(createElement('h3', 'travel-section-title', `${label} (${items.length})`));
-        container.appendChild(header);
-
-        if (!items.length) {
-          container.appendChild(createElement('div', 'travel-empty', 'None found.'));
-          return;
-        }
-
-        const stack = createElement('div', 'travel-stack');
-        items.forEach(item => {
-          stack.appendChild(createElement('div', 'travel-item', formatLine(item)));
+        .catch(error => {
+          handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error'));
+          throw error;
         });
-        container.appendChild(stack);
+    }
+
+    function renderSevaLists_() {
+      const teams = sevaWorkspaceData_.teams || [];
+      const tasks = sevaWorkspaceData_.individualTasks || [];
+
+      const tabs = $('seva-view-tabs');
+      tabs.replaceChildren();
+      SEVA_VIEWS_.forEach(def => {
+        const count = def.key === 'teams' ? teams.length : tasks.length;
+        const tab = createElement('button', `tier-tab${def.key === sevaView_ ? ' active' : ''}`);
+        tab.type = 'button';
+        tab.style.setProperty('--accent', def.accent);
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(def.key === sevaView_));
+        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
+        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.addEventListener('click', () => {
+          if (sevaView_ === def.key) return;
+          sevaView_ = def.key;
+          navigate(`#seva/${def.key}`);
+        });
+        tabs.appendChild(tab);
       });
+
+      renderSummaryTiles_($('seva-summary'), [
+        { value: teams.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TEAMS' },
+        { value: teams.filter(t => t.status === 'Seva not started').length, label: 'NOT STARTED' },
+        { value: tasks.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TASKS' },
+        { value: tasks.filter(t => t.status === 'Seva dates TBD').length, label: 'DATES NOT SET', attention: true }
+      ]);
+
+      $('seva-view-teams').hidden = sevaView_ !== 'teams';
+      $('seva-view-tasks').hidden = sevaView_ !== 'tasks';
+
+      renderSevaTeamsList();
+      renderIndividualTasksList_();
+    }
+
+    // ============================================================
+    // GUEST PROFILE
+    // The complete record for one person — every Visit including cancelled
+    // ones, and every meal, meeting, seva involvement and trip. Operational
+    // records are edited in their owning workspace; this page shows the
+    // whole picture and links out to where each part is actually changed.
+    // ============================================================
+
+    let currentGuestProfile_ = null;
+
+    function loadGuestProfile_(guestId) {
+      if (!guestId) { showPageError_('No guest was specified.'); return Promise.resolve(); }
+      return apiCall('getGuestProfile', { guestId })
+        .then(profile => {
+          currentGuestProfile_ = profile;
+          renderGuestProfile_(profile);
+        })
+        .catch(error => {
+          handleApiError(error, err => showPageError_(getErrorMessage(err)));
+          throw error;
+        });
+    }
+
+    function renderGuestProfile_(profile) {
+      $('guest-profile-name').textContent = profile.name || 'Guest';
+      const bits = [profile.personType];
+      if (profile.isForeign) bits.push('Foreign national');
+      if (profile.archived) bits.push('Archived');
+      $('guest-profile-subtitle').textContent = bits.filter(Boolean).join(' · ');
+
+      $('guest-profile-archive-btn').textContent = profile.archived ? 'Restore' : 'Archive';
+      // Delete is only ever offered once the backend has confirmed there is
+      // no history to orphan, so the interface can never present it and then
+      // answer with "archive instead".
+      $('guest-profile-delete-btn').hidden = !profile.canHardDelete;
+
+      const warning = $('guest-profile-warning');
+      const stranded = profile.engagementsOutsideStay || [];
+      warning.hidden = !stranded.length;
+      if (stranded.length) {
+        warning.textContent = `${stranded.length} engagement${stranded.length === 1 ? '' : 's'} fall outside this guest's stay dates: `
+          + stranded.map(item => `${item.kind} on ${item.date}`).join('; ') + '.';
+      }
+
+      const body = $('guest-profile-body');
+      body.replaceChildren();
+
+      const identity = [];
+      if ((profile.invitedPurpose || []).length) identity.push(`Purpose: ${profile.invitedPurpose.join(', ')}`);
+      if (profile.invitedPurposeOther) identity.push(profile.invitedPurposeOther);
+      if (profile.staffAssignment) identity.push(`Assignment: ${profile.staffAssignment}`);
+      if (identity.length) {
+        body.appendChild(buildProfileSection_('icon-user', 'Details', identity.map(text => ({ main: text }))));
+      }
+
+      body.appendChild(buildProfileSection_('icon-bed', 'Visits', (profile.visits || []).map(visit => ({
+        main: `${visit.arrivalDate || 'Arrival TBD'} → ${visit.departureDate || 'Departure TBD'}`,
+        meta: [visit.accommodation, (visit.rooms || []).join(' & '), visit.cancelled ? 'Cancelled' : ''].filter(Boolean).join(' · '),
+        cancelled: visit.cancelled,
+        action: { label: 'Open visit', run: () => openVisitEditor(profile.guestId, visit.visitId) }
+      })), 'No visits recorded.'));
+
+      body.appendChild(buildProfileSection_('icon-meal', 'Meals', (profile.mealOverrides || []).map(entry => ({
+        main: `${entry.meal} · ${formatDateKeyDisplay(entry.date)}`,
+        meta: entry.included ? 'Included' : 'Excluded'
+      })), 'No meal exceptions or invitations.'));
+
+      body.appendChild(buildProfileSection_('icon-lotus', 'Meetings with Swamiji', (profile.meetings || []).map(meeting => ({
+        main: meeting.time ? `${formatDateKeyDisplay(meeting.date)} · ${meeting.time}` : formatDateKeyDisplay(meeting.date),
+        meta: meeting.status,
+        cancelled: meeting.status === 'Cancelled'
+      })), 'No meetings.'));
+
+      body.appendChild(buildProfileSection_('icon-people', 'Seva', [
+        ...(profile.sevaTeams || []).map(team => ({ main: team.name, meta: team.status })),
+        ...(profile.specificSeva || []).map(task => ({ main: task.description, meta: task.status }))
+      ], 'No seva involvement.'));
+
+      body.appendChild(buildProfileSection_('icon-bus', 'Trips', (profile.trips || []).map(trip => ({
+        main: trip.name,
+        meta: trip.status,
+        cancelled: trip.status === 'Cancelled',
+        action: { label: 'Open trip', run: () => openTripEditor_(trip.tripId) }
+      })), 'Not on any trip.'));
+    }
+
+    function buildProfileSection_(iconId, title, rows, emptyText) {
+      const section = createElement('div', 'profile-section');
+      const heading = createElement('h3', 'profile-section-title');
+      heading.appendChild(createIcon_(iconId));
+      heading.appendChild(document.createTextNode(title));
+      section.appendChild(heading);
+
+      if (!rows.length) {
+        section.appendChild(createElement('div', 'zone-empty', emptyText || 'Nothing here.'));
+        return section;
+      }
+
+      rows.forEach(row => {
+        const item = createElement('div', `history-row${row.cancelled ? ' cancelled' : ''}`);
+        item.appendChild(createElement('div', 'history-main', row.main));
+        if (row.meta) item.appendChild(createElement('div', 'history-meta', row.meta));
+        if (row.action) {
+          const button = createElement('button', 'row-btn', row.action.label);
+          button.type = 'button';
+          button.addEventListener('click', row.action.run);
+          item.appendChild(button);
+        }
+        section.appendChild(item);
+      });
+      return section;
+    }
+
+    function toggleArchiveCurrentGuest_() {
+      const profile = currentGuestProfile_;
+      if (!profile) return;
+      const archiving = !profile.archived;
+      apiCall(archiving ? 'archiveGuest' : 'restoreGuest', { guestId: profile.guestId, version: profile.version })
+        .then(() => {
+          showToast(archiving ? 'Guest archived.' : 'Guest restored.', 'success');
+          return loadGuestProfile_(profile.guestId);
+        })
+        .then(() => loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ }))
+        .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+    }
+
+    function deleteCurrentGuest_() {
+      const profile = currentGuestProfile_;
+      if (!profile) return;
+      if (!window.confirm(`Permanently delete ${profile.name}? This cannot be undone.`)) return;
+      apiCall('deleteGuest', { guestId: profile.guestId, version: profile.version })
+        .then(() => {
+          showToast('Guest deleted.', 'success');
+          return loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ });
+        })
+        .then(() => navigate('#directory'))
+        .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
     }
 
     function msToDateDisplay_(ms) {
@@ -3144,9 +3801,8 @@
 
       $('seva-team-save-btn').disabled = true;
       apiCall('saveSevaTeam', { payload })
-        .then(data => {
-          $('seva-team-save-btn').disabled = false;
-          applyAppData(data);
+        .then(() => {
+          $("seva-team-save-btn").disabled = false;
           closeSevaTeamForm();
           loadSevaWorkspaceData_();
           showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
@@ -3160,8 +3816,7 @@
     function deleteSevaTeamRow(teamId, name) {
       if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
       apiCall('deleteSevaTeam', { teamId })
-        .then(data => {
-          applyAppData(data);
+        .then(() => {
           loadSevaWorkspaceData_();
           showToast('Seva Team deleted.', 'success');
         })
@@ -3281,261 +3936,6 @@
         .catch(error => handleApiError(error, err => showToast(`Delete failed: ${getErrorMessage(err)}`, 'error')));
     }
 
-    function prepareGuestForDisplay(guest) {
-      const rooms = Array.isArray(guest.Rooms) ? guest.Rooms : (guest.Room ? [guest.Room] : []);
-      const roomMetas = rooms.map(value => roomMetadataMap.get(value)).filter(Boolean);
-      const uniqueCategories = [...new Set(roomMetas.map(meta => meta.category).filter(Boolean))];
-      const prepared = {
-        ...guest,
-        roomBuilding: guest.roomBuilding || roomMetas.map(meta => meta.building).filter(Boolean).join(' & '),
-        roomNumber: guest.roomNumber || roomMetas.map(meta => meta.room).filter(Boolean).join(' & '),
-        // Only shown/searchable as a single category when every assigned
-        // room shares it — a mixed-category split (rare) just omits the
-        // badge rather than showing a misleadingly specific single one.
-        roomCategory: guest.roomCategory || (uniqueCategories.length === 1 ? uniqueCategories[0] : ''),
-        'Pickup Required': resolveTransportRequirement(
-          guest['Pickup Required'],
-          guest['Pickup Cab Time'],
-          guest['Pickup Cab details']
-        ),
-        'Pickup Booking Confirmed': Boolean(guest['Pickup Booking Confirmed']),
-        pickupBookingState: normalizeCabBookingState(
-          guest.pickupBookingState,
-          guest['Pickup Booking Confirmed']
-        ),
-        'Dropoff Required': resolveTransportRequirement(
-          guest['Dropoff Required'],
-          guest['Dropoff Cab Time'],
-          guest['Dropoff Cab details']
-        ),
-        'Dropoff Booking Confirmed': Boolean(guest['Dropoff Booking Confirmed']),
-        dropoffBookingState: normalizeCabBookingState(
-          guest.dropoffBookingState,
-          guest['Dropoff Booking Confirmed']
-        ),
-        travelLegs: (Array.isArray(guest.travelLegs) ? guest.travelLegs : [])
-          .map((leg, index) => prepareTravelLegForDisplay(leg, index))
-          .sort((a, b) => a.travelOrder - b.travelOrder)
-      };
-
-      const priority = calculateLocalPriority(prepared);
-      prepared.priorityTier = priority.tier;
-      prepared.priorityLabel = TIER_META[priority.tier].label;
-      prepared.priorityReasons = priority.reasons;
-      prepared.prioritySortMs = priority.sortMs;
-      prepared.searchIndex = buildSearchIndex(prepared);
-      return prepared;
-    }
-
-    function prepareTravelLegForDisplay(leg, index = 0) {
-      const dateValue = String(leg && leg.travelDate || '');
-      const timeValue = String(leg && leg.travelTime || '');
-      const local = localDateInfo(dateValue, timeValue, false);
-      const storedOrder = Number(leg && leg.travelOrder);
-      return {
-        travelId: String(leg && leg.travelId || ''),
-        travelOrder: Number.isFinite(storedOrder) && storedOrder > 0 ? storedOrder : index + 1,
-        direction: String(leg && leg.direction || 'Inbound'),
-        transportType: String(leg && leg.transportType || 'Other'),
-        from: String(leg && leg.from || ''),
-        to: String(leg && leg.to || ''),
-        travelDate: dateValue,
-        travelTime: timeValue,
-        travelDisplay: String(leg && leg.travelDisplay || local.display || ''),
-        travelMs: finiteTimestamp(leg && leg.travelMs) || local.ms,
-        timeConfirmed: Boolean(dateValue && (timeValue || (leg && leg.timeConfirmed))),
-        status: String(leg && leg.status || 'Required'),
-        serviceNumber: String(leg && leg.serviceNumber || ''),
-        bookingReference: String(leg && leg.bookingReference || ''),
-        notes: String(leg && leg.notes || '')
-      };
-    }
-
-    function normalizeCabBookingState(value, confirmed) {
-      const normalized = String(value || '').trim();
-      if (['Requested', 'Confirmed', 'Needs Reconfirmation', 'Needs Rescheduling'].includes(normalized)) {
-        return normalized;
-      }
-      return confirmed ? 'Confirmed' : 'Requested';
-    }
-
-    function resolveTransportRequirement(flagValue, scheduledValue, detailsValue) {
-      if (flagValue !== undefined && flagValue !== null && flagValue !== '') {
-        if (typeof flagValue === 'boolean') return flagValue;
-        return String(flagValue).trim().toLowerCase() === 'true';
-      }
-      return Boolean(scheduledValue || detailsValue);
-    }
-
-    // "Everything that needed booking is booked." Requires at least one thing
-    // to have needed booking in the first place — see the 'bookings complete'
-    // token in buildSearchIndex for why an empty itinerary doesn't count.
-    function isFullyBooked(guest, travelLegs) {
-      if (!isCabTravelEligible(guest.personType)) return false;
-      const needsPickup = Boolean(guest['Pickup Required']);
-      const needsDropoff = Boolean(guest['Dropoff Required']);
-      const hasAnythingToBook = needsPickup || needsDropoff || travelLegs.length > 0;
-      if (!hasAnythingToBook) return false;
-
-      if (needsPickup && guest.pickupBookingState !== 'Confirmed') return false;
-      if (needsDropoff && guest.dropoffBookingState !== 'Confirmed') return false;
-      return travelLegs.every(leg => leg.status === 'Confirmed');
-    }
-
-    function buildSearchIndex(guest) {
-      // A Visitor's Cabs/Travel sections are hidden entirely, so none of
-      // their fields (even stale data left over from before a Person Type
-      // change) should be searchable or power a quick-filter chip either —
-      // otherwise "cabs arrange" or a typed transport type could surface a
-      // guest whose card shows no cab/travel UI at all.
-      const cabTravelEligible = isCabTravelEligible(guest.personType);
-      const travelLegs = cabTravelEligible && Array.isArray(guest.travelLegs) ? guest.travelLegs : [];
-      const dateValues = [
-        guest.arrivalDate,
-        guest.departureDate,
-        cabTravelEligible ? guest.pickupDate : '',
-        cabTravelEligible ? guest.dropoffDate : '',
-        ...travelLegs.map(leg => leg.travelDate)
-      ].flatMap(buildDateSearchVariants);
-      const travelValues = travelLegs.flatMap(leg => [
-        leg.direction,
-        leg.transportType,
-        leg.from,
-        leg.to,
-        leg.travelDisplay,
-        leg.status,
-        leg.serviceNumber,
-        leg.bookingReference,
-        leg.notes
-      ]);
-
-      const nowMsForSeva = Date.now();
-      const guestSevaTeams = (Array.isArray(guest.sevaTeamIds) ? guest.sevaTeamIds : [])
-        .map(teamId => allSevaTeams.find(team => team.teamId === teamId))
-        .filter(Boolean);
-      const guestSpecificSeva = Array.isArray(guest.specificSeva) ? guest.specificSeva : [];
-      const allSevaStatuses = [
-        ...guestSevaTeams.map(team => computeSevaTeamStatus(team, nowMsForSeva)),
-        ...guestSpecificSeva.map(entry => computeSpecificSevaStatus(entry, nowMsForSeva))
-      ];
-
-      const todayKey = getAppDateKey(Date.now());
-      const mealOverridesForGuest = Array.isArray(guest.mealOverrides) ? guest.mealOverrides : [];
-      const mealsIncludedToday = ALLOWED_MEALS.filter(meal => resolveMealInclusion(guest, todayKey, meal, mealOverridesForGuest));
-      const hasMeetingToday = (Array.isArray(guest.swamijiMeetings) ? guest.swamijiMeetings : [])
-        .some(meeting => meeting.date === todayKey);
-
-      return normalizeSearchText([
-        guest.Name,
-        guest.personType,
-        guest.accommodation,
-        guest.Room,
-        guest.roomBuilding,
-        guest.roomNumber,
-        guest.roomCategory,
-        guest.Arrival,
-        guest.Departure,
-        cabTravelEligible ? guest['Pickup Cab Time'] : '',
-        cabTravelEligible ? guest['Pickup Cab details'] : '',
-        cabTravelEligible ? guest.pickupFrom : '',
-        cabTravelEligible ? guest.dropoffTo : '',
-        cabTravelEligible ? guest.pickupBookingState : '',
-        cabTravelEligible ? guest['Dropoff Cab Time'] : '',
-        cabTravelEligible ? guest['Dropoff Cab details'] : '',
-        cabTravelEligible ? guest.dropoffBookingState : '',
-        guest.priorityLabel,
-        cabTravelEligible && guest['Pickup Required'] ? 'ashram pickup required pickup required' : '',
-        cabTravelEligible && guest['Dropoff Required'] ? 'ashram drop-off required dropoff required' : '',
-        // Accommodation-aware, unlike the pre-V3 version of this token — a
-        // Visitor/Outside guest with no departure set was never actually
-        // "residing" anywhere the Ashram is responsible for.
-        requiresAshramRoom(guest) && !guest.Departure && hasGuestArrived(guest)
-          ? 'departure tbd currently residing current guest'
-          : '',
-        // The precise §17 definition (Accommodation=Ashram AND today falls
-        // within the stay), independent of the tier-3 tab's own grouping.
-        isCurrentlyResidingGuest(guest, nowMsForSeva) ? 'currently residing ashram now' : '',
-        ({
-          Ashram: 'accommodation ashram exclusively',
-          'Outside - Arranged by Ashram': 'outside ashram arranged accommodation',
-          'Outside - Self-arranged': 'outside self arranged accommodation',
-          'No overnight stay': 'no overnight stay accommodation',
-          TBD: 'accommodation tbd not decided undecided'
-        })[guest.accommodation] || '',
-        guest.accommodation === 'Outside - Arranged by Ashram' && !guest.outsideAccommodationConfirmed
-          ? 'outside accommodation not confirmed unconfirmed arrange'
-          : '',
-        Array.isArray(guest.invitedPurpose) ? guest.invitedPurpose.join(' ') : '',
-        guest.invitedPurposeOther,
-        guest.staffAssignment,
-        guestSevaTeams.length ? 'seva team member' : '',
-        guestSevaTeams.map(team => team.name).join(' '),
-        guestSpecificSeva.length ? 'specific seva assigned' : '',
-        guestSpecificSeva.map(entry => entry.description).join(' '),
-        allSevaStatuses.includes('Seva active') ? 'seva active' : '',
-        allSevaStatuses.includes('Seva not started') ? 'seva upcoming not started' : '',
-        allSevaStatuses.includes('Seva completed') ? 'seva completed' : '',
-        mealsIncludedToday.length ? 'meals today included' : '',
-        mealsIncludedToday.includes('Breakfast') ? 'breakfast today' : '',
-        mealsIncludedToday.includes('Lunch') ? 'lunch today' : '',
-        mealsIncludedToday.includes('Dinner') ? 'dinner today' : '',
-        hasMeetingToday ? 'meeting swamiji today' : '',
-        guest['Foreign National'] ? 'foreign national' : '',
-        guest['C-form complete']
-          ? 'c-form complete'
-          : (guest['Foreign National'] && hasGuestArrived(guest) ? 'c-form pending' : ''),
-        // Ungated variants of the same signals above: the priority reasons
-        // below only fire inside the 72-hour planning window, but these let
-        // the quick-filter chips find "still needs a room / cab" at any time.
-        requiresAshramRoom(guest) && guest.arrivalDate && !guest.Room
-          ? 'room not assigned unassigned'
-          : '',
-        cabTravelEligible && guest['Pickup Required'] && guest.pickupBookingState === 'Requested'
-          ? 'pickup unconfirmed pending'
-          : '',
-        cabTravelEligible && guest['Dropoff Required'] && guest.dropoffBookingState === 'Requested'
-          ? 'dropoff unconfirmed pending'
-          : '',
-        // Deliberately its own phrase, not "required" alone — pickup/dropoff
-        // already inject "ashram pickup required" style text below, and
-        // "required" by itself would match those too.
-        cabTravelEligible && travelLegs.some(leg => leg.status === 'Required') ? 'travel arrange' : '',
-        // One chip for every unsettled cab state, not just "Requested" —
-        // "Needs Reconfirmation" and "Needs Rescheduling" (a booking that was
-        // confirmed, then had its schedule moved out from under it) are just
-        // as much a cab you still have to deal with. "cabs" carries the
-        // match; "arrange" alone would also hit the travel token above.
-        cabTravelEligible && (
-          (guest['Pickup Required'] && guest.pickupBookingState !== 'Confirmed')
-          || (guest['Dropoff Required'] && guest.dropoffBookingState !== 'Confirmed')
-        )
-          ? 'cabs arrange'
-          : '',
-        !guest.arrivalDate ? 'no arrival date' : '',
-        // "Booked" means everything that needed arranging is arranged — so a
-        // guest with nothing to arrange at all is deliberately excluded
-        // (that's "self-arranging", not "booked", and including them would
-        // match most local guests and bury the ones actually confirmed).
-        isFullyBooked(guest, travelLegs) ? 'bookings complete' : '',
-        ...(guest.priorityReasons || []),
-        ...travelValues,
-        ...dateValues
-      ].filter(Boolean).join(' '));
-    }
-
-    function buildDateSearchVariants(dateValue) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateValue || ''))) return [];
-      const [year, month, day] = dateValue.split('-').map(Number);
-      const date = new Date(year, month - 1, day, 12, 0, 0);
-      return [
-        dateValue,
-        date.toLocaleDateString('en-GB'),
-        date.toLocaleDateString('en-US'),
-        date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }),
-        date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-      ];
-    }
-
     function normalizeSearchText(value) {
       return String(value || '')
         .normalize('NFD')
@@ -3547,234 +3947,14 @@
 
     function handleSearchInput() {
       window.clearTimeout(searchTimer);
+      $('search-clear-btn').hidden = !$('search-bar').value;
+      // Local, so there is no request to race and nothing to debounce beyond
+      // keeping typing smooth across a long list. Searching from anywhere
+      // takes you home, since that is where results are shown.
       searchTimer = window.setTimeout(() => {
-        syncActiveChipsFromSearchBar();
-        renderApp();
-      }, 180);
-    }
-
-    // Multiple chips can be active at once — activeChipQueries is the
-    // source of truth for which, and the search bar's text is just a
-    // space-joined rendering of it.
-    // Whatever the user typed by hand, with the active chips' own phrases
-    // stripped back out. Without this, rebuilding the bar from chip state
-    // alone would silently wipe a name someone was midway through typing.
-    function getTypedSearchText() {
-      let text = $('search-bar').value;
-      [...activeChipQueries].forEach(phrase => {
-        text = text.split(phrase).join(' ');
-      });
-      return text.replace(/\s+/g, ' ').trim();
-    }
-
-    // The bar is editable, so it — not the chip set — is the last word on
-    // what's actually being filtered. If someone types over a chip's phrase
-    // or deletes it, that chip has to stop claiming to be active, or it
-    // ends up highlighted while filtering nothing (and un-clicking it would
-    // then wipe whatever they replaced it with).
-    function syncActiveChipsFromSearchBar() {
-      const text = normalizeSearchText($('search-bar').value);
-      [...activeChipQueries].forEach(phrase => {
-        if (!text.includes(normalizeSearchText(phrase))) activeChipQueries.delete(phrase);
-      });
-    }
-
-    function applyQuickFilter(query) {
-      const typedText = getTypedSearchText();
-      const turningOn = !activeChipQueries.has(query);
-      if (turningOn) activeChipQueries.add(query);
-      else activeChipQueries.delete(query);
-
-      $('search-bar').value = [...activeChipQueries, typedText].filter(Boolean).join(' ');
-      window.clearTimeout(searchTimer);
-      renderApp();
-      // Only count it as "used" when the filter is actually being applied,
-      // not when the same chip is clicked again to clear it.
-      if (turningOn) recordQuickFilterUsage(query);
-      // Re-sort only once nothing is selected. Re-sorting on every tap moved
-      // chips out from under the finger mid-selection, so picking a second
-      // filter meant chasing a target that had just jumped position.
-      if (activeChipQueries.size === 0) reorderQuickFilters();
-    }
-
-    function initSectionNav() {
-      const pills = [...$('modal-section-nav').querySelectorAll('.section-nav-pill')];
-      const setActivePill = targetId => {
-        pills.forEach(pill => pill.classList.toggle('active', pill.dataset.target === targetId));
-      };
-
-      // A clicked pill wins immediately — short sections (e.g. an empty
-      // Travel Itinerary) may not have enough content below them to ever
-      // scroll their top into the observer's trigger band, which would
-      // otherwise leave an earlier pill stuck as "active" after a click.
-      let suppressObserverUntil = 0;
-      pills.forEach(pill => {
-        pill.addEventListener('click', () => {
-          setActivePill(pill.dataset.target);
-          suppressObserverUntil = Date.now() + 600;
-          $(pill.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      });
-
-      const observer = new IntersectionObserver(entries => {
-        if (Date.now() < suppressObserverUntil) return;
-        entries.forEach(entry => {
-          if (entry.isIntersecting) setActivePill(entry.target.id);
-        });
-      }, {
-        root: document.querySelector('.modal-content'),
-        rootMargin: '-56px 0px -70% 0px',
-        threshold: 0
-      });
-
-      pills.forEach(pill => observer.observe($(pill.dataset.target)));
-    }
-
-    const QUICK_FILTER_USAGE_KEY = 'ajatanandaQuickFilterUsageV3';
-
-    function loadQuickFilterUsage() {
-      try {
-        const raw = window.localStorage.getItem(QUICK_FILTER_USAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : {};
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch (error) {
-        return {};
-      }
-    }
-
-    function recordQuickFilterUsage(query) {
-      const usage = loadQuickFilterUsage();
-      usage[query] = (usage[query] || 0) + 1;
-      try {
-        window.localStorage.setItem(QUICK_FILTER_USAGE_KEY, JSON.stringify(usage));
-      } catch (error) {
-        // Storage unavailable (private browsing, quota) — the chips still
-        // work, they just won't remember usage across sessions.
-      }
-      // Deliberately does not reorder — applyQuickFilter holds that back
-      // until the selection is cleared, so the row stays still while chips
-      // are being picked.
-    }
-
-    // Most-used chips float to the front. Called on load, and once a chip
-    // selection is fully cleared — never from renderApp(), so chips don't
-    // shuffle under the user's cursor while they're just typing a search.
-    function reorderQuickFilters(usage) {
-      const container = $('quick-filters');
-      const usageMap = usage || loadQuickFilterUsage();
-      [...container.querySelectorAll('.filter-chip')]
-        .sort((a, b) => (usageMap[b.dataset.query] || 0) - (usageMap[a.dataset.query] || 0))
-        .forEach(chip => container.appendChild(chip));
-      // The toggle isn't a .filter-chip, so the sort above never touches it —
-      // re-append it explicitly so it always lands after the last chip.
-      container.appendChild($('quick-filters-toggle'));
-      applyChipVisibility();
-    }
-
-    // Building chips are generated from the Rooms sheet rather than written
-    // into the page, so adding or renaming a building there updates the
-    // filter row with no code change and no chip left pointing at a building
-    // that no longer exists. Rebuilt only when the set of building names
-    // actually changes — applyAppData runs on every background refresh, and
-    // blindly re-creating these would wipe the active state and re-sort the
-    // row out from under whoever is mid-filter.
-    function syncBuildingFilterChips() {
-      const container = $('quick-filters');
-      const desired = [...new Set(roomInventory.map(room => room.building).filter(Boolean))]
-        .map(name => ({ name, query: normalizeSearchText(name) }))
-        .filter(entry => entry.query);
-
-      const existing = [...container.querySelectorAll('.filter-chip[data-building="true"]')];
-      const existingQueries = existing.map(chip => chip.dataset.query);
-      const unchanged = existing.length === desired.length
-        && desired.every(entry => existingQueries.includes(entry.query));
-      if (unchanged) return;
-
-      // Captured before the loop below drops the stale building phrases —
-      // getTypedSearchText strips whatever is *currently* active, so it has
-      // to run while those entries are still in the set. Without it, a
-      // background refresh that happens to change the building list would
-      // wipe a name someone was midway through typing.
-      const typedText = getTypedSearchText();
-
-      existing.forEach(chip => {
-        // A building that no longer exists can't stay in the active filter
-        // set — it would silently match nothing and leave the search bar
-        // holding a phrase with no chip to turn it back off.
-        activeChipQueries.delete(chip.dataset.query);
-        chip.remove();
-      });
-
-      // Inserted ahead of the browse-by-attribute chips rather than appended
-      // last, so an unused device shows them above Flight/Train/Bus/Taxi.
-      // reorderQuickFilters' sort is stable, so this relative order survives
-      // until real usage data starts moving things around.
-      const firstBrowseChip = container.querySelector('.filter-chip[data-group="browse"]');
-      desired.forEach(entry => {
-        const chip = createElement('button', 'filter-chip', entry.name);
-        chip.type = 'button';
-        chip.setAttribute('aria-pressed', 'false');
-        chip.dataset.query = entry.query;
-        chip.dataset.building = 'true';
-        container.insertBefore(chip, firstBrowseChip);
-      });
-
-      $('search-bar').value = [...activeChipQueries, typedText].filter(Boolean).join(' ');
-      reorderQuickFilters();
-    }
-
-    // Six, so a fresh device's collapsed row is exactly the "needs
-    // attention" group rather than that group plus an arbitrary one or two
-    // buildings. Usage sorting still promotes whatever gets used most, so
-    // this only decides the starting state.
-    const QUICK_FILTER_VISIBLE_COUNT = 6;
-    const QUICK_FILTER_EXPANDED_KEY = 'ajatanandaQuickFiltersExpandedV3';
-
-    function isQuickFiltersExpanded() {
-      try {
-        return window.localStorage.getItem(QUICK_FILTER_EXPANDED_KEY) === 'true';
-      } catch (error) {
-        return false;
-      }
-    }
-
-    function setQuickFiltersExpanded(expanded) {
-      try {
-        window.localStorage.setItem(QUICK_FILTER_EXPANDED_KEY, String(expanded));
-      } catch (error) {
-        // Storage unavailable — the toggle still works, just resets on reload.
-      }
-      applyChipVisibility();
-    }
-
-    // Only the top QUICK_FILTER_VISIBLE_COUNT chips (by current usage-sorted
-    // order) show by default. The rest are genuinely `hidden`, not just
-    // visually collapsed, so they drop out of tab order until expanded.
-    function applyChipVisibility() {
-      const chips = [...$('quick-filters').querySelectorAll('.filter-chip')];
-      const expanded = isQuickFiltersExpanded();
-
-      chips.forEach((chip, index) => {
-        // An active filter is never hidden, wherever it sorts to. Otherwise
-        // collapsing could leave the list filtered with no visible chip
-        // explaining why and no way to switch it off short of clearing the
-        // whole search.
-        const isActive = activeChipQueries.has(chip.dataset.query);
-        chip.hidden = !expanded && !isActive && index >= QUICK_FILTER_VISIBLE_COUNT;
-      });
-
-      const toggle = $('quick-filters-toggle');
-      const hiddenCount = chips.filter(chip => chip.hidden).length;
-      // Two separate questions: "is this row collapsible at all" (below) and
-      // "how many are hidden right now" (the label). When expanded nothing is
-      // hidden, but the toggle has to stay put as the way back to collapsed.
-      if (chips.length <= QUICK_FILTER_VISIBLE_COUNT || (!expanded && hiddenCount === 0)) {
-        toggle.hidden = true;
-        return;
-      }
-      toggle.hidden = false;
-      toggle.textContent = expanded ? '− Show less' : `+${hiddenCount} more`;
-      toggle.setAttribute('aria-expanded', String(expanded));
+        if (currentRoute_.name !== 'home') navigate('#home');
+        else renderHomeSearch_();
+      }, 140);
     }
 
     function updateLastRefreshed(timestamp) {
@@ -3783,151 +3963,7 @@
     }
 
     function showFatalError(message) {
-      const app = $('app');
-      app.replaceChildren();
-      const error = createElement('div', 'error-state', `Unable to load dashboard: ${message}`);
-      app.appendChild(error);
-    }
-
-    // V3 Operational Workspaces Architecture — Phase D. Replaces the old
-    // tier-tab/createZone rendering — this now just toggles between the
-    // homepage tiles and search results, both living outside #app (which
-    // is unused going forward but left in the DOM rather than removed, in
-    // case a later phase wants it). The old tier-tab/zone/search-match
-    // renderer functions were retired outright in Phase J once nothing
-    // called them.
-    // A monotonically increasing token guards against an older, slower
-    // search response landing after a newer one and clobbering its results
-    // — a real risk now that search is a network round trip, not a
-    // synchronous local filter.
-    let searchRequestToken_ = 0;
-
-    function renderApp() {
-      $('search-clear-btn').hidden = !$('search-bar').value;
-      const query = $('search-bar').value.trim();
-
-      if (!query) {
-        searchRequestToken_ += 1;
-        $('home-tiles').hidden = false;
-        $('home-search-results').hidden = true;
-        $('home-search-empty').hidden = true;
-        return;
-      }
-
-      $('home-tiles').hidden = true;
-      $('home-search-empty').hidden = true;
-
-      const requestToken = ++searchRequestToken_;
-      apiCall('searchGuestCards', { query, limit: 25 })
-        .then(results => {
-          if (requestToken !== searchRequestToken_) return;
-          const container = $('home-search-results');
-          container.replaceChildren();
-          if (!results.length) {
-            container.hidden = true;
-            $('home-search-empty').hidden = false;
-            return;
-          }
-          results.forEach(summary => container.appendChild(createFullGuestCard(summary)));
-          container.hidden = false;
-        })
-        .catch(error => handleApiError(error, err => {
-          if (requestToken !== searchRequestToken_) return;
-          showToast(`Search failed: ${getErrorMessage(err)}`, 'error');
-        }));
-    }
-
-    // Touch-only (mouse drags never fire touch events, so desktop is
-    // untouched). Deliberately does no visual follow for an ordinary swipe —
-    // only at a boundary (already on Priority/Past with nowhere further to
-    // go) does the content rubber-band toward the finger and spring back,
-    // the same "there's nothing past this" cue iOS/Android use for
-    // overscroll, so a swipe that goes nowhere still feels intentional
-    // rather than broken.
-    function initSwipeNavigation() {
-      let startX = 0;
-      let startY = 0;
-      let isHorizontal = null;
-      let rubberBanding = false;
-      let pendingDx = null;
-      let rafId = null;
-      const SWIPE_THRESHOLD = 60;
-      const RUBBER_BAND_MAX = 44;
-
-      // #app only wraps the current tier's card list, so when a tier is
-      // empty its box is a few lines tall and stops well short of the
-      // viewport bottom — listening on #app left that lower area dead to
-      // touch. Listening on document instead means the whole screen is
-      // live, at the cost of also seeing drags that start on the header or
-      // search bar; harmless since those still need >60px of mostly-
-      // horizontal motion to do anything.
-      function inertForGesture() {
-        return $('tier-tabs').hidden || $('modal').getAttribute('aria-hidden') === 'false';
-      }
-
-      // Coalesces touchmove's per-event style writes into one per animation
-      // frame — without this, cards in the boundary tiers visibly glitched
-      // as the transform was rewritten faster than the display could paint.
-      function applyPendingTransform() {
-        rafId = null;
-        if (pendingDx === null) return;
-        $('app').style.transform = `translateX(${pendingDx}px)`;
-        pendingDx = null;
-      }
-
-      document.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1 || inertForGesture()) return;
-        startX = event.touches[0].clientX;
-        startY = event.touches[0].clientY;
-        isHorizontal = null;
-      }, { passive: true });
-
-      document.addEventListener('touchmove', event => {
-        if (event.touches.length !== 1 || inertForGesture()) return;
-        const dx = event.touches[0].clientX - startX;
-        const dy = event.touches[0].clientY - startY;
-
-        if (isHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-          isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
-        }
-        if (!isHorizontal) return;
-
-        const atStart = activeTier === 1 && dx > 0;
-        const atEnd = activeTier === 5 && dx < 0;
-        if (atStart || atEnd) {
-          if (!rubberBanding) {
-            rubberBanding = true;
-            $('app').style.willChange = 'transform';
-          }
-          pendingDx = Math.sign(dx) * Math.min(Math.abs(dx) * 0.3, RUBBER_BAND_MAX);
-          if (rafId === null) rafId = requestAnimationFrame(applyPendingTransform);
-        }
-      }, { passive: true });
-
-      document.addEventListener('touchend', event => {
-        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-        pendingDx = null;
-
-        if (rubberBanding) {
-          const app = $('app');
-          app.style.transition = 'transform 0.2s ease';
-          app.style.transform = '';
-          window.setTimeout(() => {
-            app.style.transition = '';
-            app.style.willChange = '';
-          }, 210);
-          rubberBanding = false;
-        }
-
-        if (isHorizontal) {
-          const dx = event.changedTouches[0].clientX - startX;
-          if (Math.abs(dx) > SWIPE_THRESHOLD) {
-            if (dx < 0 && activeTier < 5) { activeTier += 1; renderApp(); }
-            else if (dx > 0 && activeTier > 1) { activeTier -= 1; renderApp(); }
-          }
-        }
-        isHorizontal = null;
-      });
+      showPageError_(`Unable to load: ${message}`);
     }
 
     function hasGuestArrived(guest) {
@@ -4093,120 +4129,157 @@
       }
     ];
 
-    function renderHomeTiles(summary) {
-      const container = $('home-tiles');
-      container.replaceChildren();
-      HOME_TILE_DEFS_.forEach(def => {
-        const tile = createElement('div', 'card home-tile');
-        tile.tabIndex = 0;
-        tile.setAttribute('role', 'button');
-        tile.setAttribute('aria-label', def.title);
-        tile.addEventListener('click', () => openWorkspaceTile_(def));
-        tile.addEventListener('keydown', event => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openWorkspaceTile_(def);
+    // ============================================================
+    // GUEST DIRECTORY
+    // The V2 dashboard's visual language — tier tabs, filter chips, zone
+    // headers, a responsive grid of full cards — over the whole guest list
+    // held in memory. No pagination and no per-keystroke request: every
+    // record is already here, so tiering, filtering and searching are all
+    // instant and all local.
+    // ============================================================
+
+    const DIRECTORY_TIERS_ = Object.freeze([
+      { key: 'priority', tier: 1, label: 'Priority', accent: '#ff8b84', zone: 'zone-urgent', description: 'Guests with a real unresolved operational matter' },
+      { key: 'today', tier: 2, label: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Activity today, and not already Priority' },
+      { key: 'upcoming', tier: 3, label: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
+      { key: 'past', tier: 4, label: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
+      // Not a tier of its own — every non-archived record, whichever tier it
+      // sits in. Kept last so the four exclusive tiers read as a sequence.
+      { key: 'all', tier: null, label: 'All Guests', accent: '#b878d6', zone: '', description: 'Every active Directory record' }
+    ]);
+
+    const DIRECTORY_CHIPS_ = Object.freeze([
+      { label: 'Invited Guest', test: r => r.personType === 'Invited Guest' },
+      { label: 'Friend', test: r => r.personType === 'Friend' },
+      { label: 'Visitor', test: r => r.personType === 'Visitor' },
+      { label: 'Event Staff', test: r => r.personType === 'Event Staff' },
+      { label: 'Other', test: r => r.personType === 'Other' },
+      { label: 'Foreign national', test: r => Boolean(r.isForeign) },
+      { label: 'Residing in Ashram', test: r => Boolean(r.residingInAshram) },
+      { label: 'Has a visit', test: r => Boolean(r.visit) },
+      { label: 'No visit', test: r => !r.visit },
+      { label: 'On a Seva Team', test: r => (r.sevaTeams || []).length > 0 },
+      { label: 'Individual Seva', test: r => (r.specificSeva || []).length > 0 },
+      { label: 'On a Trip', test: r => (r.trips || []).length > 0 }
+    ]);
+
+    let directoryTierKey_ = 'priority';
+    const directoryActiveChips_ = new Set();
+    let directoryShowArchived_ = false;
+    let directorySearchTimer_ = null;
+
+    function renderDirectory_(arg) {
+      if (arg && DIRECTORY_TIERS_.some(t => t.key === arg)) directoryTierKey_ = arg;
+      renderDirectoryTabs_();
+      renderDirectoryChips_();
+      renderDirectoryBody_();
+    }
+
+    function directoryFilteredRecords_() {
+      const query = $('directory-search').value.trim();
+      return directoryRecords_.filter(record => {
+        if (!directoryShowArchived_ && record.archived) return false;
+        if (directoryActiveChips_.size) {
+          for (const label of directoryActiveChips_) {
+            const chip = DIRECTORY_CHIPS_.find(c => c.label === label);
+            if (chip && !chip.test(record)) return false;
           }
-        });
-        tile.appendChild(createElement('div', 'guest-name', def.title));
-        def.lines(summary).filter(Boolean).forEach(text => {
-          tile.appendChild(createDetailLine(def.icon, text));
-        });
-        container.appendChild(tile);
+        }
+        return matchesRecordSearch_(record, query);
       });
     }
 
-    // Real navigation lands per workspace as each one ships (Phase E–I) —
-    // still a placeholder for whichever hasn't shipped yet.
-    function openWorkspaceTile_(def) {
-      if (def.workspace === 'accommodation') { openAccommodationWorkspace(); return; }
-      if (def.workspace === 'meals') { openMealsWorkspace(); return; }
-      if (def.workspace === 'meetings') { openMeetingsWorkspace(); return; }
-      if (def.workspace === 'trips') { openTripsWorkspace(); return; }
-      showToast(`${def.title} workspace is coming in a later phase.`, 'info');
+    function renderDirectoryTabs_() {
+      const container = $('directory-tabs');
+      container.replaceChildren();
+      const filtered = directoryFilteredRecords_();
+
+      DIRECTORY_TIERS_.forEach(def => {
+        const count = def.tier === null ? filtered.length : filtered.filter(r => r.tier === def.tier).length;
+        const tab = createElement('button', `tier-tab${def.key === directoryTierKey_ ? ' active' : ''}`);
+        tab.type = 'button';
+        tab.style.setProperty('--accent', def.accent);
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(def.key === directoryTierKey_));
+        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
+        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.addEventListener('click', () => {
+          if (directoryTierKey_ === def.key) return;
+          directoryTierKey_ = def.key;
+          navigate(`#directory/${def.key}`);
+        });
+        container.appendChild(tab);
+      });
     }
 
-    function loadHomeSummary() {
-      apiCall('getHomeSummary')
-        .then(summary => renderHomeTiles(summary))
-        .catch(error => handleApiError(error, err => {
-          console.error('getHomeSummary failed:', err);
-        }));
+    function renderDirectoryChips_() {
+      const container = $('directory-chips');
+      container.replaceChildren();
+
+      DIRECTORY_CHIPS_.forEach(def => {
+        const active = directoryActiveChips_.has(def.label);
+        const chip = createElement('button', `filter-chip${active ? ' active' : ''}`, def.label);
+        chip.type = 'button';
+        chip.setAttribute('aria-pressed', String(active));
+        chip.addEventListener('click', () => {
+          if (active) directoryActiveChips_.delete(def.label);
+          else directoryActiveChips_.add(def.label);
+          renderDirectory_();
+        });
+        container.appendChild(chip);
+      });
+
+      // Archived records are excluded by default and fetched only when
+      // actually asked for, since the snapshot has to be reloaded to include
+      // them at all.
+      const archivedChip = createElement('button', `filter-chip${directoryShowArchived_ ? ' active' : ''}`, 'Show archived');
+      archivedChip.type = 'button';
+      archivedChip.setAttribute('aria-pressed', String(directoryShowArchived_));
+      archivedChip.addEventListener('click', () => {
+        directoryShowArchived_ = !directoryShowArchived_;
+        if (directoryShowArchived_ && !directoryIncludesArchived_) {
+          loadDirectorySnapshot_({ includeArchived: true })
+            .then(() => renderDirectory_())
+            .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+          return;
+        }
+        renderDirectory_();
+      });
+      container.appendChild(archivedChip);
     }
 
-    // Guest Directory — paginated getDirectory (lightweight rows only) with
-    // exactly one getGuestCardSummaries call per page turn to enrich the
-    // visible page into full cards. Never one request per row (plan §2/§4).
-    const DIRECTORY_PAGE_SIZE_ = 20;
-    let directoryOffset_ = 0;
-    let directoryTotal_ = 0;
-    let directoryNameQuery_ = '';
-    let directorySearchTimer_ = null;
-    let directoryRequestToken_ = 0;
+    function renderDirectoryBody_() {
+      const body = $('directory-body');
+      body.replaceChildren();
 
-    function openDirectory() {
-      directoryOffset_ = 0;
-      directoryNameQuery_ = '';
-      $('directory-search').value = '';
-      $('directory-modal').style.display = 'flex';
-      $('directory-modal').setAttribute('aria-hidden', 'false');
-      loadDirectoryPage();
-    }
+      const filtered = directoryFilteredRecords_();
+      const def = DIRECTORY_TIERS_.find(t => t.key === directoryTierKey_) || DIRECTORY_TIERS_[0];
+      const records = def.tier === null ? filtered : filtered.filter(r => r.tier === def.tier);
 
-    function closeDirectory() {
-      $('directory-modal').style.display = 'none';
-      $('directory-modal').setAttribute('aria-hidden', 'true');
-      window.clearTimeout(directorySearchTimer_);
+      $('directory-subtitle').textContent =
+        `${directoryTierCounts_.all} active record${directoryTierCounts_.all === 1 ? '' : 's'}`
+        + (directoryShowArchived_ ? ' · showing archived' : '');
+
+      const zone = createElement('div', `zone ${def.zone || 'zone-current'}`);
+      const header = createElement('div', 'zone-header');
+      header.appendChild(createElement('span', 'zone-title', def.label));
+      header.appendChild(createElement('span', 'zone-count', String(records.length)));
+      header.appendChild(createElement('span', 'zone-description', def.description));
+      zone.appendChild(header);
+
+      if (!records.length) {
+        zone.appendChild(createElement('div', 'zone-empty', 'Nobody here right now.'));
+      } else {
+        const grid = createElement('div', 'card-grid');
+        records.forEach(record => grid.appendChild(createFullGuestCard(record)));
+        zone.appendChild(grid);
+      }
+      body.appendChild(zone);
     }
 
     function handleDirectorySearchInput() {
       window.clearTimeout(directorySearchTimer_);
-      directorySearchTimer_ = window.setTimeout(() => {
-        directoryNameQuery_ = $('directory-search').value.trim();
-        directoryOffset_ = 0;
-        loadDirectoryPage();
-      }, 180);
-    }
-
-    function updateDirectoryPaginationControls_() {
-      const start = directoryTotal_ === 0 ? 0 : directoryOffset_ + 1;
-      const end = Math.min(directoryOffset_ + DIRECTORY_PAGE_SIZE_, directoryTotal_);
-      $('directory-page-info').textContent = `${start}–${end} of ${directoryTotal_}`;
-      $('directory-prev-btn').disabled = directoryOffset_ === 0;
-      $('directory-next-btn').disabled = end >= directoryTotal_;
-    }
-
-    function loadDirectoryPage() {
-      const listEl = $('directory-list');
-      const emptyEl = $('directory-empty');
-      listEl.replaceChildren();
-      emptyEl.hidden = true;
-      $('directory-page-info').textContent = 'Loading...';
-      $('directory-prev-btn').disabled = true;
-      $('directory-next-btn').disabled = true;
-
-      const requestToken = ++directoryRequestToken_;
-      apiCall('getDirectory', { options: { nameQuery: directoryNameQuery_, limit: DIRECTORY_PAGE_SIZE_, offset: directoryOffset_ } })
-        .then(page => {
-          if (requestToken !== directoryRequestToken_) return;
-          directoryTotal_ = page.total;
-          const guestIds = page.guests.map(row => row.guestId);
-          if (!guestIds.length) {
-            emptyEl.hidden = false;
-            updateDirectoryPaginationControls_();
-            return;
-          }
-          return apiCall('getGuestCardSummaries', { guestIds }).then(summaries => {
-            if (requestToken !== directoryRequestToken_) return;
-            summaries.forEach(summary => listEl.appendChild(createFullGuestCard(summary)));
-            updateDirectoryPaginationControls_();
-          });
-        })
-        .catch(error => handleApiError(error, err => {
-          if (requestToken !== directoryRequestToken_) return;
-          showToast(`Directory load failed: ${getErrorMessage(err)}`, 'error');
-          $('directory-page-info').textContent = '';
-        }));
+      directorySearchTimer_ = window.setTimeout(() => renderDirectory_(), 140);
     }
 
     // ============================================================
@@ -4220,37 +4293,172 @@
     // target (saveVisitPlan, Visit-scoped) changed.
     // ============================================================
 
-    function openAccommodationWorkspace() {
-      $('accommodation-workspace-modal').style.display = 'flex';
-      $('accommodation-workspace-modal').setAttribute('aria-hidden', 'false');
-      loadAccommodationWorkspaceList();
+    // Sections are computed from the visit rows themselves rather than asked
+    // for separately, so switching between them is instant and the counts on
+    // the tabs always agree with what the section actually contains.
+    const ACCOMMODATION_SECTIONS_ = Object.freeze([
+      { key: 'attention', label: 'Needs Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
+      { key: 'arriving', label: 'Arriving Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today },
+      { key: 'residing', label: 'Residing', accent: '#b878d6', test: (v, today) => v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
+      { key: 'departing', label: 'Departing Today', accent: '#f6bd55', test: (v, today) => v.departureDate === today },
+      { key: 'upcoming', label: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
+      { key: 'past', label: 'Past & Cancelled', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
+    ]);
+
+    const ACCOMMODATION_CHIPS_ = Object.freeze([
+      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length },
+      { label: 'Accommodation TBD', test: v => v.accommodation === 'TBD' },
+      { label: 'Outside not confirmed', test: v => v.accommodation === 'Outside - Arranged by Ashram' && !v.outsideAccommodationConfirmed },
+      { label: 'C-form pending', test: v => Boolean(v.isForeign) && v.accommodation === 'Ashram' && !v.cformComplete },
+      { label: 'Pickup to arrange', test: v => v.pickupRequired && v.pickupBookingState !== 'Confirmed' },
+      { label: 'Drop-off to arrange', test: v => v.dropoffRequired && v.dropoffBookingState !== 'Confirmed' },
+      { label: 'Needs reconfirmation', test: v => v.pickupBookingState === 'Needs Reconfirmation' || v.dropoffBookingState === 'Needs Reconfirmation' },
+      { label: 'Needs rescheduling', test: v => v.pickupBookingState === 'Needs Rescheduling' || v.dropoffBookingState === 'Needs Rescheduling' },
+      { label: 'Personal travel to arrange', test: v => (v.travelLegs || []).some(leg => leg.status === 'Required') }
+    ]);
+
+    let accommodationVisits_ = [];
+    let accommodationSection_ = 'attention';
+    const accommodationActiveChips_ = new Set();
+
+    function visitAttentionReasons_(visit) {
+      if (visit.cancelled) return [];
+      const today = todayDateKey_();
+      if (visit.departureDate && visit.departureDate < today) return [];
+      return ACCOMMODATION_CHIPS_.filter(chip => chip.test(visit)).map(chip => chip.label);
     }
 
-    function closeAccommodationWorkspace() {
-      $('accommodation-workspace-modal').style.display = 'none';
-      $('accommodation-workspace-modal').setAttribute('aria-hidden', 'true');
+    function loadAccommodationPage_(section) {
+      if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) accommodationSection_ = section;
+      return apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
+        .then(data => {
+          accommodationVisits_ = Array.isArray(data.visits) ? data.visits : [];
+          renderAccommodationChips_();
+          renderAccommodationList_();
+        })
+        .catch(error => {
+          handleApiError(error, err => showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error'));
+          throw error;
+        });
     }
 
-    function loadAccommodationWorkspaceList() {
+    function renderAccommodationChips_() {
+      const container = $('accommodation-chips');
+      container.replaceChildren();
+      ACCOMMODATION_CHIPS_.forEach(def => {
+        const active = accommodationActiveChips_.has(def.label);
+        const chip = createElement('button', `filter-chip${active ? ' active' : ''}`, def.label);
+        chip.type = 'button';
+        chip.setAttribute('aria-pressed', String(active));
+        chip.addEventListener('click', () => {
+          if (active) accommodationActiveChips_.delete(def.label);
+          else accommodationActiveChips_.add(def.label);
+          renderAccommodationList_();
+        });
+        container.appendChild(chip);
+      });
+
+      // Building chips come from the Rooms sheet, so renaming or adding a
+      // building updates this row with no code change.
+      [...new Set(roomInventory.map(room => room.building).filter(Boolean))].forEach(building => {
+        const label = building;
+        const active = accommodationActiveChips_.has(label);
+        const chip = createElement('button', `filter-chip${active ? ' active' : ''}`, label);
+        chip.type = 'button';
+        chip.setAttribute('aria-pressed', String(active));
+        chip.addEventListener('click', () => {
+          if (active) accommodationActiveChips_.delete(label);
+          else accommodationActiveChips_.add(label);
+          renderAccommodationList_();
+        });
+        container.appendChild(chip);
+      });
+    }
+
+    function accommodationChipTest_(visit, label) {
+      const known = ACCOMMODATION_CHIPS_.find(c => c.label === label);
+      if (known) return known.test(visit);
+      // Otherwise it's a building chip: does this visit hold a room there?
+      return (visit.rooms || []).some(room => {
+        const meta = roomMetadataMap.get(room);
+        return meta && meta.building === label;
+      });
+    }
+
+    function renderAccommodationList_() {
+      const today = todayDateKey_();
       const listEl = $('accommodation-workspace-list');
       const emptyEl = $('accommodation-workspace-empty');
       listEl.replaceChildren();
-      emptyEl.hidden = true;
-      apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
-        .then(data => {
-          const visits = Array.isArray(data.visits) ? data.visits : [];
-          if (!visits.length) {
-            emptyEl.hidden = false;
-            return;
-          }
-          visits
-            .slice()
-            .sort((a, b) => (a.arrivalMs === null ? Infinity : a.arrivalMs) - (b.arrivalMs === null ? Infinity : b.arrivalMs))
-            .forEach(visit => listEl.appendChild(createAccommodationVisitCard(visit)));
-        })
-        .catch(error => handleApiError(error, err => {
-          showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error');
-        }));
+
+      const query = $('accommodation-search').value.trim();
+      const searchable = visit => normalizeSearchText([
+        visit.name, visit.personType, visit.accommodation, visit.arrivalDate, visit.departureDate,
+        (visit.rooms || []).join(' '), visit.pickupFrom, visit.dropoffTo
+      ].filter(Boolean).join(' '));
+
+      const filtered = accommodationVisits_.filter(visit => {
+        for (const label of accommodationActiveChips_) {
+          if (!accommodationChipTest_(visit, label)) return false;
+        }
+        if (!query) return true;
+        const text = searchable(visit);
+        return normalizeSearchText(query).split(/\s+/).every(term => text.includes(term));
+      });
+
+      renderSectionTabs_($('accommodation-tabs'), ACCOMMODATION_SECTIONS_, accommodationSection_, filtered, today, key => {
+        accommodationSection_ = key;
+        navigate(`#accommodation/${key}`);
+      });
+
+      const def = ACCOMMODATION_SECTIONS_.find(s => s.key === accommodationSection_) || ACCOMMODATION_SECTIONS_[0];
+      const rows = filtered
+        .filter(visit => def.test(visit, today))
+        .sort((a, b) => (a.arrivalMs === null ? Infinity : a.arrivalMs) - (b.arrivalMs === null ? Infinity : b.arrivalMs));
+
+      renderAccommodationSummary_(filtered, today);
+      rows.forEach(visit => listEl.appendChild(createAccommodationVisitCard(visit)));
+      emptyEl.hidden = rows.length > 0;
+      emptyEl.textContent = `Nothing in ${def.label.toLowerCase()}.`;
+    }
+
+    function renderAccommodationSummary_(visits, today) {
+      const counts = {};
+      ACCOMMODATION_SECTIONS_.forEach(def => { counts[def.key] = visits.filter(v => def.test(v, today)).length; });
+      renderSummaryTiles_($('accommodation-summary'), [
+        { value: counts.attention, label: 'NEEDS ATTENTION', attention: true },
+        { value: counts.arriving, label: 'ARRIVING TODAY' },
+        { value: counts.residing, label: 'RESIDING IN ASHRAM' },
+        { value: counts.departing, label: 'DEPARTING TODAY' }
+      ]);
+    }
+
+    // Shared by every workspace page, so the tabs behave and count the same
+    // way everywhere instead of each page inventing its own.
+    function renderSectionTabs_(container, defs, activeKey, rows, today, onSelect) {
+      container.replaceChildren();
+      defs.forEach(def => {
+        const count = rows.filter(row => def.test(row, today)).length;
+        const tab = createElement('button', `tier-tab${def.key === activeKey ? ' active' : ''}`);
+        tab.type = 'button';
+        tab.style.setProperty('--accent', def.accent);
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(def.key === activeKey));
+        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
+        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.addEventListener('click', () => { if (def.key !== activeKey) onSelect(def.key); });
+        container.appendChild(tab);
+      });
+    }
+
+    function renderSummaryTiles_(container, tiles) {
+      container.replaceChildren();
+      tiles.forEach(tile => {
+        const el = createElement('div', `summary-tile${tile.attention && tile.value ? ' attention' : ''}`);
+        el.appendChild(createElement('div', 'summary-value', String(tile.value)));
+        el.appendChild(createElement('div', 'summary-label', tile.label));
+        container.appendChild(el);
+      });
     }
 
     function createAccommodationVisitCard(visit) {
@@ -4369,6 +4577,39 @@
       openGuestPicker_(guestId => openVisitEditor(guestId, ''));
     }
 
+    // A Visit route is guestId or guestId/visitId — a blank visitId means a
+    // brand-new Visit for that guest, which is the one deliberate path in
+    // the whole app that creates one.
+    function loadVisitPage_(arg) {
+      const parts = String(arg || '').split('|');
+      const guestId = parts[0];
+      const visitId = parts[1] || '';
+      if (!guestId) { showPageError_('No guest was specified for this visit.'); return Promise.resolve(); }
+
+      return apiCall('getGuestProfile', { guestId })
+        .then(profile => {
+          const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
+          if (visitId && !visit) throw new Error('That visit no longer exists.');
+          populateVisitEditor_(profile, visit);
+          renderVisitWarnings_(profile);
+          clearEditorDirty_();
+        })
+        .catch(error => {
+          handleApiError(error, err => showPageError_(getErrorMessage(err)));
+          throw error;
+        });
+    }
+
+    function renderVisitWarnings_(profile) {
+      const banner = $('visit-editor-warning');
+      const stranded = (profile && profile.engagementsOutsideStay) || [];
+      if (!stranded.length) { banner.hidden = true; return; }
+      banner.hidden = false;
+      banner.textContent = `${stranded.length} engagement${stranded.length === 1 ? '' : 's'} fall outside this guest's stay dates: `
+        + stranded.map(item => `${item.kind} on ${item.date}`).join('; ')
+        + '. Move or remove them, or widen the stay, so the schedule matches the dates.';
+    }
+
     // Visit Editor — Stay/Accommodation/Cabs/Travel, moved wholesale out of
     // the guest modal. visitId === '' means a brand-new Visit for this
     // guest (no auto-create — this is the one deliberate path that DOES
@@ -4378,19 +4619,11 @@
     let visitEditorIsCancelled_ = false;
 
     function openVisitEditor(guestId, visitId) {
-      apiCall('getGuestProfile', { guestId })
-        .then(profile => {
-          const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
-          populateVisitEditor_(profile, visit);
-          $('visit-editor-modal').style.display = 'flex';
-          $('visit-editor-modal').setAttribute('aria-hidden', 'false');
-        })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't load visit: ${getErrorMessage(err)}`, 'error')));
+      navigate(`#visit/${encodeURIComponent(visitId ? `${guestId}|${visitId}` : guestId)}`);
     }
 
     function closeVisitEditor() {
-      $('visit-editor-modal').style.display = 'none';
-      $('visit-editor-modal').setAttribute('aria-hidden', 'true');
+      navigate('#accommodation');
     }
 
     function toggleVisitCabTravelSections_() {
@@ -4642,8 +4875,8 @@
         .then(() => {
           closeVisitEditor();
           showToast('Visit saved.', 'success');
-          loadAccommodationWorkspaceList();
-          loadHomeSummary();
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => {
           showToast(`Save failed: ${getErrorMessage(err)}`, 'error');
@@ -4658,8 +4891,8 @@
         .then(() => {
           closeVisitEditor();
           showToast('Visit cancelled.', 'success');
-          loadAccommodationWorkspaceList();
-          loadHomeSummary();
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't cancel visit: ${getErrorMessage(err)}`, 'error')));
     }
@@ -4672,8 +4905,8 @@
         .then(() => {
           closeVisitEditor();
           showToast('Visit restored.', 'success');
-          loadAccommodationWorkspaceList();
-          loadHomeSummary();
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't restore visit: ${getErrorMessage(err)}`, 'error')));
     }
@@ -4692,34 +4925,103 @@
       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     }
 
-    function openMealsWorkspace() {
-      if (!$('meals-workspace-date').value) $('meals-workspace-date').value = todayDateKey_();
-      $('meals-workspace-modal').style.display = 'flex';
-      $('meals-workspace-modal').setAttribute('aria-hidden', 'false');
-      loadMealsWorkspaceList();
+    // Date-first: the date is part of the route, so a particular day's meal
+    // list is linkable and survives a reload. The meal tabs are a view over
+    // the same day's data rather than separate fetches.
+    let mealsData_ = null;
+    let mealsActiveMeal_ = 'Lunch';
+
+    function loadMealsPage_(dateArg) {
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(dateArg || '')) ? dateArg : todayDateKey_();
+      $('meals-workspace-date').value = date;
+
+      return apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
+        .then(data => {
+          mealsData_ = data;
+          renderMealTabs_();
+          renderMealsList_();
+        })
+        .catch(error => {
+          handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error'));
+          throw error;
+        });
     }
 
-    function closeMealsWorkspace() {
-      $('meals-workspace-modal').style.display = 'none';
-      $('meals-workspace-modal').setAttribute('aria-hidden', 'true');
+    function renderMealTabs_() {
+      const container = $('meals-meal-tabs');
+      container.replaceChildren();
+      ALLOWED_MEALS.forEach(meal => {
+        const button = createElement('button', mealsActiveMeal_ === meal ? 'active' : '', meal);
+        button.type = 'button';
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', String(mealsActiveMeal_ === meal));
+        button.addEventListener('click', () => {
+          mealsActiveMeal_ = meal;
+          renderMealTabs_();
+          renderMealsList_();
+        });
+        container.appendChild(button);
+      });
     }
 
-    function loadMealsWorkspaceList() {
+    function renderMealsList_() {
       const listEl = $('meals-workspace-list');
       const emptyEl = $('meals-workspace-empty');
-      const date = $('meals-workspace-date').value || todayDateKey_();
       listEl.replaceChildren();
-      emptyEl.hidden = true;
-      apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
-        .then(data => {
-          const rows = Array.isArray(data.guests) ? data.guests : [];
-          if (!rows.length) {
-            emptyEl.hidden = false;
-            return;
-          }
-          rows.forEach(row => listEl.appendChild(createMealsWorkspaceRow(row, date)));
-        })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error')));
+      if (!mealsData_) return;
+
+      const date = mealsData_.date;
+      const counts = mealsData_.counts || {};
+      renderSummaryTiles_($('meals-summary'), [
+        { value: counts.Breakfast || 0, label: 'BREAKFAST' },
+        { value: counts.Lunch || 0, label: 'LUNCH' },
+        { value: counts.Dinner || 0, label: 'DINNER' },
+        { value: mealsData_.residentCount || 0, label: 'RESIDENTS TODAY' }
+      ]);
+
+      const query = normalizeSearchText($('meals-search').value.trim());
+      const rows = (mealsData_.guests || []).filter(row => {
+        if (!query) return true;
+        const text = normalizeSearchText(`${row.name} ${row.personType}`);
+        return query.split(/\s+/).every(term => text.includes(term));
+      });
+
+      // Grouped so the page answers the operational questions directly:
+      // who is eating by default, who has opted out, and who was invited in.
+      const groups = [
+        { title: 'Residents attending', className: 'zone-current', rows: rows.filter(r => r.isResident && r.meals[mealsActiveMeal_].included) },
+        { title: 'Residents not attending', className: 'zone-urgent', rows: rows.filter(r => r.isResident && !r.meals[mealsActiveMeal_].included) },
+        { title: 'Invited guests', className: 'zone-upcoming', rows: rows.filter(r => !r.isResident && r.meals[mealsActiveMeal_].included) }
+      ];
+
+      let shown = 0;
+      groups.forEach(group => {
+        if (!group.rows.length) return;
+        shown += group.rows.length;
+        const zone = createElement('div', `zone ${group.className}`);
+        const header = createElement('div', 'zone-header');
+        header.appendChild(createElement('span', 'zone-title', group.title));
+        header.appendChild(createElement('span', 'zone-count', String(group.rows.length)));
+        zone.appendChild(header);
+        const grid = createElement('div', 'card-grid');
+        group.rows.forEach(row => grid.appendChild(createMealsWorkspaceRow(row, date)));
+        zone.appendChild(grid);
+        listEl.appendChild(zone);
+      });
+
+      emptyEl.hidden = shown > 0;
+    }
+
+    function handleAddMealGuestClick_() {
+      const date = $('meals-workspace-date').value || todayDateKey_();
+      openGuestPicker_(guestId => {
+        apiCall('upsertMealOverride', { payload: { guestId, date, meal: mealsActiveMeal_, included: true } })
+          .then(() => {
+            showToast(`Invited for ${mealsActiveMeal_.toLowerCase()}.`, 'success');
+            loadMealsPage_(date);
+          })
+          .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+      });
     }
 
     function createMealsWorkspaceRow(row, date) {
@@ -4755,7 +5057,7 @@
       if (overrideId) payload.overrideId = overrideId;
       apiCall('upsertMealOverride', { payload })
         .then(() => {
-          loadMealsWorkspaceList();
+          loadMealsPage_(date);
         })
         .catch(error => handleApiError(error, err => {
           checkbox.disabled = false;
@@ -4783,39 +5085,81 @@
       { key: 'cancelled', label: 'Cancelled' }
     ];
 
-    function openMeetingsWorkspace() {
-      $('meetings-workspace-modal').style.display = 'flex';
-      $('meetings-workspace-modal').setAttribute('aria-hidden', 'false');
-      loadMeetingsWorkspaceList();
+    // Completed and Cancelled sit behind their own tabs rather than being
+    // stacked below the live ones, so the page stays about what still needs
+    // doing while the history remains one click away.
+    const MEETING_TAB_ACCENTS_ = Object.freeze({
+      today: '#6fbaf0',
+      upcoming: '#71d99d',
+      needsCompletion: '#ff8b84',
+      completed: '#aaa',
+      cancelled: '#aaa'
+    });
+
+    let meetingsData_ = null;
+    let meetingsSection_ = 'today';
+
+    function loadMeetingsPage_(section) {
+      if (section && MEETING_SECTIONS_.some(s => s.key === section)) meetingsSection_ = section;
+      return apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
+        .then(data => {
+          meetingsData_ = data;
+          renderMeetingsList_();
+        })
+        .catch(error => {
+          handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error'));
+          throw error;
+        });
     }
 
-    function closeMeetingsWorkspace() {
-      $('meetings-workspace-modal').style.display = 'none';
-      $('meetings-workspace-modal').setAttribute('aria-hidden', 'true');
-    }
-
-    function loadMeetingsWorkspaceList() {
+    function renderMeetingsList_() {
+      if (!meetingsData_) return;
       const container = $('meetings-workspace-sections');
       const emptyEl = $('meetings-workspace-empty');
       container.replaceChildren();
-      apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
-        .then(data => {
-          const total = MEETING_SECTIONS_.reduce((sum, sec) => sum + (Array.isArray(data[sec.key]) ? data[sec.key].length : 0), 0);
-          if (!total) {
-            emptyEl.hidden = false;
-            return;
-          }
-          emptyEl.hidden = true;
-          MEETING_SECTIONS_.forEach(sec => {
-            const items = Array.isArray(data[sec.key]) ? data[sec.key] : [];
-            if (!items.length) return;
-            container.appendChild(createElement('h3', 'travel-section-title', `${sec.label} (${items.length})`));
-            const grid = createElement('div', 'card-grid');
-            items.forEach(meeting => grid.appendChild(createMeetingWorkspaceCard(meeting, sec.key)));
-            container.appendChild(grid);
-          });
-        })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error')));
+
+      const query = normalizeSearchText($('meetings-search').value.trim());
+      const filterRows = rows => (rows || []).filter(meeting => {
+        if (!query) return true;
+        const text = normalizeSearchText(`${meeting.name} ${meeting.date} ${meeting.notes || ''}`);
+        return query.split(/\s+/).every(term => text.includes(term));
+      });
+
+      const tabs = $('meetings-tabs');
+      tabs.replaceChildren();
+      MEETING_SECTIONS_.forEach(sec => {
+        const rows = filterRows(meetingsData_[sec.key]);
+        const tab = createElement('button', `tier-tab${sec.key === meetingsSection_ ? ' active' : ''}`);
+        tab.type = 'button';
+        tab.style.setProperty('--accent', MEETING_TAB_ACCENTS_[sec.key] || '#aaa');
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(sec.key === meetingsSection_));
+        tab.appendChild(createElement('span', 'tier-tab-count', String(rows.length)));
+        tab.appendChild(createElement('span', 'tier-tab-label', sec.label));
+        tab.addEventListener('click', () => {
+          if (meetingsSection_ === sec.key) return;
+          meetingsSection_ = sec.key;
+          navigate(`#meetings/${sec.key}`);
+        });
+        tabs.appendChild(tab);
+      });
+
+      renderSummaryTiles_($('meetings-summary'), [
+        { value: (meetingsData_.today || []).length, label: 'TODAY' },
+        { value: (meetingsData_.upcoming || []).length, label: 'UPCOMING' },
+        { value: (meetingsData_.needsCompletion || []).length, label: 'NEED COMPLETION', attention: true },
+        { value: (meetingsData_.completed || []).length, label: 'COMPLETED' }
+      ]);
+
+      const sec = MEETING_SECTIONS_.find(s => s.key === meetingsSection_) || MEETING_SECTIONS_[0];
+      const items = filterRows(meetingsData_[sec.key]);
+      if (items.length) {
+        const grid = createElement('div', 'card-grid');
+        items.forEach(meeting => grid.appendChild(createMeetingWorkspaceCard(meeting, sec.key)));
+        container.appendChild(grid);
+      }
+      emptyEl.hidden = items.length > 0;
+      emptyEl.textContent = `Nothing in ${sec.label.toLowerCase()}.`;
     }
 
     function createMeetingWorkspaceCard(meeting, sectionKey) {
@@ -4861,8 +5205,8 @@
       apiCall('setMeetingStatus', { meetingId, status, version })
         .then(() => {
           showToast(`Meeting marked ${status.toLowerCase()}.`, 'success');
-          loadMeetingsWorkspaceList();
-          loadHomeSummary();
+          loadMeetingsPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't update meeting: ${getErrorMessage(err)}`, 'error')));
     }
@@ -4908,8 +5252,8 @@
         .then(() => {
           closeMeetingEditor_();
           showToast('Meeting saved.', 'success');
-          loadMeetingsWorkspaceList();
-          loadHomeSummary();
+          loadMeetingsPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't save meeting: ${getErrorMessage(err)}`, 'error')));
     }
@@ -4931,33 +5275,64 @@
     let tripsWorkspaceData_ = { trips: [] };
     let tripEditorOriginalLegIds_ = [];
 
-    function openTripsWorkspace() {
-      loadTripsWorkspaceData_();
-      $('trips-workspace-modal').style.display = 'flex';
-      $('trips-workspace-modal').setAttribute('aria-hidden', 'false');
-    }
+    // Upcoming leads, then Active — the two that still need arranging — with
+    // Completed and Cancelled behind their own tabs.
+    const TRIP_SECTIONS_ = Object.freeze([
+      { key: 'upcoming', label: 'Upcoming', accent: '#71d99d', test: t => t.status === 'Upcoming' },
+      { key: 'active', label: 'Active', accent: '#6fbaf0', test: t => t.status === 'Active' },
+      { key: 'completed', label: 'Completed', accent: '#aaa', test: t => t.status === 'Completed' },
+      { key: 'cancelled', label: 'Cancelled', accent: '#aaa', test: t => t.status === 'Cancelled' }
+    ]);
 
-    function closeTripsWorkspace() {
-      $('trips-workspace-modal').style.display = 'none';
-      $('trips-workspace-modal').setAttribute('aria-hidden', 'true');
-    }
+    let tripsSection_ = 'upcoming';
 
-    function loadTripsWorkspaceData_() {
-      const listEl = $('trips-workspace-list');
-      const emptyEl = $('trips-workspace-empty');
-      apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
+    function loadTripsPage_(section) {
+      if (section && TRIP_SECTIONS_.some(s => s.key === section)) tripsSection_ = section;
+      return apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
         .then(data => {
           tripsWorkspaceData_ = data;
-          listEl.replaceChildren();
-          const trips = Array.isArray(data.trips) ? data.trips : [];
-          if (!trips.length) {
-            emptyEl.hidden = false;
-            return;
-          }
-          emptyEl.hidden = true;
-          trips.forEach(trip => listEl.appendChild(createTripCard_(trip)));
+          renderTripsList_();
         })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error')));
+        .catch(error => {
+          handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error'));
+          throw error;
+        });
+    }
+
+    function renderTripsList_() {
+      const listEl = $('trips-workspace-list');
+      const emptyEl = $('trips-workspace-empty');
+      listEl.replaceChildren();
+
+      const query = normalizeSearchText($('trips-search').value.trim());
+      const trips = (tripsWorkspaceData_.trips || []).filter(trip => {
+        if (!query) return true;
+        const text = normalizeSearchText(`${trip.name} ${trip.purpose || ''} ${trip.status}`);
+        return query.split(/\s+/).every(term => text.includes(term));
+      });
+
+      renderSectionTabs_($('trips-tabs'), TRIP_SECTIONS_, tripsSection_, trips, todayDateKey_(), key => {
+        tripsSection_ = key;
+        navigate(`#trips/${key}`);
+      });
+
+      renderSummaryTiles_($('trips-summary'), [
+        { value: trips.filter(t => t.status === 'Active').length, label: 'ACTIVE' },
+        { value: trips.filter(t => t.status === 'Upcoming').length, label: 'UPCOMING' },
+        { value: trips.reduce((sum, t) => sum + (t.unresolvedLegs || 0), 0), label: 'LEGS TO ARRANGE', attention: true },
+        { value: trips.reduce((sum, t) => sum + (t.participantCount || 0), 0), label: 'PARTICIPANTS' }
+      ]);
+
+      const def = TRIP_SECTIONS_.find(s => s.key === tripsSection_) || TRIP_SECTIONS_[0];
+      const rows = trips.filter(def.test);
+      rows.forEach(trip => listEl.appendChild(createTripCard_(trip)));
+      emptyEl.hidden = rows.length > 0;
+      emptyEl.textContent = `No ${def.label.toLowerCase()} trips.`;
+    }
+
+    function loadTripPage_(tripId) {
+      if (!tripId) { showPageError_('No trip was specified.'); return Promise.resolve(); }
+      return populateTripEditor_(tripId).then(() => clearEditorDirty_());
     }
 
     function createTripCard_(trip) {
@@ -4995,34 +5370,66 @@
 
     // tripId === null means a brand-new trip.
     function openTripEditor_(tripId) {
-      const trip = tripId ? tripsWorkspaceData_.trips.find(t => t.tripId === tripId) : null;
-      $('edit-trip-id').value = trip ? trip.tripId : '';
-      $('edit-trip-version').value = trip ? trip.version : '';
-      $('edit-trip-name').value = trip ? trip.name : '';
-      $('edit-trip-purpose').value = trip ? trip.purpose : '';
-      $('edit-trip-start').value = trip ? msToDateInputValue_(trip.startMs) : '';
-      $('edit-trip-end').value = trip ? msToDateInputValue_(trip.endMs) : '';
-      $('edit-trip-notes').value = trip ? trip.notes : '';
-      $('edit-trip-cancelled').checked = Boolean(trip && trip.cancelled);
-      $('trip-editor-message').textContent = '';
-      $('trip-editor-modal-title').textContent = trip ? 'Edit Trip' : 'New Trip';
-
-      renderTripParticipants_(trip ? trip.participants : []);
-
-      const legs = trip && Array.isArray(trip.legs) ? trip.legs : [];
-      tripEditorOriginalLegIds_ = legs.map(leg => leg.legId).filter(Boolean);
-      renderTravelLegEditors(
-        legs.map(leg => ({ ...leg, travelId: leg.legId, travelOrder: leg.order })),
-        'trip-travel-leg-list', 'trip-travel-empty'
-      );
-
-      $('trip-editor-modal').style.display = 'flex';
-      $('trip-editor-modal').setAttribute('aria-hidden', 'false');
+      navigate(tripId ? `#trip/${encodeURIComponent(tripId)}` : '#trip/new');
     }
 
     function closeTripEditor_() {
-      $('trip-editor-modal').style.display = 'none';
-      $('trip-editor-modal').setAttribute('aria-hidden', 'true');
+      navigate('#trips');
+    }
+
+    // 'new' is the route for a trip that doesn't exist yet, so creating one
+    // is a real destination you can back out of like any other.
+    function populateTripEditor_(tripId) {
+      const isNew = !tripId || tripId === 'new';
+      const ensureLoaded = tripsWorkspaceData_.trips && tripsWorkspaceData_.trips.length
+        ? Promise.resolve(tripsWorkspaceData_)
+        : apiCall('getWorkspaceData', { workspace: 'trips', filters: {} }).then(data => { tripsWorkspaceData_ = data; return data; });
+
+      return ensureLoaded.then(() => {
+        const trip = isNew ? null : (tripsWorkspaceData_.trips || []).find(t => t.tripId === tripId);
+        if (!isNew && !trip) throw new Error('That trip no longer exists.');
+
+        $('edit-trip-id').value = trip ? trip.tripId : '';
+        $('edit-trip-version').value = trip ? trip.version : '';
+        $('edit-trip-name').value = trip ? trip.name : '';
+        $('edit-trip-purpose').value = trip ? trip.purpose : '';
+        $('edit-trip-start').value = trip ? msToDateInputValue_(trip.startMs) : '';
+        $('edit-trip-end').value = trip ? msToDateInputValue_(trip.endMs) : '';
+        $('edit-trip-notes').value = trip ? trip.notes : '';
+        $('edit-trip-cancelled').checked = Boolean(trip && trip.cancelled);
+        $('trip-editor-message').textContent = '';
+        $('trip-editor-modal-title').textContent = trip ? 'Edit Trip' : 'New Trip';
+        $('trip-editor-subtitle').textContent = trip ? `${trip.status} · ${trip.participantCount || 0} participant${trip.participantCount === 1 ? '' : 's'}` : 'Not saved yet';
+        applyDateRangeConstraints_('edit-trip-start', 'edit-trip-end');
+
+        renderTripParticipants_(trip ? trip.participants : []);
+
+        const legs = trip && Array.isArray(trip.legs) ? trip.legs : [];
+        tripEditorOriginalLegIds_ = legs.map(leg => leg.legId).filter(Boolean);
+        renderTravelLegEditors(
+          legs.map(leg => ({ ...leg, travelId: leg.legId, travelOrder: leg.order })),
+          'trip-travel-leg-list', 'trip-travel-empty'
+        );
+      });
+    }
+
+    // A start that can't be after its end, enforced in the picker itself so
+    // an impossible range can't be typed in the first place rather than only
+    // being rejected on save.
+    function applyDateRangeConstraints_(startId, endId) {
+      const start = $(startId);
+      const end = $(endId);
+      if (!start || !end) return;
+      const sync = () => {
+        end.min = start.value || '';
+        start.max = end.value || '';
+      };
+      if (!start.dataset.rangeBound) {
+        start.addEventListener('change', sync);
+        end.addEventListener('change', sync);
+        start.dataset.rangeBound = 'true';
+      }
+      sync();
     }
 
     function renderTripParticipants_(participants) {
@@ -5122,8 +5529,8 @@
           $('trip-editor-save-btn').disabled = false;
           showToast('Trip saved.', 'success');
           closeTripEditor_();
-          loadTripsWorkspaceData_();
-          loadHomeSummary();
+          loadTripsPage_();
+          loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => {
           $('trip-editor-save-btn').disabled = false;
@@ -5175,13 +5582,6 @@
           : `${formatDateKeyDisplay(startDate)} – ${formatDateKeyDisplay(endDate)}`;
       }
       return formatDateKeyDisplay(startDate || endDate || '');
-    }
-
-    let cardActionSheetGuestId = '';
-
-    function closeCardActionSheet() {
-      $('card-action-sheet').hidden = true;
-      cardActionSheetGuestId = '';
     }
 
     function getTravelIconId(transportType) {
@@ -5537,12 +5937,11 @@
       updateTransportConstraints();
     }
 
-    // V3 Operational Workspaces Architecture — Phase E. Only guest basics
-    // plus the still-embedded Seva/Meals/Meetings sections are populated
-    // here now — arrival/departure/accommodation/rooms/cabs/travel legs are
-    // exclusively the Visit Editor's job (openVisitEditor below).
+    // The one Add/Edit Guest form, used both from the header's Add button and
+    // from every workspace's create-new-guest path, so a guest created inside
+    // Meals gets exactly the same complete basic-details form as one created
+    // from the Directory — never a silent name-only record.
     function openModal(mode, guestId = '') {
-      resetDeleteButton();
       resetCloseConfirm();
       modalDirty = false;
       document.querySelector('.modal-content').scrollTop = 0;
@@ -5554,22 +5953,22 @@
       $('edit-version').value = '';
 
       if (mode === 'edit') {
-        const guest = allGuests.find(item => item.guestId === guestId);
+        const guest = directoryRecords_.find(item => item.guestId === guestId)
+          || (currentGuestProfile_ && currentGuestProfile_.guestId === guestId ? currentGuestProfile_ : null);
         if (!guest || pendingGuestIds.has(guestId)) return;
 
         $('modal-title').textContent = 'Edit Guest';
         $('edit-version').value = guest.version || '';
-        $('delete-btn').style.display = 'inline-flex';
-        $('edit-name').value = guest.Name || '';
+        $('edit-name').value = guest.name || '';
         $('edit-person-type').value = guest.personType || 'Invited Guest';
         setPurposeCheckboxes(guest.invitedPurpose || []);
         $('edit-purpose-other-text').value = guest.invitedPurposeOther || '';
         $('edit-staff-assignment').value = guest.staffAssignment || '';
         updatePurposeOtherVisibility();
-        $('edit-foreign').checked = Boolean(guest['Foreign National']);
+        $('edit-foreign').checked = Boolean(guest.isForeign);
       } else {
         $('modal-title').textContent = 'Add New Guest';
-        $('delete-btn').style.display = 'none';
+
         $('edit-name').value = '';
         $('edit-person-type').value = 'Invited Guest';
         setPurposeCheckboxes([]);
@@ -5873,7 +6272,7 @@
     // Called directly (bypassing the guard entirely) after a successful save
     // or delete, since committing a change is never something to warn about.
     function closeModal() {
-      resetDeleteButton();
+
       resetCloseConfirm();
       modalDirty = false;
       modalIsOpen = false;
@@ -6374,19 +6773,25 @@
       // than one guest before this save even happens.
       const occupiedRooms = new Map();
 
+      // Advisory only — saveVisitPlan runs the authoritative conflict check
+      // server-side. This reads the directory snapshot, whose per-guest visit
+      // carries that guest's current rooms and dates, so a clash shows while
+      // picking rather than only on save.
       if (newArrival) {
         const newEnd = newDeparture || Number.POSITIVE_INFINITY;
-        allGuests.forEach(guest => {
-          if (guest.guestId === currentGuestId || !guest.arrivalMs) return;
-          const guestRooms = Array.isArray(guest.Rooms) ? guest.Rooms : [];
+        directoryRecords_.forEach(record => {
+          if (record.guestId === currentGuestId) return;
+          const visit = record.visit;
+          if (!visit || !visit.arrivalMs) return;
+          const guestRooms = Array.isArray(visit.rooms) ? visit.rooms : [];
           if (!guestRooms.length) return;
-          const otherEnd = guest.departureMs || Number.POSITIVE_INFINITY;
-          if (newArrival < otherEnd && newEnd > guest.arrivalMs) {
+          const otherEnd = visit.departureMs || Number.POSITIVE_INFINITY;
+          if (newArrival < otherEnd && newEnd > visit.arrivalMs) {
             guestRooms.forEach(room => {
               if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
               occupiedRooms.get(room).push({
-                name: resolveRoomOccupantName(guest.Name, guestRooms, room),
-                openEnded: !guest.departureMs
+                name: resolveRoomOccupantName(record.name, guestRooms, room),
+                openEnded: !visit.departureMs
               });
             });
           }
@@ -6522,34 +6927,34 @@
     function proceedWithGuestSave_() {
       const payload = collectGuestPayload();
       const mode = $('modal-mode').value;
-      const snapshot = cloneGuests(allGuests);
-      const optimisticId = mode === 'add' ? `temporary-${Date.now()}` : payload.guestId;
-      const existing = mode === 'edit'
-        ? allGuests.find(guest => guest.guestId === payload.guestId)
-        : null;
-      const optimisticGuest = buildOptimisticGuest(payload, existing, optimisticId);
+      // Guest basics only — the Directory record and nothing operational.
+      // The two scoped actions replace the old single bulk-replace save, so
+      // this can no longer touch a visit, meal, meeting, seva record or trip
+      // even by accident.
+      const action = mode === 'add' ? 'createGuest' : 'updateGuestBasics';
+      const pendingKey = mode === 'add' ? `temporary-${Date.now()}` : payload.guestId;
 
-      pendingGuestIds.add(optimisticId);
-      if (mode === 'edit') {
-        allGuests = allGuests.map(guest => guest.guestId === payload.guestId ? optimisticGuest : guest);
-      } else {
-        allGuests.push(optimisticGuest);
-      }
-      sortGuestsLocally();
+      pendingGuestIds.add(pendingKey);
       closeModal();
-      renderApp();
 
-      apiCall('saveGuest', { payload })
-        .then(data => {
-          pendingGuestIds.delete(optimisticId);
-          applyAppData(data);
+      apiCall(action, { payload })
+        .then(() => {
+          pendingGuestIds.delete(pendingKey);
           showToast(mode === 'add' ? 'Guest added.' : 'Guest updated.', 'success');
+          // The snapshot is the source of truth for every list showing this
+          // guest, so it is refetched rather than patched in place: tier and
+          // priority are decided server-side, and guessing at them locally
+          // is exactly the drift this rework set out to remove.
+          return loadDirectorySnapshot_({ includeArchived: directoryShowArchived_ });
         })
-        .catch(error => handleApiError(error, error => {
-          pendingGuestIds.delete(optimisticId);
-          allGuests = snapshot;
-          renderApp();
-          showToast(`Save failed: ${getErrorMessage(error)}`, 'error');
+        .then(() => {
+          if (currentRoute_.name === 'guest') return loadGuestProfile_(currentRoute_.arg);
+          refreshCurrentPage_({ silent: true });
+          return null;
+        })
+        .catch(error => handleApiError(error, err => {
+          pendingGuestIds.delete(pendingKey);
+          showToast(`Save failed: ${getErrorMessage(err)}`, 'error');
           reopenModalWithPayload_(mode, payload);
         }));
     }
@@ -6598,39 +7003,7 @@
         staffAssignment: $('edit-staff-assignment').value.trim()
       };
     }
-
-    // V3 Operational Workspaces Architecture — Phase B. Accommodation, stay
-    // dates, rooms, and cabs/travel are no longer part of the save payload
-    // (see collectGuestPayload) — every one of those fields is left for the
     // `...(existing || {})` spread below to carry forward untouched from
-    // before this edit, rather than being re-derived from a payload that no
-    // longer has them (which would optimistically blank them out on screen
-    // until the real server response arrived a moment later). A brand new
-    // guest genuinely has none of these yet (no Visit exists), so `existing`
-    // being empty there is correct, not a bug.
-    function buildOptimisticGuest(payload, existing, guestId) {
-      const guest = {
-        ...(existing || {}),
-        guestId,
-        Name: payload.name,
-        'Foreign National': payload.isForeign,
-        personType: payload.personType,
-        invitedPurpose: Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : [],
-        invitedPurposeOther: payload.invitedPurposeOther,
-        staffAssignment: payload.staffAssignment,
-        sevaTeamIds: Array.isArray(payload.sevaTeamIds) ? payload.sevaTeamIds : [],
-        specificSeva: Array.isArray(payload.specificSeva) ? payload.specificSeva : [],
-        mealOverrides: Array.isArray(payload.mealOverrides) ? payload.mealOverrides : [],
-        swamijiMeetings: Array.isArray(payload.swamijiMeetings) ? payload.swamijiMeetings : []
-      };
-
-      const priority = calculateLocalPriority(guest);
-      guest.priorityTier = priority.tier;
-      guest.priorityLabel = TIER_META[priority.tier].label;
-      guest.priorityReasons = priority.reasons;
-      guest.prioritySortMs = priority.sortMs;
-      return prepareGuestForDisplay(guest);
-    }
 
     function localDateInfo(dateValue, timeValue, isDeparture) {
       if (!dateValue) return { display: '', ms: null };
@@ -6651,111 +7024,6 @@
       return { display, ms: date.getTime() };
     }
 
-    function calculateLocalPriority(guest) {
-      const nowMs = Date.now();
-      const in72Hours = nowMs + 72 * 60 * 60 * 1000;
-      const arrivalMs = finiteTimestamp(guest.arrivalMs);
-      const departureMs = finiteTimestamp(guest.departureMs);
-      let tier = 4;
-      const reasons = [];
-
-      const arrivalIsToday = isSameAppDate(arrivalMs, nowMs);
-      const departureIsToday = isSameAppDate(departureMs, nowMs);
-      const activeStay = isCurrentlyActiveStay(guest, nowMs);
-
-      if (departureMs !== null && departureMs < nowMs) {
-        tier = 5;
-      } else if (arrivalIsToday || departureIsToday) {
-        tier = 2;
-      } else if (activeStay) {
-        tier = 3;
-      }
-
-      const missingRoom = requiresAshramRoom(guest) && !guest.Room;
-      const accommodationNotDecided = guest.accommodation === 'TBD';
-      const outsideAccommodationUnconfirmed = guest.accommodation === 'Outside - Arranged by Ashram'
-        && !guest.outsideAccommodationConfirmed;
-
-      // Gated on accommodation responsibility, not Person Type — a foreign
-      // guest staying outside isn't a C-form problem for the Ashram to chase.
-      const cformPending = guest['Foreign National']
-        && !guest['C-form complete']
-        && isAshramResponsibleForAccommodation(guest)
-        && arrivalMs !== null
-        && arrivalMs <= nowMs;
-
-      // Skipped entirely for a Visitor — Cabs/Travel don't apply to them, so
-      // stale pickup/dropoff/leg data (if any survives a Person Type change)
-      // must never surface as a warning.
-      const cabTravelEligible = isCabTravelEligible(guest.personType);
-      let nextRequiredTravelMs = null;
-      let hasUndatedRequiredTravel = false;
-      let pickupState = 'Requested';
-      let dropoffState = 'Requested';
-      if (cabTravelEligible) {
-        (Array.isArray(guest.travelLegs) ? guest.travelLegs : []).forEach(leg => {
-          if (leg.status !== 'Required') return;
-
-          reasons.push(
-            `${String(leg.direction || '').toLowerCase()} ${String(leg.transportType || 'travel').toLowerCase()} required`.trim()
-          );
-
-          const travelMs = finiteTimestamp(leg.travelMs);
-          if (travelMs === null) {
-            hasUndatedRequiredTravel = true;
-          } else if (nextRequiredTravelMs === null || travelMs < nextRequiredTravelMs) {
-            nextRequiredTravelMs = travelMs;
-          }
-        });
-
-        pickupState = normalizeCabBookingState(
-          guest.pickupBookingState,
-          guest['Pickup Booking Confirmed']
-        );
-        dropoffState = normalizeCabBookingState(
-          guest.dropoffBookingState,
-          guest['Dropoff Booking Confirmed']
-        );
-
-        if (pickupState === 'Needs Rescheduling') reasons.push('Pickup needs rescheduling');
-        else if (pickupState === 'Needs Reconfirmation') reasons.push('Pickup needs reconfirmation');
-
-        if (dropoffState === 'Needs Rescheduling') reasons.push('Drop-off needs rescheduling');
-        else if (dropoffState === 'Needs Reconfirmation') reasons.push('Drop-off needs reconfirmation');
-      }
-
-      if (!guest.arrivalDate) {
-        reasons.push('Arrival date not set');
-      } else if (arrivalMs !== null && arrivalMs > nowMs && arrivalMs <= in72Hours) {
-        if (missingRoom) reasons.push('Room missing');
-        if (accommodationNotDecided) reasons.push('Accommodation not decided');
-        if (outsideAccommodationUnconfirmed) reasons.push('Outside accommodation not confirmed');
-        if (cabTravelEligible && guest['Pickup Required'] && pickupState === 'Requested') {
-          reasons.push('Pickup not arranged');
-        }
-      }
-
-      if (cabTravelEligible && departureMs !== null && departureMs > nowMs && departureMs <= in72Hours
-          && guest['Dropoff Required'] && dropoffState === 'Requested') {
-        reasons.push('Drop-off not arranged');
-      }
-
-      if (cformPending) reasons.push('C-form pending');
-
-      if (guest.personType === PERSON_TYPE_NEEDS_REVIEW) reasons.push('Person Type needs review');
-
-      if (cformPending || reasons.length) tier = 1;
-
-      let sortMs = Number.MAX_SAFE_INTEGER;
-      if (arrivalMs !== null && arrivalMs > nowMs) sortMs = arrivalMs;
-      else if (departureMs !== null) sortMs = departureMs;
-      else if (arrivalMs !== null) sortMs = arrivalMs;
-
-      if (hasUndatedRequiredTravel) sortMs = 0;
-      else if (nextRequiredTravelMs !== null) sortMs = Math.min(sortMs, nextRequiredTravelMs);
-
-      return { tier, reasons, sortMs };
-    }
 
     function finiteTimestamp(value) {
       const number = Number(value);
@@ -6791,96 +7059,6 @@
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
-    }
-
-    function sortGuestsLocally() {
-      allGuests.sort((a, b) => {
-        if (a.priorityTier !== b.priorityTier) return a.priorityTier - b.priorityTier;
-        if (a.prioritySortMs !== b.prioritySortMs) return a.prioritySortMs - b.prioritySortMs;
-        return String(a.Name || '').localeCompare(String(b.Name || ''));
-      });
-    }
-
-    function handleDeleteClick() {
-      if (!isDeleteConfirm) {
-        isDeleteConfirm = true;
-        const button = $('delete-btn');
-        button.textContent = 'Confirm Delete?';
-        button.classList.add('confirm-state');
-        deleteTimeout = window.setTimeout(resetDeleteButton, 3000);
-        return;
-      }
-
-      window.clearTimeout(deleteTimeout);
-      executeDelete();
-    }
-
-    function resetDeleteButton() {
-      const button = $('delete-btn');
-      button.replaceChildren();
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'icon');
-      svg.setAttribute('aria-hidden', 'true');
-      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      use.setAttribute('href', '#icon-trash');
-      svg.appendChild(use);
-      button.appendChild(svg);
-      button.classList.remove('confirm-state');
-      isDeleteConfirm = false;
-      window.clearTimeout(deleteTimeout);
-    }
-
-    function executeDelete() {
-      const guestId = $('edit-guest-id').value;
-      if (!guestId) return;
-      const guest = allGuests.find(item => item.guestId === guestId);
-      closeModal();
-      deleteGuestById(guestId, guest && guest.version, guest && guest.Name);
-    }
-
-    // Shared by the edit modal's Delete button and the card long-press
-    // action sheet — optimistically removes the guest and offers Undo;
-    // nothing is sent to the server until the Undo window expires, so Undo
-    // never needs to "re-add" anything, the real deleteGuest() call just
-    // never happens.
-    function deleteGuestById(guestId, version, name) {
-      if (!guestId) return;
-
-      const snapshot = cloneGuests(allGuests);
-      const guestName = name || 'Guest';
-
-      allGuests = allGuests.filter(item => item.guestId !== guestId);
-      renderApp();
-      pendingGuestIds.add(guestId);
-
-      const runDelete = () => {
-        apiCall('deleteGuest', { guestId, version: version || null })
-          .then(data => {
-            pendingGuestIds.delete(guestId);
-            applyAppData(data);
-          })
-          .catch(error => handleApiError(error, error => {
-            pendingGuestIds.delete(guestId);
-            allGuests = snapshot;
-            renderApp();
-            showToast(`Delete failed: ${getErrorMessage(error)}`, 'error');
-          }));
-      };
-
-      showToast(`${guestName} deleted.`, 'success', {
-        label: 'Undo',
-        duration: 5000,
-        onClick: () => {
-          pendingGuestIds.delete(guestId);
-          allGuests = snapshot;
-          renderApp();
-        },
-        onExpire: runDelete
-      });
-    }
-
-    function cloneGuests(guests) {
-      return JSON.parse(JSON.stringify(guests));
     }
 
     function getErrorMessage(error) {
