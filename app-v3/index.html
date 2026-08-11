@@ -1685,9 +1685,9 @@
       display: flex;
       max-width: 1200px;
       margin: 0 auto 18px;
-      gap: 16px;
-      align-items: flex-start;
-      flex-wrap: wrap;
+      gap: 14px;
+      align-items: stretch;
+      flex-direction: column;
     }
 
     .page-back {
@@ -1709,6 +1709,16 @@
 
     .page-title-block { flex: 1; min-width: 0; }
 
+    .page-title-row {
+      display: flex;
+      min-width: 0;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .page-title-row .page-back { margin: 0; flex: 0 0 auto; }
+
     .page-title {
       display: flex;
       margin: 0;
@@ -1722,7 +1732,25 @@
     .page-title .icon { width: 24px; height: 24px; margin: 0; flex: none; color: var(--accent, var(--salmon)); }
     .page-subtitle { margin-top: 5px; color: var(--subtle); font-size: 0.84rem; }
 
-    .page-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .refresh-slot {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .page-refresh-slot .icon-button {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+    }
+
+    .page-actions {
+      display: flex;
+      width: 100%;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
     .page-search { position: relative; }
 
     .page-search input {
@@ -2073,6 +2101,7 @@
     @media (max-width: 760px) {
       .page-header { gap: 12px; }
       .page-actions { width: 100%; }
+      .page-title-row { gap: 8px; }
       .page-search { flex: 1; }
       .page-search input { width: 100%; }
       .page-summary { grid-template-columns: repeat(2, 1fr); }
@@ -2145,7 +2174,7 @@
     </div>
   </div>
 
-  <header class="header-container">
+  <header id="app-header" class="header-container">
     <div class="brand-lockup">
       <div class="title-block">
         <h1>Ajatananda Ashram</h1>
@@ -2168,9 +2197,11 @@
       <button id="notif-btn" class="icon-button" type="button" aria-label="Notifications are not enabled" title="Notifications are not enabled" hidden disabled>
         <svg class="icon" aria-hidden="true"><use href="#icon-bell"></use></svg>
       </button>
-      <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh this page" title="Refresh this page">
-        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
-      </button>
+      <span id="home-refresh-slot" class="refresh-slot">
+        <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh this page" title="Refresh this page">
+          <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+        </button>
+      </span>
       <button id="add-btn" class="add-btn" type="button" aria-label="Add new guest" title="Add new guest">
         <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
         <span class="add-label-full">Add new guest</span>
@@ -2217,8 +2248,11 @@
     <div class="page-content">
     <div class="page-header">
       <div class="page-title-block">
-        <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-        <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Guest Directory</h2>
+        <div class="page-title-row">
+          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Guest Directory</h2>
+          <span class="page-refresh-slot refresh-slot"></span>
+        </div>
         <div id="directory-subtitle" class="page-subtitle"></div>
       </div>
       <div class="page-actions">
@@ -2236,8 +2270,11 @@
     <div class="page-content">
     <div class="page-header">
       <div class="page-title-block">
-        <button class="page-back" type="button" data-nav="#directory"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Directory</button>
-        <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg> <span id="guest-profile-name">Guest</span></h2>
+        <div class="page-title-row">
+          <button class="page-back" type="button" data-nav="#directory"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Directory</button>
+          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg> <span id="guest-profile-name">Guest</span></h2>
+          <span class="page-refresh-slot refresh-slot"></span>
+        </div>
         <div id="guest-profile-subtitle" class="page-subtitle"></div>
       </div>
       <div class="page-actions">
@@ -2573,8 +2610,11 @@
     <div class="page-content" style="--accent:#6fbaf0">
       <div class="page-header">
         <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> Accommodation &amp; Travel</h2>
+          <div class="page-title-row">
+            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> Accommodation &amp; Travel</h2>
+            <span class="page-refresh-slot refresh-slot"></span>
+          </div>
           <div class="page-subtitle">Visits, rooms, C-forms, cabs and personal travel</div>
         </div>
         <div class="page-actions">
@@ -2616,8 +2656,11 @@
     <div class="page-content" style="--accent:#71d99d">
       <div class="page-header">
         <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
+          <div class="page-title-row">
+            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
+            <span class="page-refresh-slot refresh-slot"></span>
+          </div>
           <div class="page-subtitle">Residents eat by default; anyone else can be invited</div>
         </div>
         <div class="page-actions">
@@ -2641,8 +2684,11 @@
     <div class="page-content" style="--accent:#fa8072">
       <div class="page-header">
         <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lotus"></use></svg> Meetings with Swamiji</h2>
+          <div class="page-title-row">
+            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lotus"></use></svg> Meetings with Swamiji</h2>
+            <span class="page-refresh-slot refresh-slot"></span>
+          </div>
           <div class="page-subtitle">Open to every Person Type</div>
         </div>
         <div class="page-actions">
@@ -2692,8 +2738,11 @@
     <div class="page-content" style="--accent:#b878d6">
       <div class="page-header">
         <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> Trips</h2>
+          <div class="page-title-row">
+            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> Trips</h2>
+            <span class="page-refresh-slot refresh-slot"></span>
+          </div>
           <div class="page-subtitle">Shared group journeys, independent of personal travel</div>
         </div>
         <div class="page-actions">
@@ -2864,8 +2913,11 @@
     <div class="page-content" style="--accent:#1abc9c">
       <div class="page-header">
         <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Seva Teams &amp; Tasks</h2>
+          <div class="page-title-row">
+            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Seva Teams &amp; Tasks</h2>
+            <span class="page-refresh-slot refresh-slot"></span>
+          </div>
           <div class="page-subtitle">Team membership and independent individual seva</div>
         </div>
         <div class="page-actions">
@@ -3454,10 +3506,22 @@
       return route.arg ? `#${route.name}/${encodeURIComponent(route.arg)}` : `#${route.name}`;
     }
 
+    function placeGlobalRefreshForPage_(pageId) {
+      const isHome = pageId === 'page-home';
+      const header = $('app-header');
+      const refresh = $('refresh-btn');
+      const page = $(pageId);
+      const slot = isHome ? $('home-refresh-slot') : page && page.querySelector('.page-refresh-slot');
+
+      header.hidden = !isHome;
+      if (slot && refresh.parentElement !== slot) slot.appendChild(refresh);
+    }
+
     function showPage_(pageId) {
       document.querySelectorAll('.page').forEach(page => {
         page.classList.toggle('active', page.id === pageId);
       });
+      placeGlobalRefreshForPage_(pageId);
       window.scrollTo(0, 0);
     }
 
