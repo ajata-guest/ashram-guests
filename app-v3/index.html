@@ -3335,6 +3335,7 @@
         renderHome_();
         handleRouteChange_().then(() => { $('signin-gate').style.display = 'none'; });
         refreshBootstrapInBackground_();
+        prefetchWorkspaces_();
         return;
       }
 
@@ -3346,7 +3347,10 @@
           renderHome_();
           return handleRouteChange_();
         })
-        .then(() => { $('signin-gate').style.display = 'none'; })
+        .then(() => {
+          $('signin-gate').style.display = 'none';
+          prefetchWorkspaces_();
+        })
         .catch(error => handleApiError(error, err => {
           // Report inside the gate rather than behind it — the gate is what
           // is on screen, and removing .verifying brings the sign-in button
@@ -3368,6 +3372,45 @@
           else if (currentRoute_.name === 'directory') renderDirectory_();
         })
         .catch(err => console.warn('Background startup refresh failed; showing cached data.', err));
+    }
+
+    // Once the app is on screen and idle, quietly fetch each workspace so the
+    // first visit to one is drawn from memory instead of waiting on a request.
+    // Sequential rather than parallel: five simultaneous Apps Script calls
+    // compete with each other and with anything the user actually asked for,
+    // and nothing here is urgent.
+    // Stale-while-revalidate for a workspace page. If its data is already in
+    // memory the page is drawn at once and the promise resolves immediately —
+    // which is what lets the router swap to a finished page with no wait —
+    // while a fresh copy is fetched behind it and redrawn when it lands. On a
+    // first visit there is nothing to show, so it behaves as it always did
+    // and waits for the fetch.
+    function loadWorkspaceCached_(hasData, render, fetch) {
+      if (hasData()) {
+        render();
+        fetch().then(render).catch(err => console.warn('Background workspace refresh failed:', err));
+        return Promise.resolve();
+      }
+      return fetch().then(render);
+    }
+
+    function prefetchWorkspaces_() {
+      const steps = [
+        () => loadAccommodationPage_(),
+        () => loadMealsPage_(todayDateKey_()),
+        () => loadMeetingsPage_(),
+        () => loadSevaPage_(),
+        () => loadTripsPage_()
+      ];
+      steps.reduce(
+        (chain, step) => chain.then(() => {
+          // Skip anything the user has already navigated to — they have the
+          // real thing, and re-fetching it underneath them is pointless.
+          if (currentRoute_.name !== 'home' && currentRoute_.name !== 'directory') return null;
+          return step().catch(() => null);
+        }),
+        Promise.resolve()
+      );
     }
 
     // ============================================================
@@ -3547,19 +3590,22 @@
 
     let sevaView_ = 'teams';
 
+    let sevaLoaded_ = false;
+
     function loadSevaPage_(view) {
       if (view && SEVA_VIEWS_.some(v => v.key === view)) sevaView_ = view;
       closeSevaTeamForm();
       closeSpecificSevaForm_();
-      return apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
-        .then(data => {
-          sevaWorkspaceData_ = data;
-          renderSevaLists_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error'));
-          throw error;
-        });
+      return loadWorkspaceCached_(
+        () => sevaLoaded_,
+        () => renderSevaLists_(),
+        () => apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
+          .then(data => { sevaWorkspaceData_ = data; sevaLoaded_ = true; })
+          .catch(error => {
+            handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error'));
+            throw error;
+          })
+      );
     }
 
     function renderSevaLists_() {
@@ -4475,18 +4521,23 @@
       return ACCOMMODATION_CHIPS_.filter(chip => chip.test(visit)).map(chip => chip.label);
     }
 
+    let accommodationLoaded_ = false;
+
     function loadAccommodationPage_(section) {
       if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) accommodationSection_ = section;
-      return apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
-        .then(data => {
-          accommodationVisits_ = Array.isArray(data.visits) ? data.visits : [];
-          renderAccommodationChips_();
-          renderAccommodationList_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error'));
-          throw error;
-        });
+      return loadWorkspaceCached_(
+        () => accommodationLoaded_,
+        () => { renderAccommodationChips_(); renderAccommodationList_(); },
+        () => apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
+          .then(data => {
+            accommodationVisits_ = Array.isArray(data.visits) ? data.visits : [];
+            accommodationLoaded_ = true;
+          })
+          .catch(error => {
+            handleApiError(error, err => showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error'));
+            throw error;
+          })
+      );
     }
 
     function renderAccommodationChips_() {
@@ -5082,16 +5133,18 @@
       const date = /^\d{4}-\d{2}-\d{2}$/.test(String(dateArg || '')) ? dateArg : todayDateKey_();
       $('meals-workspace-date').value = date;
 
-      return apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
-        .then(data => {
-          mealsData_ = data;
-          renderMealTabs_();
-          renderMealsList_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error'));
-          throw error;
-        });
+      return loadWorkspaceCached_(
+        // Keyed on the date, not merely on having loaded once — each day is a
+        // different answer, so yesterday's data must not be shown for today.
+        () => Boolean(mealsData_ && mealsData_.date === date),
+        () => { renderMealTabs_(); renderMealsList_(); },
+        () => apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
+          .then(data => { mealsData_ = data; })
+          .catch(error => {
+            handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error'));
+            throw error;
+          })
+      );
     }
 
     function renderMealTabs_() {
@@ -5270,15 +5323,16 @@
 
     function loadMeetingsPage_(section) {
       if (section && MEETING_SECTIONS_.some(s => s.key === section)) meetingsSection_ = section;
-      return apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
-        .then(data => {
-          meetingsData_ = data;
-          renderMeetingsList_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error'));
-          throw error;
-        });
+      return loadWorkspaceCached_(
+        () => Boolean(meetingsData_),
+        () => renderMeetingsList_(),
+        () => apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
+          .then(data => { meetingsData_ = data; })
+          .catch(error => {
+            handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error'));
+            throw error;
+          })
+      );
     }
 
     function renderMeetingsList_() {
@@ -5500,17 +5554,20 @@
 
     let tripsSection_ = 'upcoming';
 
+    let tripsLoaded_ = false;
+
     function loadTripsPage_(section) {
       if (section && TRIP_SECTIONS_.some(s => s.key === section)) tripsSection_ = section;
-      return apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
-        .then(data => {
-          tripsWorkspaceData_ = data;
-          renderTripsList_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error'));
-          throw error;
-        });
+      return loadWorkspaceCached_(
+        () => tripsLoaded_,
+        () => renderTripsList_(),
+        () => apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
+          .then(data => { tripsWorkspaceData_ = data; tripsLoaded_ = true; })
+          .catch(error => {
+            handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error'));
+            throw error;
+          })
+      );
     }
 
     function renderTripsList_() {
