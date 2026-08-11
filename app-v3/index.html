@@ -1803,6 +1803,43 @@
 
     .status-swipe-surface { min-width: 0; touch-action: pan-y; }
 
+    .floating-home-btn {
+      position: fixed;
+      right: calc(22px + env(safe-area-inset-right));
+      bottom: calc(22px + env(safe-area-inset-bottom));
+      z-index: 50;
+      display: inline-flex;
+      width: 52px;
+      height: 52px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #444;
+      border-radius: 50%;
+      background: #242424;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .floating-home-btn:hover,
+    .floating-home-btn:focus-visible {
+      transform: translateY(-2px);
+      border-color: #666;
+      background: #303030;
+      outline: none;
+    }
+
+    .floating-home-btn:active { transform: translateY(0); }
+    .floating-home-btn .icon { width: 24px; height: 24px; margin: 0; flex: none; }
+
+    #page-directory .page-content,
+    #page-accommodation .page-content,
+    #page-meals .page-content,
+    #page-meetings .page-content,
+    #page-trips .page-content,
+    #page-seva .page-content { padding-bottom: 86px; }
+
     .page-summary {
       display: grid;
       max-width: 1200px;
@@ -2171,6 +2208,12 @@
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
       .page-actions .primary-btn { padding: 9px 11px; }
+      .floating-home-btn {
+        right: calc(16px + env(safe-area-inset-right));
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        width: 50px;
+        height: 50px;
+      }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -2289,7 +2332,6 @@
     <div class="page-header">
       <div class="page-title-block">
         <div class="page-title-row">
-          <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
           <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Guest Directory</h2>
           <span class="page-refresh-slot refresh-slot"></span>
         </div>
@@ -2651,7 +2693,6 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> Accommodation &amp; Travel</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2698,7 +2739,6 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2726,7 +2766,6 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lamp"></use></svg> Meetings with Swamiji</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2781,7 +2820,6 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> Trips</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2958,7 +2996,6 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Seva Teams &amp; Tasks</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2994,6 +3031,10 @@
       </div>
     </div>
   </main>
+
+  <button id="floating-home-btn" class="floating-home-btn" type="button" data-nav="#home" aria-label="Return to Home" title="Home" hidden>
+    <svg class="icon" aria-hidden="true"><use href="#icon-home"></use></svg>
+  </button>
 
   <div id="toast-container" aria-live="assertive"></div>
 
@@ -3038,6 +3079,11 @@
     <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
     <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></symbol>
     <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15.41 7.41 10.83 12l4.58 4.59L14 18l-6-6 6-6 1.41 1.41z"/></symbol>
+    <symbol id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11.5 12 4l9 7.5"/>
+      <path d="M5.5 10v10h13V10"/>
+      <path d="M9.5 20v-6h5v6"/>
+    </symbol>
     <!-- Traditional diya used as the Meetings workspace's wayfinding icon. -->
     <symbol id="icon-lamp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 13.5h16c-.8 3.6-3.7 5.5-8 5.5s-7.2-1.9-8-5.5Z"/>
@@ -3568,6 +3614,10 @@
       document.querySelectorAll('.page').forEach(page => {
         page.classList.toggle('active', page.id === pageId);
       });
+      $('floating-home-btn').hidden = ![
+        'page-directory', 'page-accommodation', 'page-meals',
+        'page-meetings', 'page-trips', 'page-seva'
+      ].includes(pageId);
       placeGlobalRefreshForPage_(pageId);
       window.requestAnimationFrame(() => keepActiveStatusTabVisible_(pageId));
       window.scrollTo(0, 0);
