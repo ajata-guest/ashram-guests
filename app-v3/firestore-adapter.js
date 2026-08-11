@@ -522,14 +522,14 @@ export function createFirestoreBridge(firebaseApp) {
 
   let canonicalCache = null;
   let canonicalPromise = null;
-  let cacheAt = 0;
+  let cacheGeneration = 0;
   let remoteUnsubscribe = null;
   let initialAuditSnapshotSeen = false;
 
   function invalidate() {
+    cacheGeneration += 1;
     canonicalCache = null;
     canonicalPromise = null;
-    cacheAt = 0;
   }
 
   function authError(message) {
@@ -560,21 +560,31 @@ export function createFirestoreBridge(firebaseApp) {
     return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
   }
 
-  async function loadCanonical(force = false) {
-    ensureApproved();
-    if (!force && canonicalCache && Date.now() - cacheAt < 5000) return canonicalCache;
-    if (!force && canonicalPromise) return canonicalPromise;
-    canonicalPromise = Promise.all(COLLECTIONS.map(readCollection)).then(all => {
-      canonicalCache = Object.fromEntries(COLLECTIONS.map((name, index) => [name, all[index]]));
-      cacheAt = Date.now();
-      canonicalPromise = null;
-      return canonicalCache;
+  function refreshCanonical_() {
+    if (canonicalPromise) return canonicalPromise;
+    const generation = cacheGeneration;
+    const request = Promise.all(COLLECTIONS.map(readCollection)).then(all => {
+      const nextCanonical = Object.fromEntries(COLLECTIONS.map((name, index) => [name, all[index]]));
+      // A local write or audit event may invalidate while these reads are in
+      // flight. Never let an older request repopulate the cache afterward.
+      if (generation === cacheGeneration) canonicalCache = nextCanonical;
+      return nextCanonical;
     }).catch(error => {
-      canonicalPromise = null;
       if (error?.code === "permission-denied") throw accessError("Access denied for this Google account.");
       throw error;
+    }).finally(() => {
+      if (canonicalPromise === request) canonicalPromise = null;
     });
-    return canonicalPromise;
+    canonicalPromise = request;
+    return request;
+  }
+
+  async function loadCanonical(force = false) {
+    ensureApproved();
+    // Cache lifetime is event-driven. Local writes and the audit listener call
+    // invalidate(); ordinary navigation and idle time do not expire it.
+    if (!force && canonicalCache) return canonicalCache;
+    return refreshCanonical_();
   }
 
   async function directorySnapshot(options = {}) {
@@ -1414,6 +1424,7 @@ export function createFirestoreBridge(firebaseApp) {
     onAuthStateChanged: callback => onAuthStateChanged(auth, callback),
     isApproved: user => Boolean(user && APPROVED_EMAILS.has(clean(user.email, 200).toLowerCase())),
     startRemoteListener,
+    hasCanonicalCache: () => Boolean(canonicalCache),
     invalidate
   };
 }

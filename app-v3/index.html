@@ -495,6 +495,8 @@
       border-radius: 9px;
       background: var(--surface-raised);
       cursor: pointer;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 220px;
       transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
     }
 
@@ -2677,7 +2679,6 @@
   </svg>
 
   <script>
-    const REFRESH_INTERVAL_MS = 30000;
     // Mirrors Code-V3.gs's PERSON_TYPE_NEEDS_REVIEW — never offered in the
     // Person Type dropdown, only ever seen on a guest whose sheet row holds
     // an unrecognized value.
@@ -2706,6 +2707,19 @@
     let appInitialized = false;
     let remoteListenerStarted_ = false;
     let remoteRefreshTimer_ = null;
+    let remoteRefreshPending_ = false;
+
+    function flushPendingRemoteRefresh_() {
+      if (!remoteRefreshPending_ || !appInitialized || document.hidden) return;
+      if (modalDirty || pendingGuestIds.size) {
+        window.clearTimeout(remoteRefreshTimer_);
+        remoteRefreshTimer_ = window.setTimeout(flushPendingRemoteRefresh_, 1000);
+        return;
+      }
+      remoteRefreshPending_ = false;
+      markAllWorkspacesDirty_();
+      refreshCurrentPage_({ silent: true });
+    }
 
     function waitForFirestoreBridge_() {
       if (window.__firestoreBridge) return Promise.resolve(window.__firestoreBridge);
@@ -2761,11 +2775,9 @@
           // changes. Audit events from the other authorized account trigger
           // a quiet refresh, giving both operators near-real-time updates.
           if (!audit || audit.actorEmail === currentUserEmail) return;
+          remoteRefreshPending_ = true;
           window.clearTimeout(remoteRefreshTimer_);
-          remoteRefreshTimer_ = window.setTimeout(() => {
-            if (!appInitialized || document.hidden || modalDirty) return;
-            refreshCurrentPage_({ silent: true });
-          }, 350);
+          remoteRefreshTimer_ = window.setTimeout(flushPendingRemoteRefresh_, 350);
         });
       }
 
@@ -2836,7 +2848,7 @@
         renderHomeSearch_();
         $('search-bar').focus();
       });
-      $('refresh-btn').addEventListener('click', () => refreshCurrentPage_({ silent: false }));
+      $('refresh-btn').addEventListener('click', () => refreshCurrentPage_({ silent: false, force: true }));
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
       });
@@ -2961,32 +2973,29 @@
         if (modalIsOpen) requestCloseModal();
       });
 
+      // This is not a visibility-based poll. It only completes a specific
+      // realtime update that arrived while the browser tab was suspended.
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) refreshCurrentPage_({ silent: true });
+        if (!document.hidden && remoteRefreshPending_) flushPendingRemoteRefresh_();
       });
 
       startSession_();
-
-      // One timer, and it only ever refreshes the page actually on screen.
-      // Never over a dirty editor or a pending save — a background refresh
-      // that overwrites half-typed input is worse than slightly stale data.
-      window.setInterval(() => {
-        // Never while a dialog is open, dirty or not: refreshing the list
-        // underneath can re-render the very card the open editor came from.
-        if (document.hidden || modalIsOpen || visitEditorOpen_ || tripEditorOpen_
-            || isEditorDirty_() || pendingGuestIds.size) return;
-        refreshCurrentPage_({ silent: true });
-      }, REFRESH_INTERVAL_MS);
     }
 
-    // The header Refresh button, the 30-second timer, a foreground push and
-    // returning to the tab all come through here, so "refresh" always means
-    // the same thing: reload whatever is currently being looked at, and
-    // nothing else.
+    // Realtime audit events and the header Refresh button come through here.
+    // There is deliberately no timer or visibility-change refresh: Firestore
+    // keeps the listener connected and actual changes are the only reason to
+    // reload a view. A deliberate manual refresh invalidates the canonical
+    // cache first so it always verifies the latest server state.
     function refreshCurrentPage_(options) {
       const opts = options || {};
       const button = $('refresh-btn');
       if (!opts.silent) button.disabled = true;
+
+      if (opts.force && window.__firestoreBridge) {
+        window.__firestoreBridge.invalidate();
+        markAllWorkspacesDirty_();
+      }
 
       const done = () => { button.disabled = false; };
       const fail = error => handleApiError(error, err => {
@@ -3194,6 +3203,7 @@
       buildRoomOptions();
 
       directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
+      directoryCardCache_.clear();
       directoryTierCounts_ = data.tierCounts || directoryTierCounts_;
       directoryIncludesArchived_ = Boolean(includeArchived);
       updateLastRefreshed(data.generatedAt);
@@ -3407,24 +3417,34 @@
         .catch(err => console.warn('Background startup refresh failed; showing cached data.', err));
     }
 
-    // Once the app is on screen and idle, quietly fetch each workspace so the
-    // first visit to one is drawn from memory instead of waiting on a request.
-    // Sequential rather than parallel: five simultaneous Apps Script calls
-    // compete with each other and with anything the user actually asked for,
-    // and nothing here is urgent.
-    // Stale-while-revalidate for a workspace page. If its data is already in
-    // memory the page is drawn at once and the promise resolves immediately —
-    // which is what lets the router swap to a finished page with no wait —
-    // while a fresh copy is fetched behind it and redrawn when it lands. On a
-    // first visit there is nothing to show, so it behaves as it always did
-    // and waits for the fetch.
-    function loadWorkspaceCached_(hasData, render, fetch) {
-      if (hasData()) {
-        render();
-        fetch().then(render).catch(err => console.warn('Background workspace refresh failed:', err));
+    // Once the app is on screen, derive each workspace from the already-loaded
+    // canonical snapshot so its first visit is ready. These are sequential
+    // local transformations, not five independent database reads.
+    const WORKSPACE_CACHE_NAMES_ = Object.freeze(['accommodation', 'meals', 'meetings', 'seva', 'trips']);
+    const dirtyWorkspaces_ = new Set(WORKSPACE_CACHE_NAMES_);
+
+    function markAllWorkspacesDirty_() {
+      WORKSPACE_CACHE_NAMES_.forEach(name => dirtyWorkspaces_.add(name));
+    }
+
+    // Draw an available workspace copy immediately. Re-derive it only when
+    // that workspace is dirty or the adapter's canonical snapshot has been
+    // invalidated by a real write/audit event. Merely navigating between
+    // pages no longer starts another database read.
+    function loadWorkspaceCached_(workspace, hasData, render, fetch) {
+      const alreadyLoaded = hasData();
+      const canonicalReady = Boolean(window.__firestoreBridge && window.__firestoreBridge.hasCanonicalCache());
+      if (alreadyLoaded) render();
+
+      if (alreadyLoaded && !dirtyWorkspaces_.has(workspace) && canonicalReady) {
         return Promise.resolve();
       }
-      return fetch().then(render);
+
+      return fetch().then(result => {
+        dirtyWorkspaces_.delete(workspace);
+        render();
+        return result;
+      });
     }
 
     function prefetchWorkspaces_() {
@@ -3630,6 +3650,7 @@
       closeSevaTeamForm();
       closeSpecificSevaForm_();
       return loadWorkspaceCached_(
+        'seva',
         () => sevaLoaded_,
         () => renderSevaLists_(),
         () => apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
@@ -4393,32 +4414,53 @@
     const directoryActiveChips_ = new Set();
     let directoryShowArchived_ = false;
     let directorySearchTimer_ = null;
+    let directoryRenderFrame_ = null;
+    const directoryCardCache_ = new Map();
 
     function renderDirectory_(arg) {
+      if (directoryRenderFrame_ !== null) {
+        cancelAnimationFrame(directoryRenderFrame_);
+        directoryRenderFrame_ = null;
+      }
       if (arg && DIRECTORY_TIERS_.some(t => t.key === arg)) directoryTierKey_ = arg;
-      renderDirectoryTabs_();
+      const filtered = directoryFilteredRecords_();
+      renderDirectoryTabs_(filtered);
       renderDirectoryChips_();
-      renderDirectoryBody_();
+      renderDirectoryBody_(filtered);
     }
 
-    function directoryFilteredRecords_() {
-      const query = $('directory-search').value.trim();
-      return directoryRecords_.filter(record => {
-        if (!directoryShowArchived_ && record.archived) return false;
-        if (directoryActiveChips_.size) {
-          for (const label of directoryActiveChips_) {
-            const chip = DIRECTORY_CHIPS_.find(c => c.label === label);
-            if (chip && !chip.test(record)) return false;
-          }
-        }
-        return matchesRecordSearch_(record, query);
+    function renderDirectoryResults_() {
+      const filtered = directoryFilteredRecords_();
+      renderDirectoryTabs_(filtered);
+      renderDirectoryBody_(filtered);
+    }
+
+    // Paint the selected chip first, then update the heavier card grid. Rapid
+    // consecutive taps collapse into one render of the final filter state.
+    function scheduleDirectoryResultsRender_() {
+      if (directoryRenderFrame_ !== null) cancelAnimationFrame(directoryRenderFrame_);
+      directoryRenderFrame_ = requestAnimationFrame(() => {
+        directoryRenderFrame_ = requestAnimationFrame(() => {
+          directoryRenderFrame_ = null;
+          renderDirectoryResults_();
+        });
       });
     }
 
-    function renderDirectoryTabs_() {
+    function directoryFilteredRecords_() {
+      const queryTerms = normalizeSearchText($('directory-search').value).split(/\s+/).filter(Boolean);
+      const activeTests = DIRECTORY_CHIPS_.filter(chip => directoryActiveChips_.has(chip.label));
+      return directoryRecords_.filter(record => {
+        if (!directoryShowArchived_ && record.archived) return false;
+        if (!activeTests.every(chip => chip.test(record))) return false;
+        return queryTerms.every(term => record.searchText.includes(term));
+      });
+    }
+
+    function renderDirectoryTabs_(filteredRecords) {
       const container = $('directory-tabs');
       container.replaceChildren();
-      const filtered = directoryFilteredRecords_();
+      const filtered = filteredRecords || directoryFilteredRecords_();
 
       DIRECTORY_TIERS_.forEach(def => {
         const count = def.tier === null ? filtered.length : filtered.filter(r => r.tier === def.tier).length;
@@ -4448,9 +4490,12 @@
         chip.type = 'button';
         chip.setAttribute('aria-pressed', String(active));
         chip.addEventListener('click', () => {
-          if (active) directoryActiveChips_.delete(def.label);
+          const wasActive = directoryActiveChips_.has(def.label);
+          if (wasActive) directoryActiveChips_.delete(def.label);
           else directoryActiveChips_.add(def.label);
-          renderDirectory_();
+          chip.classList.toggle('active', !wasActive);
+          chip.setAttribute('aria-pressed', String(!wasActive));
+          scheduleDirectoryResultsRender_();
         });
         container.appendChild(chip);
       });
@@ -4464,21 +4509,38 @@
       archivedChip.addEventListener('click', () => {
         directoryShowArchived_ = !directoryShowArchived_;
         if (directoryShowArchived_ && !directoryIncludesArchived_) {
+          archivedChip.disabled = true;
           loadDirectorySnapshot_({ includeArchived: true })
             .then(() => renderDirectory_())
-            .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+            .catch(error => {
+              archivedChip.disabled = false;
+              directoryShowArchived_ = false;
+              archivedChip.classList.remove('active');
+              archivedChip.setAttribute('aria-pressed', 'false');
+              handleApiError(error, err => showToast(getErrorMessage(err), 'error'));
+            });
           return;
         }
-        renderDirectory_();
+        archivedChip.classList.toggle('active', directoryShowArchived_);
+        archivedChip.setAttribute('aria-pressed', String(directoryShowArchived_));
+        scheduleDirectoryResultsRender_();
       });
       container.appendChild(archivedChip);
     }
 
-    function renderDirectoryBody_() {
+    function directoryCardFor_(record) {
+      const cached = directoryCardCache_.get(record.guestId);
+      if (cached && cached.record === record) return cached.card;
+      const card = createFullGuestCard(record);
+      directoryCardCache_.set(record.guestId, { record, card });
+      return card;
+    }
+
+    function renderDirectoryBody_(filteredRecords) {
       const body = $('directory-body');
       body.replaceChildren();
 
-      const filtered = directoryFilteredRecords_();
+      const filtered = filteredRecords || directoryFilteredRecords_();
       const def = DIRECTORY_TIERS_.find(t => t.key === directoryTierKey_) || DIRECTORY_TIERS_[0];
       const records = def.tier === null ? filtered : filtered.filter(r => r.tier === def.tier);
 
@@ -4497,7 +4559,9 @@
         zone.appendChild(createElement('div', 'zone-empty', 'Nobody here right now.'));
       } else {
         const grid = createElement('div', 'card-grid');
-        records.forEach(record => grid.appendChild(createFullGuestCard(record)));
+        const fragment = document.createDocumentFragment();
+        records.forEach(record => fragment.appendChild(directoryCardFor_(record)));
+        grid.appendChild(fragment);
         zone.appendChild(grid);
       }
       body.appendChild(zone);
@@ -4505,7 +4569,7 @@
 
     function handleDirectorySearchInput() {
       window.clearTimeout(directorySearchTimer_);
-      directorySearchTimer_ = window.setTimeout(() => renderDirectory_(), 140);
+      directorySearchTimer_ = window.setTimeout(scheduleDirectoryResultsRender_, 100);
     }
 
     // ============================================================
@@ -4559,6 +4623,7 @@
     function loadAccommodationPage_(section) {
       if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) accommodationSection_ = section;
       return loadWorkspaceCached_(
+        'accommodation',
         () => accommodationLoaded_,
         () => { renderAccommodationChips_(); renderAccommodationList_(); },
         () => apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
@@ -5220,6 +5285,7 @@
       $('meals-workspace-date').value = date;
 
       return loadWorkspaceCached_(
+        'meals',
         // Keyed on the date, not merely on having loaded once — each day is a
         // different answer, so yesterday's data must not be shown for today.
         () => Boolean(mealsData_ && mealsData_.date === date),
@@ -5410,6 +5476,7 @@
     function loadMeetingsPage_(section) {
       if (section && MEETING_SECTIONS_.some(s => s.key === section)) meetingsSection_ = section;
       return loadWorkspaceCached_(
+        'meetings',
         () => Boolean(meetingsData_),
         () => renderMeetingsList_(),
         () => apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
@@ -5645,6 +5712,7 @@
     function loadTripsPage_(section) {
       if (section && TRIP_SECTIONS_.some(s => s.key === section)) tripsSection_ = section;
       return loadWorkspaceCached_(
+        'trips',
         () => tripsLoaded_,
         () => renderTripsList_(),
         () => apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
@@ -7336,6 +7404,7 @@
             record.invitedPurposeOther = payload.invitedPurposeOther;
             record.staffAssignment = payload.staffAssignment;
             prepareRecordForDisplay_(record);
+            directoryCardCache_.delete(record.guestId);
             if (currentRoute_.name === 'directory') renderDirectory_();
           }
 
