@@ -1803,42 +1803,121 @@
 
     .status-swipe-surface { min-width: 0; touch-action: pan-y; }
 
-    .floating-home-btn {
+    .workspace-dock {
+      --dock-panel-width: min(257px, calc(100vw - 54px - env(safe-area-inset-right)));
       position: fixed;
-      right: calc(22px + env(safe-area-inset-right));
-      bottom: calc(22px + env(safe-area-inset-bottom));
+      top: 50%;
+      right: env(safe-area-inset-right);
       z-index: 50;
-      display: inline-flex;
-      width: 52px;
-      height: 52px;
+      display: flex;
       align-items: center;
-      justify-content: center;
-      border: 1px solid #444;
-      border-radius: 50%;
-      background: #242424;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
-      color: #fff;
-      cursor: pointer;
-      transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+      transform: translateY(-50%);
+      filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.42));
     }
 
-    .floating-home-btn:hover,
-    .floating-home-btn:focus-visible {
-      transform: translateY(-2px);
-      border-color: #666;
-      background: #303030;
+    .workspace-dock-panel {
+      width: 0;
+      height: 60px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-right: 0;
+      border-radius: 12px 0 0 12px;
+      background: #202020;
+      opacity: 0;
+      transition: width 0.22s ease, opacity 0.16s ease, border-color 0.16s ease;
+    }
+
+    .workspace-dock.open .workspace-dock-panel {
+      width: var(--dock-panel-width);
+      border-color: #3d3d3d;
+      opacity: 1;
+    }
+
+    .workspace-dock.dragging .workspace-dock-panel {
+      width: var(--dock-drag-width, 0px);
+      border-color: #3d3d3d;
+      opacity: 1;
+      transition: none;
+    }
+
+    .workspace-dock-items {
+      display: flex;
+      width: var(--dock-panel-width);
+      height: 100%;
+      padding: 11px 8px;
+      gap: 4px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .workspace-dock-destination {
+      display: inline-flex;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--dock-color);
+      cursor: pointer;
+    }
+
+    .workspace-dock-destination:hover,
+    .workspace-dock-destination:focus-visible {
+      border-color: color-mix(in srgb, var(--dock-color) 42%, transparent);
+      background: color-mix(in srgb, var(--dock-color) 13%, transparent);
       outline: none;
     }
 
-    .floating-home-btn:active { transform: translateY(0); }
-    .floating-home-btn .icon { width: 24px; height: 24px; margin: 0; flex: none; }
+    .workspace-dock-destination.active {
+      border-color: color-mix(in srgb, var(--dock-color) 50%, transparent);
+      background: color-mix(in srgb, var(--dock-color) 18%, transparent);
+    }
 
-    #page-directory .page-content,
-    #page-accommodation .page-content,
-    #page-meals .page-content,
-    #page-meetings .page-content,
-    #page-trips .page-content,
-    #page-seva .page-content { padding-bottom: 86px; }
+    .workspace-dock-destination .icon { width: 20px; height: 20px; margin: 0; flex: none; }
+    .workspace-dock-divider { width: 1px; height: 25px; flex: 0 0 1px; background: #414141; }
+
+    .workspace-dock-handle {
+      display: flex;
+      width: 54px;
+      height: 60px;
+      flex: 0 0 54px;
+      border: 1px solid #444;
+      border-right: 0;
+      border-radius: 12px 0 0 12px;
+      background: #242424;
+      touch-action: pan-y;
+    }
+
+    .workspace-dock.open .workspace-dock-handle {
+      border-left-color: #333;
+      border-radius: 0;
+    }
+
+    .workspace-dock-toggle,
+    .workspace-dock-home {
+      display: inline-flex;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .workspace-dock-toggle { width: 17px; flex: 0 0 17px; color: #888; }
+    .workspace-dock-toggle:hover,
+    .workspace-dock-toggle:focus-visible { color: #fff; outline: none; }
+    .workspace-dock-toggle .icon { width: 13px; height: 13px; margin: 0; transition: transform 0.2s ease; }
+    .workspace-dock.open .workspace-dock-toggle .icon { transform: rotate(180deg); }
+
+    .workspace-dock-home { width: 36px; flex: 0 0 36px; }
+    .workspace-dock-home:hover,
+    .workspace-dock-home:focus-visible { background: #303030; outline: none; }
+    .workspace-dock-home .icon { width: 23px; height: 23px; margin: 0; flex: none; }
 
     .page-summary {
       display: grid;
@@ -2208,12 +2287,7 @@
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
       .page-actions .primary-btn { padding: 9px 11px; }
-      .floating-home-btn {
-        right: calc(16px + env(safe-area-inset-right));
-        bottom: calc(16px + env(safe-area-inset-bottom));
-        width: 50px;
-        height: 50px;
-      }
+      .workspace-dock { --dock-panel-width: min(257px, calc(100vw - 54px - env(safe-area-inset-right))); }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -3032,9 +3106,39 @@
     </div>
   </main>
 
-  <button id="floating-home-btn" class="floating-home-btn" type="button" data-nav="#home" aria-label="Return to Home" title="Home" hidden>
-    <svg class="icon" aria-hidden="true"><use href="#icon-home"></use></svg>
-  </button>
+  <nav id="workspace-dock" class="workspace-dock" aria-label="Quick navigation" hidden>
+    <div id="workspace-dock-panel" class="workspace-dock-panel" aria-hidden="true">
+      <div class="workspace-dock-items">
+        <button class="workspace-dock-destination" type="button" data-nav="#directory" data-dock-page="page-directory" style="--dock-color:#fa8072" aria-label="Guest Directory" title="Guest Directory">
+          <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
+        </button>
+        <span class="workspace-dock-divider" aria-hidden="true"></span>
+        <button class="workspace-dock-destination" type="button" data-nav="#accommodation" data-dock-page="page-accommodation" style="--dock-color:#6fbaf0" aria-label="Accommodation and Travel" title="Accommodation &amp; Travel">
+          <svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg>
+        </button>
+        <button class="workspace-dock-destination" type="button" data-nav="#meals" data-dock-page="page-meals" style="--dock-color:#71d99d" aria-label="Meals" title="Meals">
+          <svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg>
+        </button>
+        <button class="workspace-dock-destination" type="button" data-nav="#meetings" data-dock-page="page-meetings" style="--dock-color:#fa8072" aria-label="Meetings with Swamiji" title="Meetings with Swamiji">
+          <svg class="icon" aria-hidden="true"><use href="#icon-lamp"></use></svg>
+        </button>
+        <button class="workspace-dock-destination" type="button" data-nav="#seva" data-dock-page="page-seva" style="--dock-color:#F3CD97" aria-label="Seva Teams and Tasks" title="Seva Teams &amp; Tasks">
+          <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
+        </button>
+        <button class="workspace-dock-destination" type="button" data-nav="#trips" data-dock-page="page-trips" style="--dock-color:#b878d6" aria-label="Trips" title="Trips">
+          <svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg>
+        </button>
+      </div>
+    </div>
+    <div id="workspace-dock-handle" class="workspace-dock-handle">
+      <button id="workspace-dock-toggle" class="workspace-dock-toggle" type="button" aria-label="Open quick navigation" aria-controls="workspace-dock-panel" aria-expanded="false">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+      </button>
+      <button id="workspace-dock-home" class="workspace-dock-home" type="button" data-nav="#home" aria-label="Return to Home" title="Home">
+        <svg class="icon" aria-hidden="true"><use href="#icon-home"></use></svg>
+      </button>
+    </div>
+  </nav>
 
   <div id="toast-container" aria-live="assertive"></div>
 
@@ -3258,7 +3362,10 @@
       // never means remembering to wire its own.
       document.addEventListener('click', event => {
         const backButton = event.target.closest('[data-nav]');
-        if (backButton) navigate(backButton.dataset.nav);
+        if (backButton) {
+          setWorkspaceDockOpen_(false);
+          navigate(backButton.dataset.nav);
+        }
       });
 
       $('search-bar').addEventListener('input', handleSearchInput);
@@ -3419,7 +3526,11 @@
         if ($('meeting-editor-modal').style.display === 'flex') { closeMeetingEditor_(); return; }
         if (visitEditorOpen_) { requestCloseVisitEditor_(); return; }
         if (tripEditorOpen_) { requestCloseTripEditor_(); return; }
-        if (modalIsOpen) requestCloseModal();
+        if (modalIsOpen) { requestCloseModal(); return; }
+        if (workspaceDockOpen_) {
+          setWorkspaceDockOpen_(false);
+          $('workspace-dock-toggle').focus();
+        }
       });
 
       // This is not a visibility-based poll. It only completes a specific
@@ -3428,6 +3539,7 @@
         if (!document.hidden && remoteRefreshPending_) flushPendingRemoteRefresh_();
       });
 
+      initWorkspaceDock_();
       initStatusSwipeNavigation_();
       startSession_();
     }
@@ -3599,6 +3711,118 @@
       return route.arg ? `#${route.name}/${encodeURIComponent(route.arg)}` : `#${route.name}`;
     }
 
+    let workspaceDockOpen_ = false;
+
+    function setWorkspaceDockOpen_(open) {
+      const dock = $('workspace-dock');
+      if (!dock) return;
+      workspaceDockOpen_ = Boolean(open) && !dock.hidden;
+      dock.classList.toggle('open', workspaceDockOpen_);
+      dock.classList.remove('dragging');
+      dock.style.removeProperty('--dock-drag-width');
+      $('workspace-dock-panel').setAttribute('aria-hidden', String(!workspaceDockOpen_));
+      $('workspace-dock-toggle').setAttribute('aria-expanded', String(workspaceDockOpen_));
+      $('workspace-dock-toggle').setAttribute('aria-label', workspaceDockOpen_ ? 'Close quick navigation' : 'Open quick navigation');
+    }
+
+    function updateWorkspaceDockForPage_(pageId) {
+      const dock = $('workspace-dock');
+      const visible = [
+        'page-directory', 'page-accommodation', 'page-meals',
+        'page-meetings', 'page-trips', 'page-seva'
+      ].includes(pageId);
+
+      if (!visible) setWorkspaceDockOpen_(false);
+      dock.hidden = !visible;
+      dock.querySelectorAll('.workspace-dock-destination').forEach(button => {
+        const active = button.dataset.dockPage === pageId;
+        button.classList.toggle('active', active);
+        if (active) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
+    }
+
+    function initWorkspaceDock_() {
+      const dock = $('workspace-dock');
+      const items = dock.querySelector('.workspace-dock-items');
+      const handle = $('workspace-dock-handle');
+      const toggle = $('workspace-dock-toggle');
+      let drag = null;
+      let suppressNextClick = false;
+      let suppressTimer = null;
+
+      function panelWidth() {
+        return Math.max(1, Math.round(items.getBoundingClientRect().width));
+      }
+
+      function finishDrag(event, cancelled) {
+        if (!drag) return;
+        const dx = event.clientX - drag.startX;
+        const moved = drag.isHorizontal && Math.abs(dx) > 8;
+        const shouldOpen = cancelled
+          ? drag.startedOpen
+          : (drag.startedOpen ? dx < 40 : -dx > 40);
+
+        dock.classList.remove('dragging');
+        dock.style.removeProperty('--dock-drag-width');
+        if (moved) {
+          suppressNextClick = true;
+          window.clearTimeout(suppressTimer);
+          suppressTimer = window.setTimeout(() => { suppressNextClick = false; }, 450);
+        }
+        setWorkspaceDockOpen_(shouldOpen);
+        drag = null;
+      }
+
+      handle.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        drag = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          startedOpen: workspaceDockOpen_,
+          isHorizontal: null,
+          width: panelWidth()
+        };
+        if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+      });
+
+      handle.addEventListener('pointermove', event => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const dx = event.clientX - drag.startX;
+        const dy = event.clientY - drag.startY;
+        if (drag.isHorizontal === null && (Math.abs(dx) > 7 || Math.abs(dy) > 7)) {
+          drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+        }
+        if (!drag.isHorizontal) return;
+        event.preventDefault();
+        const base = drag.startedOpen ? drag.width : 0;
+        const width = Math.max(0, Math.min(drag.width, base - dx));
+        dock.classList.add('dragging');
+        dock.classList.remove('open');
+        dock.style.setProperty('--dock-drag-width', `${width}px`);
+      });
+
+      handle.addEventListener('pointerup', event => finishDrag(event, false));
+      handle.addEventListener('pointercancel', event => finishDrag(event, true));
+
+      // A drag ends with a synthetic click on some browsers. Swallow that
+      // one click so pulling the ribbon can never accidentally send the user
+      // Home or toggle the tray a second time.
+      handle.addEventListener('click', event => {
+        if (!suppressNextClick) return;
+        suppressNextClick = false;
+        window.clearTimeout(suppressTimer);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }, true);
+
+      toggle.addEventListener('click', () => setWorkspaceDockOpen_(!workspaceDockOpen_));
+      document.addEventListener('click', event => {
+        if (workspaceDockOpen_ && !dock.contains(event.target)) setWorkspaceDockOpen_(false);
+      });
+    }
+
     function placeGlobalRefreshForPage_(pageId) {
       const isHome = pageId === 'page-home';
       const header = $('app-header');
@@ -3614,10 +3838,7 @@
       document.querySelectorAll('.page').forEach(page => {
         page.classList.toggle('active', page.id === pageId);
       });
-      $('floating-home-btn').hidden = ![
-        'page-directory', 'page-accommodation', 'page-meals',
-        'page-meetings', 'page-trips', 'page-seva'
-      ].includes(pageId);
+      updateWorkspaceDockForPage_(pageId);
       placeGlobalRefreshForPage_(pageId);
       window.requestAnimationFrame(() => keepActiveStatusTabVisible_(pageId));
       window.scrollTo(0, 0);
