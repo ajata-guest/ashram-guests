@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1751,41 +1751,61 @@
     .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
     .workspace-grid {
-      display: grid;
-      max-width: 1200px;
-      margin: 0 auto;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-      gap: 18px;
-    }
-
-    /* One accent per workspace, set inline as --accent. Drawn only from the
-       identity hues (blue/green/salmon/teal/violet) and never from the amber
-       or red families, which stay reserved for attention badges — so a card's
-       accent can never be misread as a warning. */
-    .workspace-card {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      padding: 18px;
-      border: 1px solid var(--border);
-      border-top: 3px solid var(--accent);
-      border-radius: 10px;
-      background: var(--surface-raised);
+      max-width: 1200px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* These are navigation gateways rather than dashboard cards. Each rests
+       directly in the page flow, separated by a hairline and carrying only a
+       very light tint of its established workspace colour. Amber and red stay
+       reserved for attention states, never workspace identity. */
+    .workspace-card {
+      position: relative;
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(280px, 1.35fr) minmax(280px, 1fr) auto;
+      gap: clamp(16px, 2.5vw, 30px);
+      align-items: center;
+      padding: 18px 16px 18px 22px;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      background: color-mix(in srgb, var(--accent) 7%, transparent);
       cursor: pointer;
       text-align: left;
       color: inherit;
-      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .workspace-card::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      bottom: 14px;
+      left: 0;
+      width: 3px;
+      background: var(--accent);
+      transition: top 0.18s ease, bottom 0.18s ease, width 0.18s ease;
     }
 
     .workspace-card:hover,
     .workspace-card:focus-visible {
-      transform: translateY(-2px);
-      border-color: #4a4a4a;
+      transform: translateX(3px);
       outline: none;
-      background: var(--surface-hover);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
     }
 
-    .ws-head { display: flex; gap: 12px; align-items: center; }
+    .workspace-card:hover::before,
+    .workspace-card:focus-visible::before {
+      top: 7px;
+      bottom: 7px;
+      width: 5px;
+    }
+
+    .ws-head { display: flex; gap: 14px; align-items: center; min-width: 0; }
 
     .ws-icon {
       display: flex;
@@ -1797,16 +1817,37 @@
     }
 
     .ws-icon .icon { width: 22px; height: 22px; margin: 0; flex: none; }
-    .ws-title { flex: 1; min-width: 0; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
-    .ws-go { color: #5c5c5c; }
-    .ws-go .icon { width: 20px; height: 20px; margin: 0; flex: none; }
-    .workspace-card:hover .ws-go { color: var(--accent); }
+    .ws-copy { display: block; min-width: 0; }
+    .ws-title { display: block; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
+    .ws-desc { display: block; margin-top: 4px; color: var(--subtle); font-size: 0.8rem; }
 
-    .ws-stats { display: flex; gap: 20px; flex-wrap: wrap; }
-    .ws-stat { display: block; min-width: 0; }
-    .ws-stat-value { display: block; color: #fff; font-size: 1.45rem; font-weight: 700; line-height: 1; }
-    .ws-stat-label { display: block; margin-top: 4px; color: var(--subtle); font-size: 0.72rem; letter-spacing: 0.02em; }
-    .ws-foot { display: block; margin-top: auto; padding-top: 2px; }
+    .ws-info { display: flex; gap: 10px 18px; align-items: center; flex-wrap: wrap; }
+    .ws-go {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .ws-go .icon {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      flex: none;
+      transition: transform 0.18s ease;
+    }
+
+    .workspace-card:hover .ws-go .icon,
+    .workspace-card:focus-visible .ws-go .icon { transform: translateX(4px); }
+
+    .ws-stats { display: flex; gap: 9px 18px; align-items: baseline; flex-wrap: wrap; }
+    .ws-stat { display: inline-flex; gap: 5px; align-items: baseline; min-width: 0; white-space: nowrap; }
+    .ws-stat-value { display: inline; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1; }
+    .ws-stat-label { display: inline; color: var(--subtle); font-size: 0.76rem; letter-spacing: 0.01em; }
+    .ws-foot { display: flex; align-items: center; }
     .ws-foot .badge { text-transform: none; }
     .ws-quiet { color: #5f5f5f; font-size: 0.76rem; }
 
@@ -1930,6 +1971,8 @@
       .page-summary { grid-template-columns: repeat(2, 1fr); }
       .ribbon-desc { display: none; }
       .ribbon-go span { display: none; }
+      .workspace-card { grid-template-columns: minmax(0, 1fr) auto; }
+      .ws-info { grid-column: 1 / -1; padding-left: 56px; }
       .page-title { font-size: 1.3rem; }
     }
 
@@ -1938,6 +1981,9 @@
       .header-container { align-items: stretch; }
       .controls { max-width: none; }
       .zone-description { display: none; }
+      .workspace-card { grid-template-columns: 1fr; gap: 11px; }
+      .ws-info,
+      .ws-go { padding-left: 56px; }
       .modal-content { padding: 20px 16px; }
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
@@ -3591,42 +3637,47 @@
     const WORKSPACE_CARDS_ = Object.freeze([
       {
         route: '#accommodation', accent: '#6fbaf0', icon: 'icon-bed', title: 'Accommodation & Travel',
+        description: 'Rooms, stays, travel legs and cabs',
         stats: s => [
-          { value: s.accommodation.arrivingToday, label: 'ARRIVING TODAY' },
-          { value: s.accommodation.departingToday, label: 'DEPARTING TODAY' },
-          { value: s.accommodation.currentlyResiding, label: 'RESIDING' }
+          { value: s.accommodation.arrivingToday, label: 'arriving' },
+          { value: s.accommodation.departingToday, label: 'departing' },
+          { value: s.accommodation.currentlyResiding, label: 'residing' }
         ],
         attention: s => s.accommodation.attentionNeeded,
         attentionLabel: n => `${n} need attention`
       },
       {
         route: '#meals', accent: '#71d99d', icon: 'icon-meal', title: 'Meals',
-        stats: s => ALLOWED_MEALS.map(meal => ({ value: (s.meals.counts || {})[meal] || 0, label: meal.toUpperCase() })),
+        description: 'Meal plans, attendance and exceptions',
+        stats: s => ALLOWED_MEALS.map(meal => ({ value: (s.meals.counts || {})[meal] || 0, label: meal.toLowerCase() })),
         quiet: s => `Expected attendance today \u00B7 ${s.meals.exceptionCount || 0} exception${s.meals.exceptionCount === 1 ? '' : 's'}`
       },
       {
         route: '#meetings', accent: '#fa8072', icon: 'icon-lotus', title: 'Meetings with Swamiji',
+        description: 'Schedules, timings and meeting status',
         stats: s => [
-          { value: s.meetings.today, label: 'TODAY' },
-          { value: s.meetings.upcoming, label: 'UPCOMING' }
+          { value: s.meetings.today, label: 'today' },
+          { value: s.meetings.upcoming, label: 'upcoming' }
         ],
         attention: s => s.meetings.needsCompletion,
         attentionLabel: n => `${n} need completion`
       },
       {
         route: '#seva', accent: '#1abc9c', icon: 'icon-people', title: 'Seva Teams & Tasks',
+        description: 'Event teams, members and individual seva',
         stats: s => [
-          { value: s.seva.activeTeams, label: 'ACTIVE TEAMS' },
-          { value: s.seva.activeTeamMembers, label: 'MEMBERS' },
-          { value: s.seva.activeSpecificSeva, label: 'ACTIVE TASKS' }
+          { value: s.seva.activeTeams, label: 'active teams' },
+          { value: s.seva.activeTeamMembers, label: 'members' },
+          { value: s.seva.activeSpecificSeva, label: 'active tasks' }
         ],
         quiet: s => (s.seva.startingSoon ? `${s.seva.startingSoon} team${s.seva.startingSoon === 1 ? '' : 's'} not started yet` : '')
       },
       {
         route: '#trips', accent: '#b878d6', icon: 'icon-bus', title: 'Trips',
+        description: 'Group journeys, participants and travel legs',
         stats: s => [
-          { value: s.trips.active, label: 'ACTIVE' },
-          { value: s.trips.upcoming, label: 'UPCOMING' }
+          { value: s.trips.active, label: 'active' },
+          { value: s.trips.upcoming, label: 'upcoming' }
         ],
         attention: s => s.trips.needingTravel,
         attentionLabel: n => `${n} trip${n === 1 ? '' : 's'} need travel`
@@ -3658,12 +3709,13 @@
         const iconWrap = createElement('span', 'ws-icon');
         iconWrap.appendChild(createIcon_(def.icon));
         head.appendChild(iconWrap);
-        head.appendChild(createElement('span', 'ws-title', def.title));
-        const go = createElement('span', 'ws-go');
-        go.appendChild(createIcon_('icon-chevron-right'));
-        head.appendChild(go);
+        const copy = createElement('span', 'ws-copy');
+        copy.appendChild(createElement('span', 'ws-title', def.title));
+        copy.appendChild(createElement('span', 'ws-desc', def.description));
+        head.appendChild(copy);
         card.appendChild(head);
 
+        const info = createElement('span', 'ws-info');
         const stats = createElement('span', 'ws-stats');
         def.stats(summary).forEach(stat => {
           const wrap = createElement('span', 'ws-stat');
@@ -3671,7 +3723,7 @@
           wrap.appendChild(createElement('span', 'ws-stat-label', stat.label));
           stats.appendChild(wrap);
         });
-        card.appendChild(stats);
+        info.appendChild(stats);
 
         const foot = createElement('span', 'ws-foot');
         const attentionCount = def.attention ? def.attention(summary) : 0;
@@ -3681,7 +3733,13 @@
           const text = def.quiet(summary);
           if (text) foot.appendChild(createElement('span', 'ws-quiet', text));
         }
-        card.appendChild(foot);
+        if (foot.childNodes.length) info.appendChild(foot);
+        card.appendChild(info);
+
+        const go = createElement('span', 'ws-go');
+        go.appendChild(createElement('span', '', 'Enter workspace'));
+        go.appendChild(createIcon_('icon-chevron-right'));
+        card.appendChild(go);
 
         grid.appendChild(card);
       });
