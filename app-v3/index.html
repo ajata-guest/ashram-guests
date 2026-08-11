@@ -4463,15 +4463,7 @@
       card.appendChild(createElement('div', 'guest-name', summary.name || 'Unnamed Guest'));
 
       const topBadges = createElement('div', 'badge-row');
-      const personTypeClass = summary.personType === PERSON_TYPE_NEEDS_REVIEW
-        ? 'badge-warning'
-        : ({
-            Friend: 'badge-blue',
-            Visitor: 'badge-purple',
-            'Event Staff': 'badge-teal',
-            Other: 'badge-silver'
-          })[summary.personType] || 'badge-salmon';
-      topBadges.appendChild(createBadge(summary.personType || 'Invited Guest', personTypeClass));
+      topBadges.appendChild(createPersonTypeBadge(summary.personType));
 
       if (isInvitedGuestPurposeApplicable(summary.personType) && Array.isArray(summary.invitedPurpose)) {
         summary.invitedPurpose.forEach(purpose => topBadges.appendChild(createBadge(purpose, 'badge-gray')));
@@ -5295,7 +5287,7 @@
 
       card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
-      badges.appendChild(createBadge(visit.personType || 'Invited Guest', 'badge-salmon'));
+      badges.appendChild(createPersonTypeBadge(visit.personType));
       card.appendChild(badges);
 
       const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -5927,7 +5919,7 @@
       const card = createElement('article', 'card');
       card.appendChild(createElement('div', 'guest-name', row.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
-      badges.appendChild(createBadge(row.personType || 'Invited Guest', 'badge-salmon'));
+      badges.appendChild(createPersonTypeBadge(row.personType));
       if (row.isResident) badges.appendChild(createBadge('Resident today', 'badge-teal'));
       card.appendChild(badges);
 
@@ -6597,6 +6589,31 @@
 
     function createBadge(text, className) {
       return createElement('span', `badge ${className}`, text);
+    }
+
+    // One place decides what colour a Person Type is. This mapping used to be
+    // written inline inside the Directory's card builder, so the workspace
+    // cards written later each picked their own colour and settled on salmon
+    // for everyone — which is the Invited Guest colour, so an Event Staff and
+    // a Visitor read as Invited Guests on the Accommodation and Meals lists.
+    const PERSON_TYPE_BADGE_CLASS_ = Object.freeze({
+      'Invited Guest': 'badge-salmon',
+      Friend: 'badge-blue',
+      Visitor: 'badge-purple',
+      'Event Staff': 'badge-teal',
+      Other: 'badge-silver'
+    });
+
+    function personTypeBadgeClass(personType) {
+      // An unrecognized value is a data problem, not a category — it gets the
+      // warning colour rather than being quietly folded into Invited Guest.
+      if (personType === PERSON_TYPE_NEEDS_REVIEW) return 'badge-warning';
+      return PERSON_TYPE_BADGE_CLASS_[personType] || 'badge-salmon';
+    }
+
+    function createPersonTypeBadge(personType) {
+      const label = personType || 'Invited Guest';
+      return createBadge(label, personTypeBadgeClass(personType));
     }
 
     function createElement(tag, className, text) {
