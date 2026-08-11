@@ -560,8 +560,13 @@ export function createFirestoreBridge(firebaseApp) {
     return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
   }
 
-  function refreshCanonical_() {
-    if (canonicalPromise) return canonicalPromise;
+  function refreshCanonical_(force = false) {
+    // A forced read must not settle for one that was already in flight before
+    // it was asked for. Every write path calls loadCanonical(true) to validate
+    // against current server state — room conflicts, engagement windows,
+    // "this guest has history" — so piggybacking on an older request would let
+    // a save be checked against data from before that save was attempted.
+    if (canonicalPromise && !force) return canonicalPromise;
     const generation = cacheGeneration;
     const request = Promise.all(COLLECTIONS.map(readCollection)).then(all => {
       const nextCanonical = Object.fromEntries(COLLECTIONS.map((name, index) => [name, all[index]]));
@@ -584,7 +589,7 @@ export function createFirestoreBridge(firebaseApp) {
     // Cache lifetime is event-driven. Local writes and the audit listener call
     // invalidate(); ordinary navigation and idle time do not expire it.
     if (!force && canonicalCache) return canonicalCache;
-    return refreshCanonical_();
+    return refreshCanonical_(force);
   }
 
   async function directorySnapshot(options = {}) {
