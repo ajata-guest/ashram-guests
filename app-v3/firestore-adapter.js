@@ -361,8 +361,12 @@ function priorityReasons(record, now, todayKey) {
   return reasons;
 }
 
+// Note: priorityReasons are deliberately NOT consulted here any more. They
+// used to short-circuit to a Priority tier, which meant a guest arriving today
+// with an unassigned room vanished from Today. Reasons still drive the card
+// badges, the search index and the homepage attention counts — they just no
+// longer decide which tab a guest appears under.
 function directoryTier(record, reasons, todayKey) {
-  if (reasons.length) return DIRECTORY_TIER.PRIORITY;
   const visit = record.visit;
   const happensToday = (visit && [visit.arrivalDate, visit.departureDate].includes(todayKey))
     || (record.mealsToday || []).length

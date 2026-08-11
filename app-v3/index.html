@@ -5509,13 +5509,16 @@
     // ============================================================
 
     const DIRECTORY_TIERS_ = Object.freeze([
-      { key: 'priority', tier: 1, label: 'Priority', shortLabel: 'Priority', accent: '#ff8b84', zone: 'zone-urgent', description: 'Guests with a real unresolved operational matter' },
-      { key: 'today', tier: 2, label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Activity today, and not already Priority' },
+      // All leads, and is where the Directory opens. Priority used to sit here
+      // and swallowed every guest who had any unresolved matter, which pulled
+      // them out of Today/Upcoming/Past — so the tab you'd expect someone to be
+      // in was the one place they weren't. The reasons themselves are still
+      // computed and still shown on the card and in search; they just no longer
+      // decide which tab a guest lives in.
+      { key: 'all', tier: null, label: 'All Guests', shortLabel: 'All', accent: '#b878d6', zone: '', description: 'Every active Directory record' },
+      { key: 'today', tier: 2, label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Something happening today' },
       { key: 'upcoming', tier: 3, label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
-      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
-      // Not a tier of its own — every non-archived record, whichever tier it
-      // sits in. Kept last so the four exclusive tiers read as a sequence.
-      { key: 'all', tier: null, label: 'All Guests', shortLabel: 'All', accent: '#b878d6', zone: '', description: 'Every active Directory record' }
+      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' }
     ]);
 
     const DIRECTORY_CHIPS_ = Object.freeze([
@@ -5533,7 +5536,7 @@
       { label: 'On a Trip', test: r => (r.trips || []).length > 0 }
     ]);
 
-    let directoryTierKey_ = 'priority';
+    let directoryTierKey_ = 'all';
     const directoryActiveChips_ = new Set();
     let directoryShowArchived_ = false;
     let directorySearchTimer_ = null;
