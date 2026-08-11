@@ -328,12 +328,20 @@
     .icon-button.active { border-color: var(--salmon); color: var(--salmon); }
 
     .add-btn {
+      width: auto;
+      min-width: 154px;
+      padding: 0 16px;
+      flex: 0 0 auto;
+      gap: 8px;
       background: var(--salmon);
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .add-btn .icon {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       margin-top: 0;
     }
 
@@ -783,6 +791,79 @@
     }
 
     .input-group { margin-bottom: 15px; }
+
+    /* The global Add New Guest dialog uses the name field as a local
+       type-ahead over the guest directory. The list floats over the form so
+       narrowing a name never pushes the remaining basic fields around. */
+    .guest-name-lookup { position: relative; }
+
+    .guest-name-suggestions {
+      position: absolute;
+      z-index: 12;
+      top: calc(100% + 5px);
+      right: 0;
+      left: 0;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 5px;
+      border: 1px solid #414141;
+      border-radius: 8px;
+      background: #181818;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
+      scrollbar-color: #555 #181818;
+    }
+
+    .guest-name-suggestion {
+      display: flex;
+      width: 100%;
+      padding: 9px 10px;
+      gap: 3px;
+      flex-direction: column;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .guest-name-suggestion:hover,
+    .guest-name-suggestion.active,
+    .guest-name-suggestion:focus-visible {
+      outline: none;
+      background: color-mix(in srgb, var(--salmon) 11%, var(--surface));
+    }
+
+    .guest-name-suggestion-name {
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .guest-name-suggestion-meta {
+      color: var(--subtle);
+      font-size: 0.74rem;
+    }
+
+    .guest-name-suggestions-empty {
+      padding: 10px;
+      color: var(--subtle);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .existing-guest-notice {
+      display: flex;
+      margin: -3px 0 15px;
+      padding: 9px 11px;
+      align-items: center;
+      border-left: 2px solid var(--salmon);
+      border-radius: 0 6px 6px 0;
+      background: rgba(250, 128, 114, 0.08);
+      color: #f2aaa2;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
 
     .input-label {
       display: block;
@@ -2050,7 +2131,7 @@
     </div>
 
     <div class="controls">
-      <div class="search-wrap">
+      <div class="search-wrap" hidden>
         <input type="search" id="search-bar" placeholder="Search guests, rooms, travel, or dates..." aria-label="Search guests">
         <button id="search-clear-btn" class="search-clear-btn" type="button" aria-label="Clear search" hidden>&times;</button>
       </div>
@@ -2066,8 +2147,9 @@
       <button id="refresh-btn" class="icon-button" type="button" aria-label="Refresh this page" title="Refresh this page">
         <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
       </button>
-      <button id="add-btn" class="add-btn" type="button" aria-label="Add guest" title="Add guest">
+      <button id="add-btn" class="add-btn" type="button" aria-label="Add new guest" title="Add new guest">
         <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+        <span>Add new guest</span>
       </button>
     </div>
   </header>
@@ -2177,8 +2259,14 @@
 
         <div class="input-group">
           <label class="input-label" for="edit-name">Name</label>
-          <input type="text" id="edit-name" class="edit-input" maxlength="500" required autocomplete="off">
+          <div class="guest-name-lookup">
+            <input type="text" id="edit-name" class="edit-input" maxlength="500" required autocomplete="off"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="existing-guest-suggestions">
+            <div id="existing-guest-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Existing guests" hidden></div>
+          </div>
         </div>
+
+        <div id="existing-guest-notice" class="existing-guest-notice" role="status" hidden>Guest already added</div>
 
         <div class="input-group">
           <label class="input-label" for="edit-person-type">Person Type</label>
@@ -2229,8 +2317,12 @@
         </div>
       </section>
 
-      <div class="dialog-actions">
+      <div id="guest-save-actions" class="dialog-actions">
         <button id="save-btn" class="dialog-primary-btn" type="button">Save Changes</button>
+      </div>
+      <div id="existing-guest-actions" class="dialog-actions" hidden>
+        <button id="view-existing-guest-btn" class="dialog-primary-btn" type="button">View guest profile</button>
+        <button id="cancel-existing-guest-btn" class="dialog-secondary-btn" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -3011,6 +3103,7 @@
       $('refresh-btn').addEventListener('click', () => refreshCurrentPage_({ silent: false, force: true }));
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
+        if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
       });
       $('visit-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeVisitActionSheet_);
       $('visit-action-dismiss-btn').addEventListener('click', closeVisitActionSheet_);
@@ -3027,11 +3120,16 @@
         closeRoomShareSheet_();
         proceedWithVisitSave_(acks);
       });
-      $('add-btn').addEventListener('click', () => openModal('add'));
+      $('add-btn').addEventListener('click', () => openModal('add', '', { smartLookup: true }));
       $('close-btn').addEventListener('click', handleCloseButtonClick);
       $('modal').addEventListener('input', markModalDirty);
       $('modal').addEventListener('change', markModalDirty);
       $('save-btn').addEventListener('click', saveGuestFromModal);
+      $('edit-name').addEventListener('input', handleGlobalGuestNameInput_);
+      $('edit-name').addEventListener('focus', renderExistingGuestSuggestions_);
+      $('edit-name').addEventListener('keydown', handleGlobalGuestNameKeydown_);
+      $('view-existing-guest-btn').addEventListener('click', viewSelectedExistingGuest_);
+      $('cancel-existing-guest-btn').addEventListener('click', closeModal);
 
       $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
       $('edit-purpose').addEventListener('change', updatePurposeOtherVisibility);
@@ -6951,14 +7049,263 @@
       updateTransportConstraints();
     }
 
+    let modalUsesSmartLookup_ = false;
+    let selectedExistingGuestId_ = '';
+    let existingGuestLookupRecords_ = [];
+    let existingGuestLookupLoaded_ = false;
+    let existingGuestLookupPromise_ = null;
+    let existingGuestSuggestionIndex_ = -1;
+
+    const GUEST_BASIC_FIELD_IDS_ = Object.freeze([
+      'edit-name', 'edit-person-type', 'edit-foreign', 'edit-purpose',
+      'edit-purpose-other-text', 'edit-staff-assignment'
+    ]);
+
+    function mergeExistingGuestLookupRecords_(rows) {
+      const byId = new Map(existingGuestLookupRecords_.map(row => [row.guestId, row]));
+      (Array.isArray(rows) ? rows : []).forEach(row => {
+        if (row && row.guestId) byId.set(row.guestId, row);
+      });
+      // The active Directory is refreshed in realtime, so its copy wins over
+      // an older lazy lookup entry for the same person.
+      directoryRecords_.forEach(row => {
+        if (row && row.guestId) byId.set(row.guestId, row);
+      });
+      existingGuestLookupRecords_ = [...byId.values()].sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
+      );
+    }
+
+    // Active guests are already in memory. This one lazy, paged lookup adds
+    // archived records too, preventing an old guest from being recreated as
+    // a duplicate. Typing itself remains entirely local and causes no reads.
+    function ensureExistingGuestLookupRecords_() {
+      mergeExistingGuestLookupRecords_(directoryRecords_);
+      if (existingGuestLookupLoaded_) return Promise.resolve(existingGuestLookupRecords_);
+      if (existingGuestLookupPromise_) return existingGuestLookupPromise_;
+
+      const loadPage = (offset, accumulated) => apiCall('getDirectory', {
+        options: { nameQuery: '', includeArchived: true, offset, limit: 200 }
+      }).then(page => {
+        const rows = Array.isArray(page.guests) ? page.guests : [];
+        const combined = accumulated.concat(rows);
+        const nextOffset = offset + rows.length;
+        return rows.length && nextOffset < Number(page.total || 0)
+          ? loadPage(nextOffset, combined)
+          : combined;
+      });
+
+      existingGuestLookupPromise_ = loadPage(0, [])
+        .then(rows => {
+          existingGuestLookupLoaded_ = true;
+          mergeExistingGuestLookupRecords_(rows);
+          if (modalIsOpen && modalUsesSmartLookup_ && !selectedExistingGuestId_) {
+            renderExistingGuestSuggestions_();
+          }
+          return existingGuestLookupRecords_;
+        })
+        .catch(error => {
+          handleApiError(error, err => console.warn('Could not load archived guests for name lookup:', err));
+          return existingGuestLookupRecords_;
+        })
+        .finally(() => { existingGuestLookupPromise_ = null; });
+
+      return existingGuestLookupPromise_;
+    }
+
+    function setGuestBasicFieldsDisabled_(disabled) {
+      GUEST_BASIC_FIELD_IDS_.forEach(id => { $(id).disabled = disabled; });
+      const foreignLabel = $('foreign-cform-row').querySelector('.checkbox-label');
+      if (foreignLabel) foreignLabel.classList.toggle('disabled-label', disabled);
+    }
+
+    function hideExistingGuestSuggestions_() {
+      const list = $('existing-guest-suggestions');
+      list.hidden = true;
+      $('edit-name').setAttribute('aria-expanded', 'false');
+      $('edit-name').removeAttribute('aria-activedescendant');
+      existingGuestSuggestionIndex_ = -1;
+    }
+
+    function resetExistingGuestSelection_() {
+      selectedExistingGuestId_ = '';
+      setGuestBasicFieldsDisabled_(false);
+      $('existing-guest-notice').hidden = true;
+      $('guest-save-actions').hidden = false;
+      $('existing-guest-actions').hidden = true;
+      hideExistingGuestSuggestions_();
+    }
+
+    function matchingExistingGuests_(query) {
+      mergeExistingGuestLookupRecords_(directoryRecords_);
+      const normalizedQuery = normalizeSearchText(query);
+      const rawQuery = String(query || '').trim().toLocaleLowerCase();
+      if (!rawQuery) return [];
+
+      return existingGuestLookupRecords_
+        .filter(row => {
+          const name = String(row.name || '');
+          return normalizedQuery
+            ? normalizeSearchText(name).includes(normalizedQuery)
+            : name.toLocaleLowerCase().includes(rawQuery);
+        })
+        .sort((a, b) => {
+          const aName = String(a.name || '');
+          const bName = String(b.name || '');
+          const aStarts = normalizedQuery
+            ? normalizeSearchText(aName).startsWith(normalizedQuery)
+            : aName.toLocaleLowerCase().startsWith(rawQuery);
+          const bStarts = normalizedQuery
+            ? normalizeSearchText(bName).startsWith(normalizedQuery)
+            : bName.toLocaleLowerCase().startsWith(rawQuery);
+          if (aStarts !== bStarts) return aStarts ? -1 : 1;
+          return aName.localeCompare(bName, undefined, { sensitivity: 'base' });
+        });
+    }
+
+    function renderExistingGuestSuggestions_() {
+      if (!modalUsesSmartLookup_ || selectedExistingGuestId_) {
+        hideExistingGuestSuggestions_();
+        return;
+      }
+
+      const query = $('edit-name').value.trim();
+      if (!query) {
+        hideExistingGuestSuggestions_();
+        return;
+      }
+
+      const list = $('existing-guest-suggestions');
+      const matches = matchingExistingGuests_(query);
+      list.replaceChildren();
+      existingGuestSuggestionIndex_ = -1;
+
+      if (!matches.length) {
+        list.appendChild(createElement(
+          'div',
+          'guest-name-suggestions-empty',
+          'No existing guest matches this name. You can continue adding a new guest.'
+        ));
+      } else {
+        matches.forEach((guest, index) => {
+          const option = createElement('button', 'guest-name-suggestion');
+          option.type = 'button';
+          option.id = `existing-guest-option-${index}`;
+          option.dataset.guestId = guest.guestId;
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', 'false');
+          option.appendChild(createElement('span', 'guest-name-suggestion-name', guest.name || 'Unnamed Guest'));
+          const meta = [guest.personType || 'Needs Review', guest.archived ? 'Archived' : ''].filter(Boolean).join(' \u00B7 ');
+          option.appendChild(createElement('span', 'guest-name-suggestion-meta', meta));
+          option.addEventListener('click', () => selectExistingGuest_(guest));
+          list.appendChild(option);
+        });
+      }
+
+      list.hidden = false;
+      $('edit-name').setAttribute('aria-expanded', 'true');
+    }
+
+    function setActiveExistingGuestSuggestion_(index) {
+      const options = [...$('existing-guest-suggestions').querySelectorAll('.guest-name-suggestion')];
+      if (!options.length) return;
+      existingGuestSuggestionIndex_ = (index + options.length) % options.length;
+      options.forEach((option, optionIndex) => {
+        const active = optionIndex === existingGuestSuggestionIndex_;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-selected', String(active));
+      });
+      const activeOption = options[existingGuestSuggestionIndex_];
+      $('edit-name').setAttribute('aria-activedescendant', activeOption.id);
+      activeOption.scrollIntoView({ block: 'nearest' });
+    }
+
+    function handleGlobalGuestNameInput_() {
+      if (!modalUsesSmartLookup_) return;
+      renderExistingGuestSuggestions_();
+    }
+
+    function handleGlobalGuestNameKeydown_(event) {
+      if (!modalUsesSmartLookup_ || selectedExistingGuestId_) return;
+      const list = $('existing-guest-suggestions');
+
+      if (event.key === 'Escape' && !list.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        hideExistingGuestSuggestions_();
+        return;
+      }
+
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+      if (list.hidden) renderExistingGuestSuggestions_();
+      const options = [...list.querySelectorAll('.guest-name-suggestion')];
+      if (!options.length) return;
+
+      if (event.key === 'Enter') {
+        if (existingGuestSuggestionIndex_ < 0) return;
+        event.preventDefault();
+        selectExistingGuest_(existingGuestLookupRecords_.find(row =>
+          row.guestId === options[existingGuestSuggestionIndex_].dataset.guestId
+        ));
+        return;
+      }
+
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = existingGuestSuggestionIndex_ < 0
+        ? (direction > 0 ? 0 : options.length - 1)
+        : existingGuestSuggestionIndex_ + direction;
+      setActiveExistingGuestSuggestion_(nextIndex);
+    }
+
+    function selectExistingGuest_(guest) {
+      if (!guest || !guest.guestId) return;
+      selectedExistingGuestId_ = guest.guestId;
+      hideExistingGuestSuggestions_();
+
+      $('edit-name').value = guest.name || '';
+      $('edit-person-type').value = guest.personType || 'Invited Guest';
+      setPurposeSelection(guest.invitedPurpose || []);
+      $('edit-purpose-other-text').value = guest.invitedPurposeOther || '';
+      $('edit-staff-assignment').value = guest.staffAssignment || '';
+      $('edit-foreign').checked = Boolean(guest.isForeign);
+      updatePurposeOtherVisibility();
+      togglePurposeAssignmentFields();
+      setGuestBasicFieldsDisabled_(true);
+
+      $('existing-guest-notice').hidden = false;
+      $('guest-save-actions').hidden = true;
+      $('existing-guest-actions').hidden = false;
+      modalDirty = false;
+    }
+
+    function viewSelectedExistingGuest_() {
+      const guestId = selectedExistingGuestId_;
+      if (!guestId) return;
+      closeModal();
+      navigate(`#guest/${encodeURIComponent(guestId)}`);
+    }
+
     // The one Add/Edit Guest form, used both from the header's Add button and
     // from every workspace's create-new-guest path, so a guest created inside
     // Meals gets exactly the same complete basic-details form as one created
     // from the Directory — never a silent name-only record.
-    function openModal(mode, guestId = '') {
+    function openModal(mode, guestId = '', options = {}) {
       resetCloseConfirm();
       modalDirty = false;
       document.querySelector('.modal-content').scrollTop = 0;
+      resetExistingGuestSelection_();
+      modalUsesSmartLookup_ = mode === 'add' && Boolean(options.smartLookup);
+      const nameInput = $('edit-name');
+      if (modalUsesSmartLookup_) {
+        nameInput.setAttribute('role', 'combobox');
+        nameInput.setAttribute('aria-autocomplete', 'list');
+        nameInput.setAttribute('aria-controls', 'existing-guest-suggestions');
+        nameInput.setAttribute('aria-expanded', 'false');
+      } else {
+        ['role', 'aria-autocomplete', 'aria-controls', 'aria-expanded', 'aria-activedescendant']
+          .forEach(attribute => nameInput.removeAttribute(attribute));
+      }
       $('modal-mode').value = mode;
       $('edit-guest-id').value = guestId;
       $('edit-version').value = '';
@@ -6993,6 +7340,7 @@
       modalIsOpen = true;
       $('modal').style.display = 'flex';
       $('modal').setAttribute('aria-hidden', 'false');
+      if (modalUsesSmartLookup_) ensureExistingGuestLookupRecords_();
       window.setTimeout(() => $('edit-name').focus(), 0);
     }
 
@@ -7287,6 +7635,8 @@
       resetCloseConfirm();
       modalDirty = false;
       modalIsOpen = false;
+      modalUsesSmartLookup_ = false;
+      resetExistingGuestSelection_();
       $('modal').style.display = 'none';
       $('modal').setAttribute('aria-hidden', 'true');
     }
@@ -7942,6 +8292,7 @@
     // out). The former room-share-confirmation flow moved with the rooms —
     // see confirmPendingVisitRoomShares_.
     function saveGuestFromModal() {
+      if (selectedExistingGuestId_) return;
       const name = $('edit-name');
       if (!name.value.trim()) {
         name.focus();
@@ -7958,6 +8309,7 @@
     function proceedWithGuestSave_() {
       const payload = collectGuestPayload();
       const mode = $('modal-mode').value;
+      const usedSmartLookup = modalUsesSmartLookup_;
       // Guest basics only — the Directory record and nothing operational.
       // The two scoped actions replace the old single bulk-replace save, so
       // this can no longer touch a visit, meal, meeting, seva record or trip
@@ -7997,7 +8349,7 @@
         .catch(error => handleApiError(error, err => {
           pendingGuestIds.delete(pendingKey);
           showToast(`Save failed: ${getErrorMessage(err)}`, 'error');
-          reopenModalWithPayload_(mode, payload);
+          reopenModalWithPayload_(mode, payload, { smartLookup: usedSmartLookup });
         }));
     }
 
@@ -8013,8 +8365,8 @@
     // accommodation/dates/rooms/cabs/travel legs at all — only guest basics
     // need restoring after a failed save; Seva/Meals/Meetings all moved to
     // their own workspaces by now (Phases F–H).
-    function reopenModalWithPayload_(mode, payload) {
-      openModal(mode, mode === 'edit' ? payload.guestId : '');
+    function reopenModalWithPayload_(mode, payload, options = {}) {
+      openModal(mode, mode === 'edit' ? payload.guestId : '', options);
 
       $('edit-name').value = payload.name || '';
       $('edit-person-type').value = payload.personType || 'Invited Guest';
