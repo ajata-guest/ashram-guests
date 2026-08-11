@@ -1773,7 +1773,7 @@
       border: 0;
       border-top: 1px solid var(--border);
       border-radius: 0;
-      background: color-mix(in srgb, var(--accent) 7%, transparent);
+      background: color-mix(in srgb, var(--tint) 7%, transparent);
       cursor: pointer;
       text-align: left;
       color: inherit;
@@ -1795,7 +1795,7 @@
     .workspace-card:focus-visible {
       transform: translateX(3px);
       outline: none;
-      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      background: color-mix(in srgb, var(--tint) 10%, transparent);
     }
 
     .workspace-card:hover::before,
@@ -3663,7 +3663,7 @@
         attentionLabel: n => `${n} need completion`
       },
       {
-        route: '#seva', accent: '#1abc9c', icon: 'icon-people', title: 'Seva Teams & Tasks',
+        route: '#seva', accent: '#1abc9c', tint: '#2aa9c2', icon: 'icon-people', title: 'Seva Teams & Tasks',
         description: 'Event teams, members and individual seva',
         stats: s => [
           { value: s.seva.activeTeams, label: 'active teams' },
@@ -3703,6 +3703,7 @@
         const card = createElement('button', 'workspace-card');
         card.type = 'button';
         card.style.setProperty('--accent', def.accent);
+        card.style.setProperty('--tint', def.tint || def.accent);
         card.addEventListener('click', () => navigate(def.route));
 
         const head = createElement('span', 'ws-head');
