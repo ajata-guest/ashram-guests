@@ -202,10 +202,12 @@
       display: flex;
       max-width: 1200px;
       margin: 0 auto 24px;
+      padding-bottom: 18px;
       gap: 16px;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
     }
 
     .brand-lockup {
@@ -220,8 +222,9 @@
     .title-block h1 {
       margin: 0;
       color: var(--salmon);
-      font-size: 1.8rem;
-      line-height: 1.1;
+      font-size: 1.55rem;
+      font-weight: 600;
+      line-height: 1.15;
     }
 
     .app-subtitle {
@@ -232,10 +235,17 @@
       letter-spacing: 0.02em;
     }
 
+    .title-block .app-subtitle {
+      margin-top: 4px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+
     .last-updated {
-      margin-top: 7px;
+      margin-top: 6px;
       color: var(--subtle);
-      font-size: 0.78rem;
+      font-size: 0.74rem;
     }
 
     .controls {
@@ -1703,7 +1713,7 @@
       border: 1px solid #3d3d3d;
       border-left: 4px solid var(--salmon);
       border-radius: 10px;
-      background: linear-gradient(90deg, rgba(250, 128, 114, 0.10), rgba(250, 128, 114, 0.02) 45%, var(--surface-raised) 80%);
+      background: linear-gradient(90deg, rgba(250, 128, 114, 0.08), rgba(250, 128, 114, 0.02) 42%, var(--surface-raised) 78%);
       cursor: pointer;
       text-align: left;
       transition: border-color 0.18s ease;
@@ -1745,7 +1755,7 @@
       color: var(--subtle);
       font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.05em;
     }
 
     .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -1755,94 +1765,91 @@
       flex-direction: column;
       max-width: 1200px;
       margin: 0 auto;
-      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-raised);
     }
 
-    /* These are navigation gateways rather than dashboard cards. Each rests
-       directly in the page flow, separated by a hairline. Its established
-       workspace colour moves diagonally from the upper-left through roughly
-       sixty percent of the row, then dissolves into the page background.
-       Amber and red stay reserved for attention states, never workspace
-       identity. */
+    /* These are navigation gateways, presented as one restrained operational
+       console rather than five independent dashboard cards. Workspace colour
+       is used as a quiet wayfinding tint; amber and red remain reserved for
+       attention states. */
     .workspace-card {
       position: relative;
       display: grid;
       width: 100%;
       grid-template-columns: minmax(280px, 1.35fr) minmax(280px, 1fr) auto;
-      gap: clamp(16px, 2.5vw, 30px);
+      gap: clamp(12px, 2.2vw, 26px);
       align-items: center;
-      padding: 18px 16px 18px 22px;
+      padding: 14px 16px 14px 18px;
       border: 0;
       border-top: 1px solid var(--border);
       border-radius: 0;
       background: linear-gradient(
-        to bottom right,
-        color-mix(in srgb, var(--tint) 12%, var(--bg)) 0%,
-        color-mix(in srgb, var(--tint) 8%, var(--bg)) 44%,
-        color-mix(in srgb, var(--tint) 4%, var(--bg)) 62%,
-        var(--bg) 100%
+        145deg,
+        color-mix(in srgb, var(--tint) 7%, var(--surface-raised)) 0%,
+        color-mix(in srgb, var(--tint) 4%, var(--surface-raised)) 34%,
+        var(--surface-raised) 64%
       );
       cursor: pointer;
       text-align: left;
       color: inherit;
-      transition: transform 0.18s ease, background 0.18s ease;
+      transition: background 0.18s ease;
     }
+
+    .workspace-card:first-child { border-top: 0; }
 
     .workspace-card::before {
       content: '';
       position: absolute;
-      top: 14px;
-      bottom: 14px;
+      top: 18px;
+      bottom: 18px;
       left: 0;
-      width: 3px;
+      width: 2px;
       background: var(--accent);
       transition: top 0.18s ease, bottom 0.18s ease, width 0.18s ease;
     }
 
     .workspace-card:hover,
     .workspace-card:focus-visible {
-      transform: translateX(3px);
       outline: none;
       background: linear-gradient(
-        to bottom right,
-        color-mix(in srgb, var(--tint) 15%, var(--bg)) 0%,
-        color-mix(in srgb, var(--tint) 10%, var(--bg)) 44%,
-        color-mix(in srgb, var(--tint) 5%, var(--bg)) 62%,
-        var(--bg) 100%
+        145deg,
+        color-mix(in srgb, var(--tint) 10%, var(--surface-raised)) 0%,
+        color-mix(in srgb, var(--tint) 6%, var(--surface-raised)) 36%,
+        var(--surface-raised) 68%
       );
     }
 
     .workspace-card:hover::before,
     .workspace-card:focus-visible::before {
-      top: 7px;
-      bottom: 7px;
-      width: 5px;
+      top: 13px;
+      bottom: 13px;
+      width: 3px;
     }
 
     .ws-head { display: flex; gap: 14px; align-items: center; min-width: 0; }
 
     .ws-icon {
       display: flex;
-      width: 42px; height: 42px; flex: 0 0 42px;
+      width: 38px; height: 38px; flex: 0 0 38px;
       align-items: center; justify-content: center;
-      border-radius: 11px;
-      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--accent) 9%, transparent);
       color: var(--accent);
     }
 
-    .ws-icon .icon { width: 22px; height: 22px; margin: 0; flex: none; }
+    .ws-icon .icon { width: 20px; height: 20px; margin: 0; flex: none; }
     .ws-copy { display: block; min-width: 0; }
-    .ws-title { display: block; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
-    .ws-desc { display: block; margin-top: 4px; color: var(--subtle); font-size: 0.8rem; }
+    .ws-title { display: block; color: #fff; font-size: 1rem; font-weight: 600; line-height: 1.25; }
+    .ws-desc { display: block; margin-top: 3px; color: var(--subtle); font-size: 0.8rem; }
 
     .ws-info { display: flex; gap: 10px 18px; align-items: center; flex-wrap: wrap; }
     .ws-go {
       display: inline-flex;
-      gap: 8px;
       align-items: center;
-      color: var(--accent);
-      font-size: 0.8rem;
-      font-weight: 700;
+      color: var(--subtle);
       white-space: nowrap;
     }
 
@@ -1855,11 +1862,14 @@
     }
 
     .workspace-card:hover .ws-go .icon,
-    .workspace-card:focus-visible .ws-go .icon { transform: translateX(4px); }
+    .workspace-card:focus-visible .ws-go .icon {
+      color: var(--accent);
+      transform: translateX(4px);
+    }
 
     .ws-stats { display: flex; gap: 9px 18px; align-items: baseline; flex-wrap: wrap; }
     .ws-stat { display: inline-flex; gap: 5px; align-items: baseline; min-width: 0; white-space: nowrap; }
-    .ws-stat-value { display: inline; color: #fff; font-size: 1.05rem; font-weight: 700; line-height: 1; }
+    .ws-stat-value { display: inline; color: #fff; font-size: 1rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
     .ws-stat-label { display: inline; color: var(--subtle); font-size: 0.76rem; letter-spacing: 0.01em; }
     .ws-foot { display: flex; align-items: center; }
     .ws-foot .badge { text-transform: none; }
@@ -1986,7 +1996,7 @@
       .ribbon-desc { display: none; }
       .ribbon-go span { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; }
-      .ws-info { grid-column: 1 / -1; padding-left: 56px; }
+      .ws-info { grid-column: 1 / -1; padding-left: 50px; }
       .page-title { font-size: 1.3rem; }
     }
 
@@ -1995,9 +2005,8 @@
       .header-container { align-items: stretch; }
       .controls { max-width: none; }
       .zone-description { display: none; }
-      .workspace-card { grid-template-columns: 1fr; gap: 11px; }
-      .ws-info,
-      .ws-go { padding-left: 56px; }
+      .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
+      .ws-info { padding-left: 50px; }
       .modal-content { padding: 20px 16px; }
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
@@ -2823,6 +2832,12 @@
     <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></symbol>
     <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></symbol>
     <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15.41 7.41 10.83 12l4.58 4.59L14 18l-6-6 6-6 1.41 1.41z"/></symbol>
+    <!-- Traditional diya used as the Meetings workspace's wayfinding icon. -->
+    <symbol id="icon-lamp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 13.5h16c-.8 3.6-3.7 5.5-8 5.5s-7.2-1.9-8-5.5Z"/>
+      <path d="M12 13c-1.8-1.6-2.3-3.1-1.2-4.8.7-1.1 1.6-1.8 1.8-3.2 2.6 2.1 3.5 4.1 2.5 5.9-.6 1.1-1.7 1.8-3.1 2.1Z"/>
+      <path d="M2.5 20h19"/>
+    </symbol>
     <!-- Meetings with Swamiji. A lotus rather than a generic calendar: this
          is the one workspace whose subject is a person, not a schedule. -->
     <symbol id="icon-lotus" viewBox="0 0 24 24"><path d="M12 2c-1.6 1.9-2.4 3.8-2.4 5.7 0 1.3.4 2.6 1.1 3.9-1.3-1-2.7-1.6-4.1-1.8-1.5-.2-3 .1-4.6.9.7 2.3 1.9 3.9 3.5 5 1.6 1 3.5 1.6 5.7 1.7l.8.02.8-.02c2.2-.1 4.1-.7 5.7-1.7 1.6-1.1 2.8-2.7 3.5-5-1.6-.8-3.1-1.1-4.6-.9-1.4.2-2.8.8-4.1 1.8.7-1.3 1.1-2.6 1.1-3.9C14.4 5.8 13.6 3.9 12 2zm-9 16c2 2.6 5 4 9 4s7-1.4 9-4c-2.4 1.4-5.4 2.1-9 2.1S5.4 19.4 3 18z"/></symbol>
@@ -3667,7 +3682,7 @@
         quiet: s => `Expected attendance today \u00B7 ${s.meals.exceptionCount || 0} exception${s.meals.exceptionCount === 1 ? '' : 's'}`
       },
       {
-        route: '#meetings', accent: '#fa8072', icon: 'icon-lotus', title: 'Meetings with Swamiji',
+        route: '#meetings', accent: '#fa8072', icon: 'icon-lamp', title: 'Meetings with Swamiji',
         description: 'Schedules, timings and meeting status',
         stats: s => [
           { value: s.meetings.today, label: 'today' },
@@ -3752,7 +3767,6 @@
         card.appendChild(info);
 
         const go = createElement('span', 'ws-go');
-        go.appendChild(createElement('span', '', 'Enter workspace'));
         go.appendChild(createIcon_('icon-chevron-right'));
         card.appendChild(go);
 
