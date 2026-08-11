@@ -34,8 +34,13 @@ const APPROVED_EMAILS = new Set(["atma.chetan108@gmail.com", "rajatbhatiaom@gmai
 const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff", "Other"]);
 const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
-const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4 };
-const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past" };
+// NONE is deliberately outside the four tabs. A guest who has only just been
+// entered has no visit and no engagements — nothing today, nothing upcoming,
+// and emphatically nothing past. Sorting them into Past (which is what falling
+// through to it did) told the office a brand-new record was finished business.
+// They belong under All Guests until something is actually scheduled for them.
+const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5 };
+const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity" };
 const COLLECTIONS = [
   "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
   "meetings", "sevaTeams", "teamMemberships", "specificSeva", "trips",
@@ -338,7 +343,10 @@ function priorityReasons(record, now, todayKey) {
   if (visit.accommodation === "TBD") reasons.push("Accommodation not decided");
   if (visit.accommodation === "Outside - Arranged by Ashram" && !visit.outsideAccommodationConfirmed) reasons.push("Outside accommodation not confirmed");
   if (visit.accommodation === "Ashram" && !visit.rooms.length) reasons.push("Room missing");
-  if (record.isForeign && !visit.cformComplete && ["Ashram", "Outside - Arranged by Ashram"].includes(visit.accommodation)
+  // The C-form registers a foreign national staying on the premises, so it
+  // only applies once they are actually here and only when the ashram itself
+  // is housing them — not for a guest the ashram booked into a hotel.
+  if (record.isForeign && !visit.cformComplete && visit.accommodation === "Ashram"
       && visit.arrivalMs !== null && visit.arrivalMs <= now) reasons.push("C-form pending");
   if (cabEligible) {
     [["pickup", "Pickup"], ["dropoff", "Drop-off"]].forEach(([key, label]) => {
@@ -365,7 +373,18 @@ function directoryTier(record, reasons, todayKey) {
     || (record.specificSeva || []).some(item => !item.endDate || item.endDate >= todayKey)
     || (record.sevaTeams || []).some(item => item.status !== "Seva completed")
     || (record.trips || []).some(item => ["Active", "Upcoming"].includes(item.status));
-  return future ? DIRECTORY_TIER.UPCOMING : DIRECTORY_TIER.PAST;
+  if (future) return DIRECTORY_TIER.UPCOMING;
+  // Past has to mean "something happened and is over", not merely "nothing is
+  // coming up". A record with no visit and no engagement of any kind has no
+  // history to be in the past of.
+  const hasAnyHistory = Boolean(record.visit)
+    || (record.visits || []).length
+    || (record.mealOverrides || record.meals || []).length
+    || (record.meetings || []).length
+    || (record.specificSeva || []).length
+    || (record.sevaTeams || []).length
+    || (record.trips || []).length;
+  return hasAnyHistory ? DIRECTORY_TIER.PAST : DIRECTORY_TIER.NONE;
 }
 
 function tierCounts(records) {
@@ -374,7 +393,9 @@ function tierCounts(records) {
     if (record.tier === 1) counts.priority += 1;
     else if (record.tier === 2) counts.today += 1;
     else if (record.tier === 3) counts.upcoming += 1;
-    else counts.past += 1;
+    // Only a real Past record counts as Past; a guest with no activity at all
+    // is reachable through All Guests and shouldn't inflate the Past tab.
+    else if (record.tier === 4) counts.past += 1;
   });
   return counts;
 }

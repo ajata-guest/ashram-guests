@@ -3210,6 +3210,20 @@
        hover and no room for a per-card delete button, so the destructive
        action lives behind a deliberate gesture instead of a target you can
        brush past while scrolling. -->
+  <!-- Press and hold a Directory card. Archive and the permanent delete are
+       otherwise only on the profile page, which is a tap away but not
+       reachable at all while scanning a long list. -->
+  <div id="guest-action-sheet" class="card-action-sheet" hidden>
+    <div class="card-action-sheet-backdrop"></div>
+    <div class="card-action-sheet-panel" role="dialog" aria-label="Guest actions">
+      <div class="card-action-sheet-name" id="guest-action-sheet-name"></div>
+      <button type="button" class="card-action-sheet-btn" id="guest-action-profile-btn">Open full profile</button>
+      <button type="button" class="card-action-sheet-btn" id="guest-action-archive-btn">Archive</button>
+      <button type="button" class="card-action-sheet-btn destructive" id="guest-action-delete-btn">Delete permanently</button>
+      <button type="button" class="card-action-sheet-btn" id="guest-action-dismiss-btn">Dismiss</button>
+    </div>
+  </div>
+
   <div id="visit-action-sheet" class="card-action-sheet" hidden>
     <div class="card-action-sheet-backdrop"></div>
     <div class="card-action-sheet-panel" role="dialog" aria-label="Visit actions">
@@ -3445,6 +3459,15 @@
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
         if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
       });
+      $('guest-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeGuestActionSheet_);
+      $('guest-action-dismiss-btn').addEventListener('click', closeGuestActionSheet_);
+      $('guest-action-profile-btn').addEventListener('click', () => {
+        const summary = guestActionSheetTarget_;
+        closeGuestActionSheet_();
+        if (summary) navigate(`#guest/${encodeURIComponent(summary.guestId)}`);
+      });
+      $('guest-action-archive-btn').addEventListener('click', () => archiveGuestFromActionSheet_());
+      $('guest-action-delete-btn').addEventListener('click', deleteGuestFromActionSheet_);
       $('visit-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeVisitActionSheet_);
       $('visit-action-dismiss-btn').addEventListener('click', closeVisitActionSheet_);
       $('visit-action-edit-btn').addEventListener('click', () => {
@@ -3568,6 +3591,10 @@
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
+        if (isGuestActionSheetOpen_()) {
+          closeGuestActionSheet_();
+          return;
+        }
         if (isVisitActionSheetOpen_()) {
           closeVisitActionSheet_();
           return;
@@ -4683,10 +4710,17 @@
       $('guest-profile-subtitle').textContent = bits.filter(Boolean).join(' \u00B7 ');
 
       $('guest-profile-archive-btn').textContent = profile.archived ? 'Restore' : 'Archive';
-      // Delete is only ever offered once the backend has confirmed there is
-      // no history to orphan, so the interface can never present it and then
-      // answer with "archive instead".
-      $('guest-profile-delete-btn').hidden = !profile.canHardDelete;
+      // Always offered, on every guest. Hiding it whenever the backend judged
+      // the guest undeletable meant the button appeared on some profiles and
+      // not others with nothing on screen explaining the difference — which
+      // read as the app being inconsistent rather than as a rule. It is now
+      // always present and always answers: it deletes when it can, and when it
+      // can't it says exactly what history is in the way.
+      const deleteBtn = $('guest-profile-delete-btn');
+      deleteBtn.hidden = false;
+      deleteBtn.title = profile.canHardDelete
+        ? 'Permanently delete this guest'
+        : 'This guest has operational history — deleting is blocked, archive instead';
 
       const warning = $('guest-profile-warning');
       const stranded = profile.engagementsOutsideStay || [];
@@ -4807,6 +4841,28 @@
     function deleteCurrentGuest_() {
       const profile = currentGuestProfile_;
       if (!profile) return;
+
+      // Explains itself rather than silently disappearing. The backend refuses
+      // to orphan visits, meals, meetings, seva or trips, so when that applies
+      // say which of them is in the way and offer the action that does work.
+      if (!profile.canHardDelete) {
+        const held = [
+          (profile.visits || []).length && `${profile.visits.length} visit${profile.visits.length === 1 ? '' : 's'}`,
+          (profile.mealOverrides || []).length && `${profile.mealOverrides.length} meal record${profile.mealOverrides.length === 1 ? '' : 's'}`,
+          (profile.meetings || []).length && `${profile.meetings.length} meeting${profile.meetings.length === 1 ? '' : 's'}`,
+          (profile.specificSeva || []).length && `${profile.specificSeva.length} seva task${profile.specificSeva.length === 1 ? '' : 's'}`,
+          (profile.trips || []).length && `${profile.trips.length} trip${profile.trips.length === 1 ? '' : 's'}`
+        ].filter(Boolean);
+        const summary = held.length ? held.join(', ') : 'operational history';
+        if (window.confirm(
+          `${profile.name} can't be permanently deleted — ${summary} would be left orphaned.\n\n`
+          + 'Archive instead? They stay searchable and every record is kept, but they drop out of the Directory and every workspace.'
+        )) {
+          toggleArchiveCurrentGuest_();
+        }
+        return;
+      }
+
       if (!window.confirm(`Permanently delete ${profile.name}? This cannot be undone.`)) return;
       apiCall('deleteGuest', { guestId: profile.guestId, version: profile.version })
         .then(() => {
@@ -5186,6 +5242,101 @@
       return Boolean(guest && guest.arrivalMs && guest.arrivalMs <= Date.now());
     }
 
+    // Press and hold a Directory card for Archive / Delete without first
+    // opening the profile. Same gesture and same 550ms/10px thresholds as the
+    // visit cards, so one habit works across the app.
+    let guestActionSheetTarget_ = null;
+
+    function attachGuestLongPress_(card, summary) {
+      let timer = null;
+      let startX = 0;
+      let startY = 0;
+      const clear = () => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
+
+      card.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) return;
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        clear();
+        timer = window.setTimeout(() => {
+          timer = null;
+          card.dataset.suppressClick = '1';
+          openGuestActionSheet_(summary);
+        }, LONG_PRESS_MS_);
+      }, { passive: true });
+
+      card.addEventListener('touchmove', event => {
+        if (timer === null || !event.touches.length) return;
+        if (Math.abs(event.touches[0].clientX - startX) > LONG_PRESS_SLOP_PX_
+            || Math.abs(event.touches[0].clientY - startY) > LONG_PRESS_SLOP_PX_) clear();
+      }, { passive: true });
+
+      card.addEventListener('touchend', clear, { passive: true });
+      card.addEventListener('touchcancel', clear, { passive: true });
+      card.addEventListener('contextmenu', event => {
+        if (card.dataset.suppressClick === '1') event.preventDefault();
+      });
+    }
+
+    function openGuestActionSheet_(summary) {
+      guestActionSheetTarget_ = summary;
+      $('guest-action-sheet-name').textContent = summary.name || 'Unnamed Guest';
+      $('guest-action-archive-btn').textContent = summary.archived ? 'Restore' : 'Archive';
+      $('guest-action-sheet').hidden = false;
+    }
+
+    function closeGuestActionSheet_() {
+      $('guest-action-sheet').hidden = true;
+      guestActionSheetTarget_ = null;
+    }
+
+    function isGuestActionSheetOpen_() {
+      return !$('guest-action-sheet').hidden;
+    }
+
+    // The Directory record doesn't carry canHardDelete — only the profile read
+    // does — so this asks the backend and reports whatever it answers, rather
+    // than guessing and being wrong in either direction.
+    function deleteGuestFromActionSheet_() {
+      const summary = guestActionSheetTarget_;
+      closeGuestActionSheet_();
+      if (!summary) return;
+      if (!window.confirm(`Permanently delete ${summary.name || 'this guest'}? This cannot be undone.`)) return;
+      apiCall('deleteGuest', { guestId: summary.guestId, version: summary.version })
+        .then(() => {
+          showToast('Guest deleted.', 'success');
+          directoryRecords_ = directoryRecords_.filter(r => r.guestId !== summary.guestId);
+          directoryCardCache_.delete(summary.guestId);
+          renderDirectory_();
+          refreshDirectoryInBackground_();
+        })
+        .catch(error => handleApiError(error, err => {
+          // The usual refusal is "this guest has history" — turn that into the
+          // action that does work instead of a dead end.
+          const message = getErrorMessage(err);
+          if (/archive/i.test(message)) {
+            if (window.confirm(`${message}\n\nArchive ${summary.name || 'this guest'} instead?`)) {
+              archiveGuestFromActionSheet_(summary);
+            }
+            return;
+          }
+          showToast(message, 'error');
+        }));
+    }
+
+    function archiveGuestFromActionSheet_(target) {
+      const summary = target || guestActionSheetTarget_;
+      if (!target) closeGuestActionSheet_();
+      if (!summary) return;
+      const archiving = !summary.archived;
+      apiCall(archiving ? 'archiveGuest' : 'restoreGuest', { guestId: summary.guestId, version: summary.version })
+        .then(() => {
+          showToast(archiving ? 'Guest archived.' : 'Guest restored.', 'success');
+          refreshDirectoryInBackground_();
+        })
+        .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
+    }
+
     // V3 Operational Workspaces Architecture — Phase D. The "full guest
     // card" for the new Directory/homepage-search renders straight from one
     // self-contained card-summary object — the backend has already joined
@@ -5207,13 +5358,17 @@
       // Delete live. Nothing linked here before, so that page and both of
       // those actions were unreachable outside a hand-typed URL.
       const openProfile = () => navigate(`#guest/${encodeURIComponent(summary.guestId)}`);
-      card.addEventListener('click', openProfile);
+      card.addEventListener('click', () => {
+        if (card.dataset.suppressClick === '1') { delete card.dataset.suppressClick; return; }
+        openProfile();
+      });
       card.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openProfile();
         }
       });
+      attachGuestLongPress_(card, summary);
 
       card.appendChild(createElement('div', 'guest-name', summary.name || 'Unnamed Guest'));
 
@@ -5741,7 +5896,7 @@
       { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length },
       { label: 'Accommodation TBD', test: v => v.accommodation === 'TBD' },
       { label: 'Outside not confirmed', test: v => v.accommodation === 'Outside - Arranged by Ashram' && !v.outsideAccommodationConfirmed },
-      { label: 'C-form pending', test: v => Boolean(v.isForeign) && v.accommodation === 'Ashram' && !v.cformComplete },
+      { label: 'C-form pending', test: v => isCformPending_(v) },
       { label: 'Pickup to arrange', test: v => v.pickupRequired && v.pickupBookingState !== 'Confirmed' },
       { label: 'Drop-off to arrange', test: v => v.dropoffRequired && v.dropoffBookingState !== 'Confirmed' },
       { label: 'Needs reconfirmation', test: v => v.pickupBookingState === 'Needs Reconfirmation' || v.dropoffBookingState === 'Needs Reconfirmation' },
@@ -6035,7 +6190,7 @@
       badges.appendChild(createPersonTypeBadge(visit.personType));
       // C-form sits with the identity badges, as in V2 — it is a fact about
       // this guest's paperwork rather than a step in arranging the stay.
-      if (visit.cformComplete === false && visit.isForeign) {
+      if (isCformPending_(visit)) {
         badges.appendChild(createBadge('C-form pending', 'badge-pink'));
       }
       card.appendChild(badges);
@@ -6086,6 +6241,23 @@
     // unbooked, needing a reschedule, or long since confirmed. The badge
     // styles survived the rewrite untouched; only the code that used them was
     // lost, so this reinstates the same labels and the same colour meanings.
+
+    // One definition of "this C-form still needs doing", shared by the card
+    // badge and the workspace filter chip, and matching the same rule in the
+    // adapter. It is a police registration for a foreign national staying on
+    // the premises, so it only applies once they have actually arrived, and
+    // only when the ashram itself is housing them — not for a guest the ashram
+    // booked into a hotel, and not weeks before they turn up.
+    function isCformPending_(visit) {
+      if (!visit || !visit.isForeign || visit.cformComplete) return false;
+      if (visit.accommodation !== 'Ashram') return false;
+      return hasVisitArrived_(visit);
+    }
+
+    function hasVisitArrived_(visit) {
+      if (visit.arrivalMs !== null && visit.arrivalMs !== undefined) return visit.arrivalMs <= Date.now();
+      return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayDateKey_();
+    }
 
     function badgeRow_(entries) {
       const row = createElement('div', 'badge-row');
