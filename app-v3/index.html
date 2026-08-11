@@ -4697,8 +4697,123 @@
     // only ever go wrong.
     let directoryChipsBuilt_ = false;
 
+    // V2's collapsed filter row, restored. A dozen-odd chips wrapping onto
+    // three lines pushed the actual guest list below the fold before anyone
+    // had filtered anything, so only the first few show until asked for.
+    // Shared by both chip rows (Directory and Accommodation) — they had the
+    // same problem and there is no reason for them to behave differently.
+    const CHIP_VISIBLE_COUNT_ = 6;
+    const CHIP_EXPANDED_KEY_ = 'ashram-app-v3-chips-expanded';
+
+    function isChipRowExpanded_(rowKey) {
+      try {
+        return window.localStorage.getItem(`${CHIP_EXPANDED_KEY_}-${rowKey}`) === 'true';
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function setChipRowExpanded_(rowKey, expanded) {
+      try {
+        window.localStorage.setItem(`${CHIP_EXPANDED_KEY_}-${rowKey}`, String(expanded));
+      } catch (error) {
+        // Storage unavailable — the toggle still works, it just resets on reload.
+      }
+    }
+
+    // Which six a collapsed row shows shouldn't be whichever six happen to be
+    // written first in the code. Most-used float to the front, so the visible
+    // set becomes the set this ashram actually reaches for.
+    const CHIP_USAGE_KEY_ = 'ashram-app-v3-chip-usage';
+
+    function loadChipUsage_(rowKey) {
+      try {
+        const raw = window.localStorage.getItem(`${CHIP_USAGE_KEY_}-${rowKey}`);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function recordChipUsage_(rowKey, label) {
+      if (!label) return;
+      const usage = loadChipUsage_(rowKey);
+      usage[label] = (usage[label] || 0) + 1;
+      try {
+        window.localStorage.setItem(`${CHIP_USAGE_KEY_}-${rowKey}`, JSON.stringify(usage));
+      } catch (error) {
+        // Storage unavailable (private browsing, quota) — chips still work,
+        // they just won't remember usage across sessions.
+      }
+      // Deliberately does not reorder. The callers hold that back until the
+      // selection is empty, so the row never shuffles mid-selection.
+    }
+
+    // Called on first build, and once a selection is fully cleared — never
+    // while a chip is active, or the row would move out from under the finger
+    // reaching for a second filter.
+    function reorderChipRow_(containerId, rowKey) {
+      const container = $(containerId);
+      const usage = loadChipUsage_(rowKey);
+      // Sort is stable, so chips of equal usage keep the curated order they
+      // were written in — a fresh device still gets a sensible row.
+      [...container.querySelectorAll('.filter-chip')]
+        .sort((a, b) => (usage[b.dataset.chipLabel] || 0) - (usage[a.dataset.chipLabel] || 0))
+        .forEach(chip => container.appendChild(chip));
+      // The toggle isn't a .filter-chip, so the sort above never touches it —
+      // re-append it so it always lands after the last chip.
+      const toggle = container.querySelector('.filter-chip-toggle');
+      if (toggle) container.appendChild(toggle);
+    }
+
+    // Called after any state change, since which chips are active decides
+    // which ones are allowed to hide.
+    function applyChipVisibility_(containerId, rowKey, isActive) {
+      const container = $(containerId);
+      const toggle = container.querySelector('.filter-chip-toggle');
+      const chips = [...container.querySelectorAll('.filter-chip')];
+      const expanded = isChipRowExpanded_(rowKey);
+
+      chips.forEach((chip, index) => {
+        // An active filter is never hidden. Otherwise collapsing could leave
+        // the list filtered with no visible chip explaining why, and no way to
+        // switch it off short of clearing everything.
+        chip.hidden = !expanded && !isActive(chip) && index >= CHIP_VISIBLE_COUNT_;
+      });
+
+      if (!toggle) return;
+      const hiddenCount = chips.filter(chip => chip.hidden).length;
+      // Two separate questions: whether this row can collapse at all, and how
+      // many are hidden right now. Expanded, nothing is hidden, but the toggle
+      // has to stay as the way back.
+      if (chips.length <= CHIP_VISIBLE_COUNT_ || (!expanded && hiddenCount === 0)) {
+        toggle.hidden = true;
+        return;
+      }
+      toggle.hidden = false;
+      toggle.textContent = expanded ? '− Show less' : `+${hiddenCount} more`;
+      toggle.setAttribute('aria-expanded', String(expanded));
+    }
+
+    function addChipRowToggle_(container, rowKey, onToggle) {
+      const toggle = createElement('button', 'filter-chip-toggle');
+      toggle.type = 'button';
+      toggle.setAttribute('aria-controls', container.id);
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.addEventListener('click', () => {
+        setChipRowExpanded_(rowKey, !isChipRowExpanded_(rowKey));
+        onToggle();
+      });
+      container.appendChild(toggle);
+      return toggle;
+    }
+
     function renderDirectoryChips_() {
-      if (!directoryChipsBuilt_) buildDirectoryChips_();
+      if (!directoryChipsBuilt_) {
+        buildDirectoryChips_();
+        reorderChipRow_('directory-chips', 'directory');
+      }
       syncDirectoryChipState_();
     }
 
@@ -4719,10 +4834,16 @@
       const archivedChip = createElement('button', 'filter-chip', 'Show archived');
       archivedChip.type = 'button';
       archivedChip.id = 'directory-archived-chip';
+      // Labelled like the rest so it sorts and syncs through the same code.
+      archivedChip.dataset.chipLabel = 'Show archived';
       container.appendChild(archivedChip);
 
+      // Last in the row, so "+N more" always sits after the chips it reveals.
+      addChipRowToggle_(container, 'directory', syncDirectoryChipState_);
+
       // One delegated listener rather than fourteen, so nothing has to be
-      // rebound when the set of chips ever changes.
+      // rebound when the set of chips ever changes. The toggle carries a
+      // different class and its own handler, so it doesn't match here.
       container.addEventListener('click', event => {
         const chip = event.target.closest('.filter-chip');
         if (!chip || chip.disabled) return;
@@ -4735,12 +4856,23 @@
 
     function toggleDirectoryChip_(label) {
       if (!label) return;
-      if (directoryActiveChips_.has(label)) directoryActiveChips_.delete(label);
-      else directoryActiveChips_.add(label);
+      const turningOn = !directoryActiveChips_.has(label);
+      if (turningOn) directoryActiveChips_.add(label);
+      else directoryActiveChips_.delete(label);
+      // Counted only when the filter is actually being applied, not when the
+      // same chip is clicked again to clear it.
+      if (turningOn) recordChipUsage_('directory', label);
       // Painted from state in the same tick as the click, before the heavier
       // card grid is touched at all.
       syncDirectoryChipState_();
       scheduleDirectoryResultsRender_();
+      // Re-sort only once nothing is selected. Re-sorting on every tap moved
+      // chips out from under the finger, so picking a second filter meant
+      // chasing a target that had just jumped.
+      if (!directoryActiveChips_.size) {
+        reorderChipRow_('directory-chips', 'directory');
+        syncDirectoryChipState_();
+      }
     }
 
     function toggleDirectoryArchivedChip_(chip) {
@@ -4774,6 +4906,7 @@
         // is what actually announces on/off for a toggle button.
         chip.setAttribute('aria-pressed', String(active));
       });
+      applyChipVisibility_('directory-chips', 'directory', chip => chip.classList.contains('active'));
     }
 
     function directoryCardFor_(record) {
@@ -4904,7 +5037,10 @@
       // The building chips come from the Rooms collection, so the set itself
       // can change between loads; rebuild only when it actually differs.
       const signature = accommodationBuildings_().join(' ');
-      if (signature !== accommodationChipsSignature_) buildAccommodationChips_(signature);
+      if (signature !== accommodationChipsSignature_) {
+        buildAccommodationChips_(signature);
+        reorderChipRow_('accommodation-chips', 'accommodation');
+      }
       syncAccommodationChipState_();
     }
 
@@ -4917,6 +5053,7 @@
       // Building chips come from the Rooms sheet, so renaming or adding a
       // building updates this row with no code change.
       accommodationBuildings_().forEach(building => addAccommodationChip_(container, building));
+      addChipRowToggle_(container, 'accommodation', syncAccommodationChipState_);
 
       if (firstBuild) {
         container.addEventListener('click', event => {
@@ -4924,12 +5061,21 @@
           if (!chip || chip.disabled) return;
           const label = chip.dataset.chipLabel;
           if (!label) return;
-          if (accommodationActiveChips_.has(label)) accommodationActiveChips_.delete(label);
-          else accommodationActiveChips_.add(label);
+          const turningOn = !accommodationActiveChips_.has(label);
+          if (turningOn) accommodationActiveChips_.add(label);
+          else accommodationActiveChips_.delete(label);
+          // Counted only when the filter is actually being applied.
+          if (turningOn) recordChipUsage_('accommodation', label);
           // Painted from state in the same tick as the click, before the list
           // underneath is touched at all.
           syncAccommodationChipState_();
           renderAccommodationList_();
+          // Re-sort only once nothing is selected, so the row never moves
+          // out from under a finger reaching for a second filter.
+          if (!accommodationActiveChips_.size) {
+            reorderChipRow_('accommodation-chips', 'accommodation');
+            syncAccommodationChipState_();
+          }
         });
       }
       accommodationChipsSignature_ = signature;
@@ -4948,6 +5094,7 @@
         chip.classList.toggle('active', active);
         chip.setAttribute('aria-pressed', String(active));
       });
+      applyChipVisibility_('accommodation-chips', 'accommodation', chip => chip.classList.contains('active'));
     }
 
     function accommodationChipTest_(visit, label) {
