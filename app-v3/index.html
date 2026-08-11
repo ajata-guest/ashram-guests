@@ -4887,36 +4887,66 @@
       );
     }
 
-    function renderAccommodationChips_() {
-      const container = $('accommodation-chips');
-      container.replaceChildren();
-      ACCOMMODATION_CHIPS_.forEach(def => {
-        const active = accommodationActiveChips_.has(def.label);
-        const chip = createElement('button', `filter-chip${active ? ' active' : ''}`, def.label);
-        chip.type = 'button';
-        chip.setAttribute('aria-pressed', String(active));
-        chip.addEventListener('click', () => {
-          if (active) accommodationActiveChips_.delete(def.label);
-          else accommodationActiveChips_.add(def.label);
-          renderAccommodationList_();
-        });
-        container.appendChild(chip);
-      });
+    // Same build-once arrangement as the Directory chips. The version this
+    // replaces had two faults that between them made a chip look dead: it read
+    // `active` once at build time and closed over that value, and its click
+    // handler re-rendered the list without ever touching the chip's own class.
+    // So the chip never turned blue, and because the captured `active` stayed
+    // false it could only ever add to the filter set — clicking a second time
+    // re-added the same label instead of clearing it.
+    let accommodationChipsSignature_ = null;
 
+    function accommodationBuildings_() {
+      return [...new Set(roomInventory.map(room => room.building).filter(Boolean))];
+    }
+
+    function renderAccommodationChips_() {
+      // The building chips come from the Rooms collection, so the set itself
+      // can change between loads; rebuild only when it actually differs.
+      const signature = accommodationBuildings_().join(' ');
+      if (signature !== accommodationChipsSignature_) buildAccommodationChips_(signature);
+      syncAccommodationChipState_();
+    }
+
+    function buildAccommodationChips_(signature) {
+      const container = $('accommodation-chips');
+      const firstBuild = accommodationChipsSignature_ === null;
+      container.replaceChildren();
+
+      ACCOMMODATION_CHIPS_.forEach(def => addAccommodationChip_(container, def.label));
       // Building chips come from the Rooms sheet, so renaming or adding a
       // building updates this row with no code change.
-      [...new Set(roomInventory.map(room => room.building).filter(Boolean))].forEach(building => {
-        const label = building;
-        const active = accommodationActiveChips_.has(label);
-        const chip = createElement('button', `filter-chip${active ? ' active' : ''}`, label);
-        chip.type = 'button';
-        chip.setAttribute('aria-pressed', String(active));
-        chip.addEventListener('click', () => {
-          if (active) accommodationActiveChips_.delete(label);
+      accommodationBuildings_().forEach(building => addAccommodationChip_(container, building));
+
+      if (firstBuild) {
+        container.addEventListener('click', event => {
+          const chip = event.target.closest('.filter-chip');
+          if (!chip || chip.disabled) return;
+          const label = chip.dataset.chipLabel;
+          if (!label) return;
+          if (accommodationActiveChips_.has(label)) accommodationActiveChips_.delete(label);
           else accommodationActiveChips_.add(label);
+          // Painted from state in the same tick as the click, before the list
+          // underneath is touched at all.
+          syncAccommodationChipState_();
           renderAccommodationList_();
         });
-        container.appendChild(chip);
+      }
+      accommodationChipsSignature_ = signature;
+    }
+
+    function addAccommodationChip_(container, label) {
+      const chip = createElement('button', 'filter-chip', label);
+      chip.type = 'button';
+      chip.dataset.chipLabel = label;
+      container.appendChild(chip);
+    }
+
+    function syncAccommodationChipState_() {
+      [...$('accommodation-chips').querySelectorAll('.filter-chip')].forEach(chip => {
+        const active = accommodationActiveChips_.has(chip.dataset.chipLabel);
+        chip.classList.toggle('active', active);
+        chip.setAttribute('aria-pressed', String(active));
       });
     }
 
