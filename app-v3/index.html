@@ -620,7 +620,10 @@
       fill: currentColor;
     }
 
-    #modal, #seva-teams-modal, #data-audit-modal, #directory-modal, #visit-editor-modal, #accommodation-workspace-modal, #add-to-workspace-modal, #meals-workspace-modal, #meetings-workspace-modal, #meeting-editor-modal, #trips-workspace-modal, #trip-editor-modal {
+    /* Every dialog in the app. The five workspaces became pages; what stays
+       a dialog is editing one record — a guest, a visit, a trip, a meeting —
+       plus the guest picker shared by the Add flows. */
+    #modal, #visit-editor-modal, #trip-editor-modal, #meeting-editor-modal, #add-to-workspace-modal {
       display: none;
       position: fixed;
       z-index: 100;
@@ -729,7 +732,7 @@
 
 
     .form-section-description {
-      margin: -7px 0 14px;
+      margin: 0 0 14px;
       color: var(--subtle);
       font-size: 0.8rem;
       line-height: 1.45;
@@ -1262,6 +1265,7 @@
     .room-row .custom-select { flex: 1; min-width: 0; }
 
     .travel-empty {
+      margin-top: 12px;
       padding: 12px;
       border: 1px dashed #3a3a3a;
       border-radius: 7px;
@@ -1270,10 +1274,17 @@
       text-align: center;
     }
 
-    #save-btn {
-      width: 100%;
-      margin-top: 8px;
-      padding: 12px;
+    /* One primary-action button across every dialog. These used to fall back
+       to the browser's default grey button in the Visit, Trip, Meeting and
+       Seva dialogs, because only the guest modal's save had ever been given a
+       style — which is why "Save Visit" looked unlike anything else. */
+    #save-btn,
+    #visit-editor-save-btn,
+    #trip-editor-save-btn,
+    #meeting-editor-save-btn,
+    #seva-team-save-btn,
+    #specific-seva-save-btn {
+      padding: 12px 18px;
       border: 0;
       border-radius: 5px;
       background: var(--blue);
@@ -1283,8 +1294,98 @@
       font-weight: 700;
     }
 
-    #save-btn:hover { background: #2980b9; }
-    #save-btn:disabled { background: #555; cursor: wait; }
+    /* Alone on its row, so it spans the dialog like V2's did. */
+    #save-btn,
+    #trip-editor-save-btn,
+    #meeting-editor-save-btn {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    /* Sharing a row with Cancel/Restore: take the space those don't need. */
+    #visit-editor-save-btn,
+    #seva-team-save-btn,
+    #specific-seva-save-btn { flex: 1; }
+
+    #save-btn:hover,
+    #visit-editor-save-btn:hover,
+    #trip-editor-save-btn:hover,
+    #meeting-editor-save-btn:hover,
+    #seva-team-save-btn:hover,
+    #specific-seva-save-btn:hover { background: #2980b9; }
+
+    #save-btn:disabled,
+    #visit-editor-save-btn:disabled,
+    #trip-editor-save-btn:disabled,
+    #meeting-editor-save-btn:disabled,
+    #seva-team-save-btn:disabled,
+    #specific-seva-save-btn:disabled { background: #555; cursor: wait; }
+
+
+    /* Jump-to-section chips for a dialog long enough to need them — V2's
+       treatment, restored. It was removed when the guest dialog shrank to a
+       single section; the Visit dialog now has four, which is exactly the
+       case it existed for. Sticky, so it stays reachable while scrolling. */
+    .modal-section-nav {
+      display: flex;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 0 0 18px;
+      gap: 6px;
+      padding: 10px 0;
+      background: var(--surface);
+      border-bottom: 1px solid #2c2c2c;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+      flex-wrap: wrap;
+    }
+
+    /* Lets the sticky bar's background reach the dialog's edges without
+       negative margins on the sticky element itself — negative margins plus
+       position:sticky is a known source of inconsistent behaviour. */
+    .modal-section-nav::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -24px;
+      right: -24px;
+      z-index: -1;
+      background: inherit;
+    }
+
+    .section-nav-pill {
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .section-nav-pill:hover { color: var(--text); }
+    .section-nav-pill.active { background: rgba(250, 128, 114, 0.15); color: var(--salmon); }
+
+    /* So a jump lands a section below the sticky bar rather than behind it —
+       the browser has no idea a pinned sibling covers the top ~54px. */
+    #visit-sec-stay,
+    #visit-sec-accommodation,
+    #visit-sec-cabs,
+    #visit-sec-travel { scroll-margin-top: 76px; }
+    /* The row of actions that closes a dialog. Separated from the content
+       above by a rule and real space — previously the buttons sat flush
+       against whatever the last field happened to be. */
+    .dialog-actions {
+      display: flex;
+      margin-top: 22px;
+      padding-top: 18px;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      border-top: 1px solid #3c3c3c;
+    }
 
     #toast-container {
       position: fixed;
@@ -2026,16 +2127,31 @@
   <!-- A Visit is the most involved editor in the app — dates, accommodation,
        rooms, C-form, two cabs and a whole travel itinerary — so it gets a
        page of its own rather than being squeezed into an overlay. -->
-  <main id="page-visit" class="page" aria-label="Visit">
-    <div class="page-content" style="--accent:#6fbaf0">
-      <div class="page-header">
-        <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#accommodation"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Accommodation &amp; Travel</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> <span id="visit-editor-modal-title">Edit Visit</span></h2>
-          <div id="visit-editor-guest-name" class="page-subtitle"></div>
+<!-- Editing one record is an interruption, not a destination: you open it
+       from a card, change something, and come straight back to the list you
+       were working through. A dialog keeps that list underneath and visible,
+       which is how V2 worked and what proved better in use. -->
+  <div id="visit-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="visit-editor-modal-title">
+      <div class="modal-header">
+        <h2 id="visit-editor-modal-title">Edit Visit</h2>
+        <div class="modal-header-actions">
+          <button id="visit-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
         </div>
       </div>
 
+      <div id="visit-editor-guest-name" class="app-subtitle" style="margin-bottom:16px;"></div>
+
+      <!-- Cabs and Travel are hidden for a Visitor, so their chips hide with
+           them rather than jumping to nothing. -->
+      <div class="modal-section-nav" id="visit-section-nav" aria-label="Jump to section">
+        <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
+      </div>
       <div id="visit-editor-warning" class="warning-banner" hidden></div>
       <input type="hidden" id="visit-editor-guest-id">
       <input type="hidden" id="visit-editor-visit-id">
@@ -2195,11 +2311,13 @@
       </section>
 
       <section class="form-section" id="visit-sec-travel">
-        <h3 class="travel-section-title">
-          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
-          Travel Itinerary
-        </h3>
+        <!-- Title and Add button share one row, as the Trip dialog already
+             does. Stacked, the button sat flush against the heading. -->
         <div class="travel-section-header">
+          <h3 class="travel-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+            Travel Itinerary
+          </h3>
           <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
@@ -2209,13 +2327,13 @@
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
       </section>
 
-      <div class="seva-team-row-actions">
+      <div class="dialog-actions">
         <button id="visit-editor-save-btn" type="button">Save Visit</button>
         <button id="visit-editor-cancel-visit-btn" type="button" class="travel-remove-btn">Cancel Visit</button>
         <button id="visit-editor-restore-visit-btn" type="button" class="travel-remove-btn" hidden>Restore Visit</button>
       </div>
     </div>
-  </main>
+  </div>
 
   <main id="page-accommodation" class="page" aria-label="Accommodation and Travel">
     <div class="page-content" style="--accent:#6fbaf0">
@@ -2356,16 +2474,18 @@
 
   <!-- Like a Visit, a Trip carries basics, a roster and a whole shared
        itinerary, so it gets its own page rather than an overlay. -->
-  <main id="page-trip" class="page" aria-label="Trip">
-    <div class="page-content" style="--accent:#b878d6">
-      <div class="page-header">
-        <div class="page-title-block">
-          <button class="page-back" type="button" data-nav="#trips"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Trips</button>
-          <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> <span id="trip-editor-modal-title">Trip</span></h2>
-          <div id="trip-editor-subtitle" class="page-subtitle"></div>
+  <div id="trip-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="trip-editor-modal-title">
+      <div class="modal-header">
+        <h2 id="trip-editor-modal-title">Trip</h2>
+        <div class="modal-header-actions">
+          <button id="trip-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
+          </button>
         </div>
       </div>
 
+      <div id="trip-editor-subtitle" class="app-subtitle" style="margin-bottom:16px;"></div>
       <input type="hidden" id="edit-trip-id">
       <input type="hidden" id="edit-trip-version">
       <div class="input-group">
@@ -2423,7 +2543,7 @@
         <div id="trip-travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
       </div>
     </div>
-  </main>
+  </div>
 
   <main id="page-seva" class="page" aria-label="Seva Teams and Tasks">
     <div class="page-content" style="--accent:#1abc9c">
@@ -2459,7 +2579,7 @@
           </div>
         </div>
         <div id="seva-team-form-message" class="field-message" aria-live="polite"></div>
-        <div class="seva-team-row-actions">
+        <div class="dialog-actions">
           <button id="seva-team-save-btn" type="button">Save Team</button>
           <button id="seva-team-cancel-btn" type="button" class="travel-remove-btn">Cancel</button>
         </div>
@@ -2498,7 +2618,7 @@
             </div>
           </div>
           <div id="specific-seva-form-message" class="field-message" aria-live="polite"></div>
-          <div class="seva-team-row-actions">
+          <div class="dialog-actions">
             <button id="specific-seva-save-btn" type="button">Save Task</button>
             <button id="specific-seva-cancel-btn" type="button" class="travel-remove-btn">Cancel</button>
           </div>
@@ -2900,8 +3020,13 @@
       $('add-to-workspace-search').addEventListener('input', handleGuestPickerSearchInput_);
       $('add-to-workspace-create-btn').addEventListener('click', createGuestFromPicker_);
 
-      $('page-visit').addEventListener('input', markModalDirty);
-      $('page-visit').addEventListener('change', markModalDirty);
+      $('visit-editor-modal').addEventListener('input', markModalDirty);
+      $('visit-editor-modal').addEventListener('change', markModalDirty);
+      initVisitSectionNav_();
+      $('visit-editor-close-btn').addEventListener('click', requestCloseVisitEditor_);
+      $('visit-editor-modal').addEventListener('click', event => {
+        if (event.target === $('visit-editor-modal')) requestCloseVisitEditor_();
+      });
       $('visit-editor-save-btn').addEventListener('click', saveVisitFromEditor);
       $('visit-editor-cancel-visit-btn').addEventListener('click', cancelCurrentVisit_);
       $('visit-editor-restore-visit-btn').addEventListener('click', restoreCurrentVisit_);
@@ -2922,8 +3047,12 @@
 
       $('trips-search').addEventListener('input', () => renderTripsList_());
       $('add-trip-btn').addEventListener('click', handleAddTripClick_);
-      $('page-trip').addEventListener('input', markModalDirty);
-      $('page-trip').addEventListener('change', markModalDirty);
+      $('trip-editor-modal').addEventListener('input', markModalDirty);
+      $('trip-editor-modal').addEventListener('change', markModalDirty);
+      $('trip-editor-close-btn').addEventListener('click', requestCloseTripEditor_);
+      $('trip-editor-modal').addEventListener('click', event => {
+        if (event.target === $('trip-editor-modal')) requestCloseTripEditor_();
+      });
       $('trip-editor-save-btn').addEventListener('click', saveTripFromEditor_);
       $('trip-add-participant-btn').addEventListener('click', handleAddParticipantClick_);
       $('add-trip-travel-leg-btn').addEventListener('click', () => addTravelLegEditor({}, 'trip-travel-leg-list', 'trip-travel-empty'));
@@ -2963,8 +3092,12 @@
           closeAllRoomRowLists();
           return;
         }
+        // Innermost first: the picker and the meeting dialog can both open
+        // over the visit or trip editor, so closing must unwind in that order.
         if (isGuestPickerOpen_()) { closeGuestPicker_(); return; }
         if ($('meeting-editor-modal').style.display === 'flex') { closeMeetingEditor_(); return; }
+        if (visitEditorOpen_) { requestCloseVisitEditor_(); return; }
+        if (tripEditorOpen_) { requestCloseTripEditor_(); return; }
         if (modalIsOpen) requestCloseModal();
       });
 
@@ -2978,7 +3111,10 @@
       // Never over a dirty editor or a pending save — a background refresh
       // that overwrites half-typed input is worse than slightly stale data.
       window.setInterval(() => {
-        if (document.hidden || modalIsOpen || isEditorDirty_() || pendingGuestIds.size) return;
+        // Never while a dialog is open, dirty or not: refreshing the list
+        // underneath can re-render the very card the open editor came from.
+        if (document.hidden || modalIsOpen || visitEditorOpen_ || tripEditorOpen_
+            || isEditorDirty_() || pendingGuestIds.size) return;
         refreshCurrentPage_({ silent: true });
       }, REFRESH_INTERVAL_MS);
     }
@@ -3054,9 +3190,9 @@
       meetings: { page: 'page-meetings', load: arg => loadMeetingsPage_(arg) },
       seva: { page: 'page-seva', load: arg => loadSevaPage_(arg) },
       trips: { page: 'page-trips', load: arg => loadTripsPage_(arg) },
-      guest: { page: 'page-guest', load: arg => loadGuestProfile_(arg) },
-      visit: { page: 'page-visit', load: arg => loadVisitPage_(arg) },
-      trip: { page: 'page-trip', load: arg => loadTripPage_(arg) }
+      guest: { page: 'page-guest', load: arg => loadGuestProfile_(arg) }
+      // Editing a visit or a trip is not a destination — both are dialogs
+      // opened over the list you are working through, so neither has a route.
     });
 
     let currentRoute_ = { name: 'home', arg: '' };
@@ -3158,7 +3294,7 @@
     }
 
     function isEditorDirty_() {
-      return (currentRoute_.name === 'visit' || currentRoute_.name === 'trip') && modalDirty;
+      return (visitEditorOpen_ || tripEditorOpen_ || modalIsOpen) && modalDirty;
     }
 
     function clearEditorDirty_() { modalDirty = false; }
@@ -3239,6 +3375,51 @@
     function applyBootstrapPayload_(payload) {
       homeSummary_ = payload.summary;
       applyDirectoryPayload_(payload.directory, false);
+    }
+
+    // Workspace payloads are cached on the device alongside the bootstrap, so
+    // the first visit to a workspace after reopening the app is drawn from
+    // disk instead of waiting on a request. Without this, every reopen paid
+    // the cold cost once per workspace no matter how warm the server was.
+    const WORKSPACE_CACHE_KEY = 'ashram-app-v3-workspaces';
+
+    function readCachedWorkspaces_() {
+      try {
+        const raw = localStorage.getItem(WORKSPACE_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeCachedWorkspace_(name, data) {
+      try {
+        const all = readCachedWorkspaces_();
+        all[name] = data;
+        localStorage.setItem(WORKSPACE_CACHE_KEY, JSON.stringify(all));
+      } catch (error) {
+        // Quota. The app still works — it just fetches on first visit as it
+        // did before, so this is not worth surfacing.
+        console.warn('Could not cache workspace data on this device:', error);
+      }
+    }
+
+    // Restores whatever the device already holds into the in-memory state the
+    // page renderers read, so a reopen starts warm rather than empty.
+    function hydrateWorkspacesFromCache_() {
+      const cached = readCachedWorkspaces_();
+
+      if (cached.accommodation) {
+        accommodationVisits_ = Array.isArray(cached.accommodation.visits) ? cached.accommodation.visits : [];
+        accommodationLoaded_ = true;
+      }
+      // Only for the day it was actually captured — a stale day would be
+      // worse than a short wait.
+      if (cached.meals && cached.meals.date === todayDateKey_()) mealsData_ = cached.meals;
+      if (cached.meetings) meetingsData_ = cached.meetings;
+      if (cached.seva) { sevaWorkspaceData_ = cached.seva; sevaLoaded_ = true; }
+      if (cached.trips) { tripsWorkspaceData_ = cached.trips; tripsLoaded_ = true; }
     }
 
     // One call where there were two, each of which used to rebuild the same
@@ -3332,6 +3513,9 @@
       const cached = readCachedBootstrap_();
       if (cached) {
         applyBootstrapPayload_(cached);
+        // Before the first route is resolved, so opening straight onto a
+        // workspace finds it already populated rather than waiting.
+        hydrateWorkspacesFromCache_();
         renderHome_();
         handleRouteChange_().then(() => { $('signin-gate').style.display = 'none'; });
         refreshBootstrapInBackground_();
@@ -3600,7 +3784,7 @@
         () => sevaLoaded_,
         () => renderSevaLists_(),
         () => apiCall('getWorkspaceData', { workspace: 'seva', filters: {} })
-          .then(data => { sevaWorkspaceData_ = data; sevaLoaded_ = true; })
+          .then(data => { sevaWorkspaceData_ = data; sevaLoaded_ = true; writeCachedWorkspace_("seva", data); })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load Seva data: ${getErrorMessage(err)}`, 'error'));
             throw error;
@@ -4532,6 +4716,7 @@
           .then(data => {
             accommodationVisits_ = Array.isArray(data.visits) ? data.visits : [];
             accommodationLoaded_ = true;
+            writeCachedWorkspace_("accommodation", data);
           })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load visits: ${getErrorMessage(err)}`, 'error'));
@@ -4775,28 +4960,6 @@
       openGuestPicker_(guestId => openVisitEditor(guestId, ''));
     }
 
-    // A Visit route is guestId or guestId/visitId — a blank visitId means a
-    // brand-new Visit for that guest, which is the one deliberate path in
-    // the whole app that creates one.
-    function loadVisitPage_(arg) {
-      const parts = String(arg || '').split('|');
-      const guestId = parts[0];
-      const visitId = parts[1] || '';
-      if (!guestId) { showPageError_('No guest was specified for this visit.'); return Promise.resolve(); }
-
-      return apiCall('getGuestProfile', { guestId })
-        .then(profile => {
-          const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
-          if (visitId && !visit) throw new Error('That visit no longer exists.');
-          populateVisitEditor_(profile, visit);
-          renderVisitWarnings_(profile);
-          clearEditorDirty_();
-        })
-        .catch(error => {
-          handleApiError(error, err => showPageError_(getErrorMessage(err)));
-          throw error;
-        });
-    }
 
     function renderVisitWarnings_(profile) {
       const banner = $('visit-editor-warning');
@@ -4816,18 +4979,92 @@
     let visitEditorGuestIsForeign_ = false;
     let visitEditorIsCancelled_ = false;
 
+    // visitId === '' means a brand-new Visit for this guest — the one
+    // deliberate path in the app that creates one.
+    let visitEditorOpen_ = false;
+
     function openVisitEditor(guestId, visitId) {
-      navigate(`#visit/${encodeURIComponent(visitId ? `${guestId}|${visitId}` : guestId)}`);
+      if (!guestId) return;
+      apiCall('getGuestProfile', { guestId })
+        .then(profile => {
+          const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
+          if (visitId && !visit) throw new Error('That visit no longer exists.');
+          populateVisitEditor_(profile, visit);
+          renderVisitWarnings_(profile);
+          modalDirty = false;
+          visitEditorOpen_ = true;
+          $('visit-editor-modal').style.display = 'flex';
+          $('visit-editor-modal').setAttribute('aria-hidden', 'false');
+          // Always open at the top with Stay selected, however far the
+          // previous visit happened to be scrolled.
+          $('visit-editor-modal').querySelector('.modal-content').scrollTop = 0;
+          syncVisitSectionNav_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't open visit: ${getErrorMessage(err)}`, 'error')));
     }
 
     function closeVisitEditor() {
-      navigate('#accommodation');
+      visitEditorOpen_ = false;
+      modalDirty = false;
+      $('visit-editor-modal').style.display = 'none';
+      $('visit-editor-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
+    // visit by clicking the backdrop should not silently discard it.
+    function requestCloseVisitEditor_() {
+      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return;
+      closeVisitEditor();
     }
 
     function toggleVisitCabTravelSections_() {
       const eligible = isCabTravelEligible(visitEditorGuestPersonType_);
       $('visit-sec-cabs').hidden = !eligible;
       $('visit-sec-travel').hidden = !eligible;
+      syncVisitSectionNav_();
+    }
+
+    // A chip pointing at a hidden section would scroll to nothing, so the nav
+    // only ever offers what is actually present. Cabs and Travel disappear
+    // for a Visitor, and their chips go with them.
+    function syncVisitSectionNav_() {
+      const pills = [...$('visit-section-nav').querySelectorAll('.section-nav-pill')];
+      pills.forEach(pill => {
+        const section = $(pill.dataset.target);
+        pill.hidden = !section || section.hidden;
+      });
+      const visible = pills.filter(p => !p.hidden);
+      if (visible.length && !visible.some(p => p.classList.contains('active'))) {
+        visible.forEach(p => p.classList.remove('active'));
+        visible[0].classList.add('active');
+      }
+    }
+
+    function initVisitSectionNav_() {
+      const nav = $('visit-section-nav');
+      const body = $('visit-editor-modal').querySelector('.modal-content');
+
+      nav.addEventListener('click', event => {
+        const pill = event.target.closest('.section-nav-pill');
+        if (!pill) return;
+        const section = $(pill.dataset.target);
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      // Follows the scroll rather than only reacting to taps, so the active
+      // chip reflects where you actually are — including after scrolling by
+      // hand, or being carried somewhere by a validation error.
+      body.addEventListener('scroll', () => {
+        const pills = [...nav.querySelectorAll('.section-nav-pill')].filter(p => !p.hidden);
+        if (!pills.length) return;
+        const navBottom = nav.getBoundingClientRect().bottom;
+        let current = pills[0];
+        pills.forEach(pill => {
+          const section = $(pill.dataset.target);
+          if (section && section.getBoundingClientRect().top <= navBottom + 8) current = pill;
+        });
+        pills.forEach(pill => pill.classList.toggle('active', pill === current));
+      }, { passive: true });
     }
 
     function toggleVisitCForm_() {
@@ -5139,7 +5376,7 @@
         () => Boolean(mealsData_ && mealsData_.date === date),
         () => { renderMealTabs_(); renderMealsList_(); },
         () => apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
-          .then(data => { mealsData_ = data; })
+          .then(data => { mealsData_ = data; writeCachedWorkspace_("meals", data); })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error'));
             throw error;
@@ -5327,7 +5564,7 @@
         () => Boolean(meetingsData_),
         () => renderMeetingsList_(),
         () => apiCall('getWorkspaceData', { workspace: 'meetings', filters: {} })
-          .then(data => { meetingsData_ = data; })
+          .then(data => { meetingsData_ = data; writeCachedWorkspace_("meetings", data); })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load meetings: ${getErrorMessage(err)}`, 'error'));
             throw error;
@@ -5562,7 +5799,7 @@
         () => tripsLoaded_,
         () => renderTripsList_(),
         () => apiCall('getWorkspaceData', { workspace: 'trips', filters: {} })
-          .then(data => { tripsWorkspaceData_ = data; tripsLoaded_ = true; })
+          .then(data => { tripsWorkspaceData_ = data; tripsLoaded_ = true; writeCachedWorkspace_("trips", data); })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load trips: ${getErrorMessage(err)}`, 'error'));
             throw error;
@@ -5601,10 +5838,6 @@
       emptyEl.textContent = `No ${def.label.toLowerCase()} trips.`;
     }
 
-    function loadTripPage_(tripId) {
-      if (!tripId) { showPageError_('No trip was specified.'); return Promise.resolve(); }
-      return populateTripEditor_(tripId).then(() => clearEditorDirty_());
-    }
 
     function createTripCard_(trip) {
       const card = createElement('article', 'card');
@@ -5640,12 +5873,29 @@
     }
 
     // tripId === null means a brand-new trip.
+    let tripEditorOpen_ = false;
+
     function openTripEditor_(tripId) {
-      navigate(tripId ? `#trip/${encodeURIComponent(tripId)}` : '#trip/new');
+      populateTripEditor_(tripId)
+        .then(() => {
+          modalDirty = false;
+          tripEditorOpen_ = true;
+          $('trip-editor-modal').style.display = 'flex';
+          $('trip-editor-modal').setAttribute('aria-hidden', 'false');
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't open trip: ${getErrorMessage(err)}`, 'error')));
     }
 
     function closeTripEditor_() {
-      navigate('#trips');
+      tripEditorOpen_ = false;
+      modalDirty = false;
+      $('trip-editor-modal').style.display = 'none';
+      $('trip-editor-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function requestCloseTripEditor_() {
+      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return;
+      closeTripEditor_();
     }
 
     // 'new' is the route for a trip that doesn't exist yet, so creating one
@@ -6151,6 +6401,19 @@
     // V3 Operational Workspaces Architecture — Phase E. Takes a Visit object
     // (getGuestProfile's shape — readVisitsByGuest_ in Code-V3.gs), not the
     // old allGuests-shaped guest object this used to read.
+    // Mirrors the four values calculateCabBookingState_ produces server-side.
+    // The state is always computed there and read back on the Visit, so this
+    // only guards against a missing or unrecognised value — in which case the
+    // booking flag alone decides, which is what the state meant before the
+    // machine existed.
+    const CAB_BOOKING_STATES_ = Object.freeze(['Requested', 'Needs Rescheduling', 'Needs Reconfirmation', 'Confirmed']);
+
+    function normalizeCabBookingState(value, confirmed) {
+      const normalized = String(value || '').trim();
+      if (CAB_BOOKING_STATES_.indexOf(normalized) !== -1) return normalized;
+      return confirmed ? 'Confirmed' : 'Requested';
+    }
+
     function initializeCabBookingEditorState(type, visit) {
       const prefix = type === 'pickup' ? 'pickup' : 'dropoff';
       const checkbox = $(`edit-${prefix}-booking-confirmed`);
