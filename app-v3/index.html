@@ -1759,9 +1759,11 @@
     }
 
     /* These are navigation gateways rather than dashboard cards. Each rests
-       directly in the page flow, separated by a hairline and carrying only a
-       very light tint of its established workspace colour. Amber and red stay
-       reserved for attention states, never workspace identity. */
+       directly in the page flow, separated by a hairline. Its established
+       workspace colour moves diagonally from the upper-left through roughly
+       sixty percent of the row, then dissolves into the page background.
+       Amber and red stay reserved for attention states, never workspace
+       identity. */
     .workspace-card {
       position: relative;
       display: grid;
@@ -1773,7 +1775,13 @@
       border: 0;
       border-top: 1px solid var(--border);
       border-radius: 0;
-      background: color-mix(in srgb, var(--tint) 7%, transparent);
+      background: linear-gradient(
+        to bottom right,
+        color-mix(in srgb, var(--tint) 12%, var(--bg)) 0%,
+        color-mix(in srgb, var(--tint) 8%, var(--bg)) 44%,
+        color-mix(in srgb, var(--tint) 4%, var(--bg)) 62%,
+        var(--bg) 100%
+      );
       cursor: pointer;
       text-align: left;
       color: inherit;
@@ -1795,7 +1803,13 @@
     .workspace-card:focus-visible {
       transform: translateX(3px);
       outline: none;
-      background: color-mix(in srgb, var(--tint) 10%, transparent);
+      background: linear-gradient(
+        to bottom right,
+        color-mix(in srgb, var(--tint) 15%, var(--bg)) 0%,
+        color-mix(in srgb, var(--tint) 10%, var(--bg)) 44%,
+        color-mix(in srgb, var(--tint) 5%, var(--bg)) 62%,
+        var(--bg) 100%
+      );
     }
 
     .workspace-card:hover::before,
