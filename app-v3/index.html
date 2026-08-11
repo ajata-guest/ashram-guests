@@ -3812,8 +3812,8 @@
       function finishDrag(event, cancelled) {
         if (!drag) return;
         const dx = event.clientX - drag.startX;
-        const moved = drag.isHorizontal && Math.abs(dx) > 6;
-        const threshold = Math.min(22, drag.width * 0.32);
+        const moved = drag.isHorizontal && Math.abs(dx) > 5;
+        const threshold = Math.min(18, drag.width * 0.24);
         const shouldOpen = cancelled
           ? drag.startedOpen
           : (drag.startedOpen ? dx < threshold : -dx > threshold);
@@ -3843,9 +3843,9 @@
           startY: event.clientY,
           startedOpen: workspaceDockOpen_,
           isHorizontal: null,
+          captured: false,
           width: panelWidth()
         };
-        if (dock.setPointerCapture) dock.setPointerCapture(event.pointerId);
       });
 
       dock.addEventListener('pointermove', event => {
@@ -3856,6 +3856,15 @@
           drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.05;
         }
         if (!drag.isHorizontal) return;
+        // Capture only after this has become an intentional swipe. Immediate
+        // capture retargets an ordinary desktop click to the nav container,
+        // preventing the icon button underneath from receiving it.
+        if (!drag.captured && Math.abs(dx) > 6 && dock.setPointerCapture) {
+          try {
+            dock.setPointerCapture(event.pointerId);
+            drag.captured = true;
+          } catch (_) {}
+        }
         event.preventDefault();
         const base = drag.startedOpen ? drag.width : 0;
         const width = Math.max(0, Math.min(drag.width, base - dx));
@@ -3888,6 +3897,13 @@
         event.stopPropagation();
         setWorkspaceDockOpen_(false);
         navigate('#home');
+      });
+      dock.querySelectorAll('.workspace-dock-destination').forEach(destination => {
+        destination.addEventListener('click', event => {
+          event.stopPropagation();
+          setWorkspaceDockOpen_(false);
+          navigate(destination.dataset.nav);
+        });
       });
       document.addEventListener('click', event => {
         if (workspaceDockOpen_ && !dock.contains(event.target)) setWorkspaceDockOpen_(false);
