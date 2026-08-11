@@ -1804,7 +1804,8 @@
     .status-swipe-surface { min-width: 0; touch-action: pan-y; }
 
     .workspace-dock {
-      --dock-panel-width: min(257px, calc(100vw - 54px - env(safe-area-inset-right)));
+      --dock-panel-width: 60px;
+      --dock-panel-height: 257px;
       position: fixed;
       top: 50%;
       right: env(safe-area-inset-right);
@@ -1817,7 +1818,8 @@
 
     .workspace-dock-panel {
       width: 0;
-      height: 60px;
+      height: var(--dock-panel-height);
+      max-height: calc(100vh - 24px);
       overflow: hidden;
       border: 1px solid transparent;
       border-right: 0;
@@ -1842,12 +1844,13 @@
 
     .workspace-dock-items {
       display: flex;
+      flex-direction: column;
       width: var(--dock-panel-width);
-      height: 100%;
-      padding: 11px 8px;
+      height: var(--dock-panel-height);
+      padding: 8px 11px;
       gap: 4px;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: center;
     }
 
     .workspace-dock-destination {
@@ -1877,7 +1880,7 @@
     }
 
     .workspace-dock-destination .icon { width: 20px; height: 20px; margin: 0; flex: none; }
-    .workspace-dock-divider { width: 1px; height: 25px; flex: 0 0 1px; background: #414141; }
+    .workspace-dock-divider { width: 25px; height: 1px; flex: 0 0 1px; background: #414141; }
 
     .workspace-dock-handle {
       display: flex;
@@ -2287,7 +2290,6 @@
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
       .page-actions .primary-btn { padding: 9px 11px; }
-      .workspace-dock { --dock-panel-width: min(257px, calc(100vw - 54px - env(safe-area-inset-right))); }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -3759,9 +3761,10 @@
         if (!drag) return;
         const dx = event.clientX - drag.startX;
         const moved = drag.isHorizontal && Math.abs(dx) > 8;
+        const threshold = Math.min(40, drag.width * 0.45);
         const shouldOpen = cancelled
           ? drag.startedOpen
-          : (drag.startedOpen ? dx < 40 : -dx > 40);
+          : (drag.startedOpen ? dx < threshold : -dx > threshold);
 
         dock.classList.remove('dragging');
         dock.style.removeProperty('--dock-drag-width');
