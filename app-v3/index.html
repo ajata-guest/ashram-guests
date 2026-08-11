@@ -1806,40 +1806,51 @@
     .workspace-dock {
       --dock-panel-width: 60px;
       --dock-panel-height: 356px;
+      --dock-handle-height: 64px;
       position: fixed;
       top: 50%;
       right: max(calc(20px + env(safe-area-inset-right)), calc((100vw - 1200px) / 2));
       z-index: 50;
-      display: flex;
-      align-items: center;
+      width: var(--dock-panel-width);
+      height: var(--dock-handle-height);
       transform: translateY(-50%);
       filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.42));
       touch-action: pan-y;
+      transition: height 0.22s ease;
     }
 
+    .workspace-dock.open,
+    .workspace-dock.dragging { height: var(--dock-panel-height); }
+
     .workspace-dock-panel {
-      width: 0;
+      position: absolute;
+      top: 50%;
+      right: 0;
+      z-index: 1;
+      width: var(--dock-panel-width);
       height: var(--dock-panel-height);
       max-height: calc(100vh - 24px);
       overflow: hidden;
-      border: 1px solid transparent;
-      border-right: 0;
-      border-radius: 12px 0 0 12px;
+      border: 1px solid #3d3d3d;
+      border-radius: 12px;
       background: #202020;
       opacity: 0;
-      transition: width 0.22s ease, opacity 0.16s ease, border-color 0.16s ease;
+      pointer-events: none;
+      transform: translateY(-50%);
+      clip-path: inset(41.02% 0 41.02% 0 round 12px);
+      transition: clip-path 0.22s ease, opacity 0.16s ease;
     }
 
     .workspace-dock.open .workspace-dock-panel {
-      width: var(--dock-panel-width);
-      border-color: #3d3d3d;
       opacity: 1;
+      pointer-events: auto;
+      clip-path: inset(0 round 12px);
     }
 
     .workspace-dock.dragging .workspace-dock-panel {
-      width: var(--dock-drag-width, 0px);
-      border-color: #3d3d3d;
-      opacity: 1;
+      opacity: var(--dock-drag-opacity, 0.24);
+      pointer-events: auto;
+      clip-path: inset(var(--dock-drag-inset, 41.02%) 0 round 12px);
       transition: none;
     }
 
@@ -1903,24 +1914,17 @@
     .workspace-dock-center-gap { width: 1px; height: 64px; flex: 0 0 64px; }
 
     .workspace-dock-handle {
-      display: flex;
-      width: 54px;
-      height: 60px;
-      flex: 0 0 54px;
+      position: absolute;
+      top: 50%;
+      right: 0;
+      z-index: 2;
+      width: var(--dock-panel-width);
+      height: var(--dock-handle-height);
       border: 1px solid #444;
       border-radius: 12px;
       background: #242424;
       overflow: hidden;
-      transition: width 0.2s ease, height 0.2s ease, flex-basis 0.2s ease, border-radius 0.2s ease;
-    }
-
-    .workspace-dock.open .workspace-dock-handle,
-    .workspace-dock.dragging .workspace-dock-handle {
-      width: 64px;
-      height: 64px;
-      flex-basis: 64px;
-      border-left-color: #333;
-      border-radius: 0 12px 12px 0;
+      transform: translateY(-50%);
     }
 
     .workspace-dock-toggle,
@@ -1935,18 +1939,22 @@
       cursor: pointer;
     }
 
-    .workspace-dock-toggle { width: 17px; flex: 0 0 17px; color: #888; transition: width 0.2s ease, flex-basis 0.2s ease; }
-    .workspace-dock.open .workspace-dock-toggle,
-    .workspace-dock.dragging .workspace-dock-toggle { width: 18px; flex-basis: 18px; }
+    .workspace-dock-toggle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 2;
+      width: 17px;
+      color: #888;
+    }
     .workspace-dock-toggle:hover,
     .workspace-dock-toggle:focus-visible { color: #fff; outline: none; }
     .workspace-dock-toggle .icon { width: 13px; height: 13px; margin: 0; transition: transform 0.2s ease; }
     .workspace-dock.open .workspace-dock-toggle .icon,
     .workspace-dock.dragging .workspace-dock-toggle .icon { transform: rotate(180deg); }
 
-    .workspace-dock-home { width: 36px; flex: 0 0 36px; transition: width 0.2s ease, flex-basis 0.2s ease; }
-    .workspace-dock.open .workspace-dock-home,
-    .workspace-dock.dragging .workspace-dock-home { width: 45px; flex-basis: 45px; }
+    .workspace-dock-home { width: 100%; }
     .workspace-dock-home:hover,
     .workspace-dock-home:focus-visible { background: #303030; outline: none; }
     .workspace-dock-home .icon {
@@ -2327,7 +2335,12 @@
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
       .page-actions .primary-btn { padding: 9px 11px; }
-      .workspace-dock { right: calc(14px + env(safe-area-inset-right)); }
+      .workspace-dock { right: env(safe-area-inset-right); }
+      .workspace-dock-panel,
+      .workspace-dock-handle {
+        border-right: 0;
+        border-radius: 12px 0 0 12px;
+      }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -3759,7 +3772,8 @@
       workspaceDockOpen_ = Boolean(open) && !dock.hidden;
       dock.classList.toggle('open', workspaceDockOpen_);
       dock.classList.remove('dragging');
-      dock.style.removeProperty('--dock-drag-width');
+      dock.style.removeProperty('--dock-drag-inset');
+      dock.style.removeProperty('--dock-drag-opacity');
       $('workspace-dock-panel').setAttribute('aria-hidden', String(!workspaceDockOpen_));
       $('workspace-dock-toggle').setAttribute('aria-expanded', String(workspaceDockOpen_));
       $('workspace-dock-toggle').setAttribute('aria-label', workspaceDockOpen_ ? 'Close quick navigation' : 'Open quick navigation');
@@ -3786,6 +3800,7 @@
       const dock = $('workspace-dock');
       const items = dock.querySelector('.workspace-dock-items');
       const toggle = $('workspace-dock-toggle');
+      const home = $('workspace-dock-home');
       let drag = null;
       let suppressNextClick = false;
       let suppressTimer = null;
@@ -3804,7 +3819,8 @@
           : (drag.startedOpen ? dx < threshold : -dx > threshold);
 
         dock.classList.remove('dragging');
-        dock.style.removeProperty('--dock-drag-width');
+        dock.style.removeProperty('--dock-drag-inset');
+        dock.style.removeProperty('--dock-drag-opacity');
         if (moved) {
           suppressNextClick = true;
           window.clearTimeout(suppressTimer);
@@ -3843,9 +3859,11 @@
         event.preventDefault();
         const base = drag.startedOpen ? drag.width : 0;
         const width = Math.max(0, Math.min(drag.width, base - dx));
+        const progress = width / drag.width;
         dock.classList.add('dragging');
         dock.classList.remove('open');
-        dock.style.setProperty('--dock-drag-width', `${width}px`);
+        dock.style.setProperty('--dock-drag-inset', `${(1 - progress) * 41.02}%`);
+        dock.style.setProperty('--dock-drag-opacity', String(0.24 + progress * 0.76));
       });
 
       dock.addEventListener('pointerup', event => finishDrag(event, false));
@@ -3863,6 +3881,14 @@
       }, true);
 
       toggle.addEventListener('click', () => setWorkspaceDockOpen_(!workspaceDockOpen_));
+      // Keep Home independent of delegated navigation. Besides making keyboard
+      // activation explicit, this prevents the dock's pointer-capture gesture
+      // layer from ever leaving the desktop Home control inert.
+      home.addEventListener('click', event => {
+        event.stopPropagation();
+        setWorkspaceDockOpen_(false);
+        navigate('#home');
+      });
       document.addEventListener('click', event => {
         if (workspaceDockOpen_ && !dock.contains(event.target)) setWorkspaceDockOpen_(false);
       });
