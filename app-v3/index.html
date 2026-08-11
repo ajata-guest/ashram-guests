@@ -1805,15 +1805,16 @@
 
     .workspace-dock {
       --dock-panel-width: 60px;
-      --dock-panel-height: 257px;
+      --dock-panel-height: 356px;
       position: fixed;
       top: 50%;
-      right: env(safe-area-inset-right);
+      right: max(calc(20px + env(safe-area-inset-right)), calc((100vw - 1200px) / 2));
       z-index: 50;
       display: flex;
       align-items: center;
       transform: translateY(-50%);
       filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.42));
+      touch-action: pan-y;
     }
 
     .workspace-dock-panel {
@@ -1847,7 +1848,7 @@
       flex-direction: column;
       width: var(--dock-panel-width);
       height: var(--dock-panel-height);
-      padding: 8px 11px;
+      padding: 8px 9px;
       gap: 4px;
       align-items: center;
       justify-content: center;
@@ -1855,9 +1856,9 @@
 
     .workspace-dock-destination {
       display: inline-flex;
-      width: 36px;
-      height: 36px;
-      flex: 0 0 36px;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
       align-items: center;
       justify-content: center;
       border: 1px solid transparent;
@@ -1865,6 +1866,8 @@
       background: transparent;
       color: var(--dock-color);
       cursor: pointer;
+      position: relative;
+      transition: background 0.16s ease, border-color 0.16s ease, transform 0.2s ease;
     }
 
     .workspace-dock-destination:hover,
@@ -1879,8 +1882,25 @@
       background: color-mix(in srgb, var(--dock-color) 18%, transparent);
     }
 
-    .workspace-dock-destination .icon { width: 20px; height: 20px; margin: 0; flex: none; }
-    .workspace-dock-divider { width: 25px; height: 1px; flex: 0 0 1px; background: #414141; }
+    .workspace-dock-destination .icon {
+      width: 24px;
+      height: 24px;
+      margin: 0;
+      flex: none;
+      transition: width 0.2s ease, height 0.2s ease;
+    }
+
+    .workspace-dock-directory::after {
+      content: '';
+      position: absolute;
+      right: 8px;
+      bottom: -3px;
+      left: 8px;
+      height: 1px;
+      background: #414141;
+    }
+
+    .workspace-dock-center-gap { width: 1px; height: 64px; flex: 0 0 64px; }
 
     .workspace-dock-handle {
       display: flex;
@@ -1888,15 +1908,19 @@
       height: 60px;
       flex: 0 0 54px;
       border: 1px solid #444;
-      border-right: 0;
-      border-radius: 12px 0 0 12px;
+      border-radius: 12px;
       background: #242424;
-      touch-action: pan-y;
+      overflow: hidden;
+      transition: width 0.2s ease, height 0.2s ease, flex-basis 0.2s ease, border-radius 0.2s ease;
     }
 
-    .workspace-dock.open .workspace-dock-handle {
+    .workspace-dock.open .workspace-dock-handle,
+    .workspace-dock.dragging .workspace-dock-handle {
+      width: 64px;
+      height: 64px;
+      flex-basis: 64px;
       border-left-color: #333;
-      border-radius: 0;
+      border-radius: 0 12px 12px 0;
     }
 
     .workspace-dock-toggle,
@@ -1911,16 +1935,29 @@
       cursor: pointer;
     }
 
-    .workspace-dock-toggle { width: 17px; flex: 0 0 17px; color: #888; }
+    .workspace-dock-toggle { width: 17px; flex: 0 0 17px; color: #888; transition: width 0.2s ease, flex-basis 0.2s ease; }
+    .workspace-dock.open .workspace-dock-toggle,
+    .workspace-dock.dragging .workspace-dock-toggle { width: 18px; flex-basis: 18px; }
     .workspace-dock-toggle:hover,
     .workspace-dock-toggle:focus-visible { color: #fff; outline: none; }
     .workspace-dock-toggle .icon { width: 13px; height: 13px; margin: 0; transition: transform 0.2s ease; }
-    .workspace-dock.open .workspace-dock-toggle .icon { transform: rotate(180deg); }
+    .workspace-dock.open .workspace-dock-toggle .icon,
+    .workspace-dock.dragging .workspace-dock-toggle .icon { transform: rotate(180deg); }
 
-    .workspace-dock-home { width: 36px; flex: 0 0 36px; }
+    .workspace-dock-home { width: 36px; flex: 0 0 36px; transition: width 0.2s ease, flex-basis 0.2s ease; }
+    .workspace-dock.open .workspace-dock-home,
+    .workspace-dock.dragging .workspace-dock-home { width: 45px; flex-basis: 45px; }
     .workspace-dock-home:hover,
     .workspace-dock-home:focus-visible { background: #303030; outline: none; }
-    .workspace-dock-home .icon { width: 23px; height: 23px; margin: 0; flex: none; }
+    .workspace-dock-home .icon {
+      width: 23px;
+      height: 23px;
+      margin: 0;
+      flex: none;
+      transition: width 0.2s ease, height 0.2s ease;
+    }
+    .workspace-dock.open .workspace-dock-home .icon,
+    .workspace-dock.dragging .workspace-dock-home .icon { width: 28px; height: 28px; }
 
     .page-summary {
       display: grid;
@@ -2290,6 +2327,7 @@
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
       .page-actions .primary-btn { padding: 9px 11px; }
+      .workspace-dock { right: calc(14px + env(safe-area-inset-right)); }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -3111,16 +3149,16 @@
   <nav id="workspace-dock" class="workspace-dock" aria-label="Quick navigation" hidden>
     <div id="workspace-dock-panel" class="workspace-dock-panel" aria-hidden="true">
       <div class="workspace-dock-items">
-        <button class="workspace-dock-destination" type="button" data-nav="#directory" data-dock-page="page-directory" style="--dock-color:#fa8072" aria-label="Guest Directory" title="Guest Directory">
+        <button class="workspace-dock-destination workspace-dock-directory" type="button" data-nav="#directory" data-dock-page="page-directory" style="--dock-color:#fa8072" aria-label="Guest Directory" title="Guest Directory">
           <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
         </button>
-        <span class="workspace-dock-divider" aria-hidden="true"></span>
         <button class="workspace-dock-destination" type="button" data-nav="#accommodation" data-dock-page="page-accommodation" style="--dock-color:#6fbaf0" aria-label="Accommodation and Travel" title="Accommodation &amp; Travel">
           <svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg>
         </button>
         <button class="workspace-dock-destination" type="button" data-nav="#meals" data-dock-page="page-meals" style="--dock-color:#71d99d" aria-label="Meals" title="Meals">
           <svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg>
         </button>
+        <span class="workspace-dock-center-gap" aria-hidden="true"></span>
         <button class="workspace-dock-destination" type="button" data-nav="#meetings" data-dock-page="page-meetings" style="--dock-color:#fa8072" aria-label="Meetings with Swamiji" title="Meetings with Swamiji">
           <svg class="icon" aria-hidden="true"><use href="#icon-lamp"></use></svg>
         </button>
@@ -3747,7 +3785,6 @@
     function initWorkspaceDock_() {
       const dock = $('workspace-dock');
       const items = dock.querySelector('.workspace-dock-items');
-      const handle = $('workspace-dock-handle');
       const toggle = $('workspace-dock-toggle');
       let drag = null;
       let suppressNextClick = false;
@@ -3760,8 +3797,8 @@
       function finishDrag(event, cancelled) {
         if (!drag) return;
         const dx = event.clientX - drag.startX;
-        const moved = drag.isHorizontal && Math.abs(dx) > 8;
-        const threshold = Math.min(40, drag.width * 0.45);
+        const moved = drag.isHorizontal && Math.abs(dx) > 6;
+        const threshold = Math.min(22, drag.width * 0.32);
         const shouldOpen = cancelled
           ? drag.startedOpen
           : (drag.startedOpen ? dx < threshold : -dx > threshold);
@@ -3777,7 +3814,12 @@
         drag = null;
       }
 
-      handle.addEventListener('pointerdown', event => {
+      // The whole control is the gesture surface. When the dock is open this
+      // includes the icon rail, so a right swipe can begin on any icon rather
+      // than forcing the user to find the narrow Home ribbon again. The dock
+      // lives outside every status-swipe surface, keeping the two gestures
+      // isolated by where the touch begins.
+      dock.addEventListener('pointerdown', event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         drag = {
           pointerId: event.pointerId,
@@ -3787,15 +3829,15 @@
           isHorizontal: null,
           width: panelWidth()
         };
-        if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+        if (dock.setPointerCapture) dock.setPointerCapture(event.pointerId);
       });
 
-      handle.addEventListener('pointermove', event => {
+      dock.addEventListener('pointermove', event => {
         if (!drag || event.pointerId !== drag.pointerId) return;
         const dx = event.clientX - drag.startX;
         const dy = event.clientY - drag.startY;
-        if (drag.isHorizontal === null && (Math.abs(dx) > 7 || Math.abs(dy) > 7)) {
-          drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+        if (drag.isHorizontal === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+          drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.05;
         }
         if (!drag.isHorizontal) return;
         event.preventDefault();
@@ -3806,13 +3848,13 @@
         dock.style.setProperty('--dock-drag-width', `${width}px`);
       });
 
-      handle.addEventListener('pointerup', event => finishDrag(event, false));
-      handle.addEventListener('pointercancel', event => finishDrag(event, true));
+      dock.addEventListener('pointerup', event => finishDrag(event, false));
+      dock.addEventListener('pointercancel', event => finishDrag(event, true));
 
       // A drag ends with a synthetic click on some browsers. Swallow that
       // one click so pulling the ribbon can never accidentally send the user
       // Home or toggle the tray a second time.
-      handle.addEventListener('click', event => {
+      dock.addEventListener('click', event => {
         if (!suppressNextClick) return;
         suppressNextClick = false;
         window.clearTimeout(suppressTimer);
