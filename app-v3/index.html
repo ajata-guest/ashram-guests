@@ -1682,12 +1682,12 @@
     }
 
     .page-header {
-      display: flex;
+      display: grid;
       max-width: 1200px;
       margin: 0 auto 18px;
-      gap: 14px;
-      align-items: stretch;
-      flex-direction: column;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px 24px;
+      align-items: center;
     }
 
     .page-back {
@@ -1707,20 +1707,29 @@
     .page-back:hover { border-color: #4a4a4a; color: var(--text); }
     .page-back .icon { width: 15px; height: 15px; margin: 0; flex: none; }
 
-    .page-title-block { flex: 1; min-width: 0; }
+    .page-title-block {
+      min-width: 0;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent, var(--salmon));
+      border-radius: 9px;
+      background: var(--surface);
+      background: linear-gradient(105deg, color-mix(in srgb, var(--accent, var(--salmon)) 15%, var(--surface)), var(--surface) 76%);
+    }
 
     .page-title-row {
       display: flex;
       min-width: 0;
       gap: 10px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
 
     .page-title-row .page-back { margin: 0; flex: 0 0 auto; }
 
     .page-title {
       display: flex;
+      min-width: 0;
       margin: 0;
       gap: 11px;
       align-items: center;
@@ -1729,8 +1738,8 @@
       line-height: 1.15;
     }
 
-    .page-title .icon { width: 24px; height: 24px; margin: 0; flex: none; color: var(--accent, var(--salmon)); }
-    .page-subtitle { margin-top: 5px; color: var(--subtle); font-size: 0.84rem; }
+    .page-title .icon { width: 24px; height: 24px; margin: 0; flex: none; color: #fff; }
+    .page-subtitle { margin-top: 5px; color: #fff; font-size: 0.84rem; font-weight: 400; }
 
     .refresh-slot {
       display: inline-flex;
@@ -1745,13 +1754,13 @@
 
     .page-actions {
       display: flex;
-      width: 100%;
+      width: auto;
       gap: 10px;
       align-items: center;
       justify-content: flex-end;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
-    .page-search { position: relative; }
+    .page-search { position: relative; min-width: 0; }
 
     .page-search input {
       width: 240px;
@@ -1772,16 +1781,28 @@
       padding: 9px 15px;
       border: 0;
       border-radius: 7px;
-      background: var(--salmon);
-      color: #fff;
+      background: var(--accent, var(--salmon));
+      color: var(--action-text, #fff);
       cursor: pointer;
       font-size: 0.88rem;
       font-weight: 600;
       white-space: nowrap;
     }
 
-    .primary-btn:hover { background: #e96f62; }
+    .primary-btn:hover { filter: brightness(0.92); }
     .primary-btn .icon { width: 17px; height: 17px; margin: 0; flex: none; }
+
+    .workspace-action-btn {
+      border-color: transparent;
+      background: var(--accent, var(--salmon));
+      color: var(--action-text, #fff);
+    }
+
+    .workspace-action-btn:hover { background: var(--accent, var(--salmon)); filter: brightness(0.92); }
+
+    .action-label-compact { display: none; }
+
+    .status-swipe-surface { min-width: 0; touch-action: pan-y; }
 
     .page-summary {
       display: grid;
@@ -2099,11 +2120,24 @@
     .history-meta { color: var(--subtle); font-size: 0.8rem; }
 
     @media (max-width: 760px) {
-      .page-header { gap: 12px; }
+      .page-header {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+      }
       .page-actions { width: 100%; }
       .page-title-row { gap: 8px; }
+      .page-title { flex: 1; }
+      .page-back { width: 34px; height: 34px; padding: 0; justify-content: center; }
+      .page-back-label { display: none; }
       .page-search { flex: 1; }
-      .page-search input { width: 100%; }
+      .page-search input { width: 100%; min-width: 0; }
+      .tier-tabs {
+        gap: 12px;
+        scrollbar-width: none;
+        overscroll-behavior-x: contain;
+      }
+      .tier-tabs::-webkit-scrollbar { display: none; }
       .page-summary { grid-template-columns: repeat(2, 1fr); }
       .ribbon-desc { display: none; }
       .ribbon-go span { display: none; }
@@ -2131,6 +2165,13 @@
       .add-btn .icon { width: 16px; height: 16px; }
       .add-label-full { display: none; }
       .add-label-compact { display: inline; }
+      .action-label-full { display: none; }
+      .action-label-compact { display: inline; }
+      .page-title-block { padding: 10px 11px; }
+      .page-title { font-size: 1.15rem; }
+      .page-title .icon { width: 21px; height: 21px; }
+      .page-subtitle { font-size: 0.78rem; }
+      .page-actions .primary-btn { padding: 9px 11px; }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -2245,11 +2286,11 @@
   </main>
 
   <main id="page-directory" class="page" aria-label="Guest Directory">
-    <div class="page-content">
+    <div class="page-content" style="--accent:#fa8072">
     <div class="page-header">
       <div class="page-title-block">
         <div class="page-title-row">
-          <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+          <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
           <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Guest Directory</h2>
           <span class="page-refresh-slot refresh-slot"></span>
         </div>
@@ -2257,21 +2298,21 @@
       </div>
       <div class="page-actions">
         <div class="page-search"><input type="search" id="directory-search" placeholder="Search this directory..." aria-label="Search the directory"></div>
-        <button id="directory-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Guest</button>
+        <button id="directory-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Guest</span><span class="action-label-compact">Add</span></button>
       </div>
     </div>
     <div id="directory-tabs" class="tier-tabs" role="tablist" aria-label="Directory tiers"></div>
     <div id="directory-chips" class="quick-filters" role="group" aria-label="Directory filters"></div>
-    <div id="directory-body" class="app-body"></div>
+    <div id="directory-body" class="app-body status-swipe-surface"></div>
     </div>
   </main>
 
   <main id="page-guest" class="page" aria-label="Guest profile">
-    <div class="page-content">
+    <div class="page-content" style="--accent:#fa8072">
     <div class="page-header">
       <div class="page-title-block">
         <div class="page-title-row">
-          <button class="page-back" type="button" data-nav="#directory"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Directory</button>
+          <button class="page-back" type="button" data-nav="#directory" aria-label="Guest Directory"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Directory</span></button>
           <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg> <span id="guest-profile-name">Guest</span></h2>
           <span class="page-refresh-slot refresh-slot"></span>
         </div>
@@ -2611,7 +2652,7 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bed"></use></svg> Accommodation &amp; Travel</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2619,14 +2660,15 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="accommodation-search" placeholder="Search visits..." aria-label="Search visits"></div>
-          <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Visit</button>
+          <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Visit</span><span class="action-label-compact">Add</span></button>
         </div>
       </div>
-      <div id="accommodation-summary" class="page-summary"></div>
       <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
       <div id="accommodation-chips" class="quick-filters" role="group" aria-label="Accommodation filters"></div>
-      <div id="accommodation-workspace-list" class="card-grid"></div>
-      <div id="accommodation-workspace-empty" class="zone-empty" hidden>No visits found.</div>
+      <div id="accommodation-swipe-surface" class="status-swipe-surface">
+        <div id="accommodation-workspace-list" class="card-grid"></div>
+        <div id="accommodation-workspace-empty" class="zone-empty" hidden>No visits found.</div>
+      </div>
     </div>
   </main>
 
@@ -2657,7 +2699,7 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2665,7 +2707,7 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="meals-search" placeholder="Search guests..." aria-label="Search guests on this date"></div>
-          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Invite Guest</button>
+          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Invite Guest</span><span class="action-label-compact">Invite</span></button>
         </div>
       </div>
 
@@ -2685,21 +2727,22 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
-            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lotus"></use></svg> Meetings with Swamiji</h2>
+            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
+            <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-lamp"></use></svg> Meetings with Swamiji</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
           <div class="page-subtitle">Open to every Person Type</div>
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="meetings-search" placeholder="Search meetings..." aria-label="Search meetings"></div>
-          <button id="meetings-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Meeting with Swamiji</button>
+          <button id="meetings-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Meeting with Swamiji</span><span class="action-label-compact">Add Meeting</span></button>
         </div>
       </div>
-      <div id="meetings-summary" class="page-summary"></div>
       <div id="meetings-tabs" class="tier-tabs" role="tablist" aria-label="Meeting sections"></div>
-      <div id="meetings-workspace-sections"></div>
-      <div id="meetings-workspace-empty" class="zone-empty" hidden>No meetings with Swamiji yet.</div>
+      <div id="meetings-swipe-surface" class="status-swipe-surface">
+        <div id="meetings-workspace-sections"></div>
+        <div id="meetings-workspace-empty" class="zone-empty" hidden>No meetings with Swamiji yet.</div>
+      </div>
     </div>
   </main>
 
@@ -2739,7 +2782,7 @@
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-bus"></use></svg> Trips</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2747,13 +2790,15 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="trips-search" placeholder="Search trips..." aria-label="Search trips"></div>
-          <button id="add-trip-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Add Trip</button>
+          <button id="add-trip-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Trip</span><span class="action-label-compact">Add Trip</span></button>
         </div>
       </div>
       <div id="trips-summary" class="page-summary"></div>
       <div id="trips-tabs" class="tier-tabs" role="tablist" aria-label="Trip status"></div>
-      <div id="trips-workspace-list" class="card-grid"></div>
-      <div id="trips-workspace-empty" class="zone-empty" hidden>No trips yet.</div>
+      <div id="trips-swipe-surface" class="status-swipe-surface">
+        <div id="trips-workspace-list" class="card-grid"></div>
+        <div id="trips-workspace-empty" class="zone-empty" hidden>No trips yet.</div>
+      </div>
     </div>
   </main>
 
@@ -2910,11 +2955,11 @@
   </div>
 
   <main id="page-seva" class="page" aria-label="Seva Teams and Tasks">
-    <div class="page-content" style="--accent:#1abc9c">
+    <div class="page-content" style="--accent:#F3CD97;--action-text:#211a10">
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
-            <button class="page-back" type="button" data-nav="#home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg> Home</button>
+            <button class="page-back" type="button" data-nav="#home" aria-label="Home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg><span class="page-back-label">Home</span></button>
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg> Seva Teams &amp; Tasks</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
@@ -2927,10 +2972,11 @@
       <div id="seva-summary" class="page-summary"></div>
       <div id="seva-view-tabs" class="tier-tabs" role="tablist" aria-label="Seva views"></div>
 
+      <div id="seva-swipe-surface" class="status-swipe-surface">
       <div id="seva-view-teams">
         <div class="travel-section-header">
           <h3 class="travel-section-title">Teams</h3>
-          <button id="add-seva-team-btn" class="travel-add-btn" type="button">+ Add Seva Team</button>
+          <button id="add-seva-team-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Seva Team</button>
         </div>
         <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual tasks.</p>
         <div id="seva-teams-list" class="travel-leg-list"></div>
@@ -2940,11 +2986,12 @@
       <div id="seva-view-tasks" hidden>
         <div class="travel-section-header">
           <h3 class="travel-section-title">Individual Tasks</h3>
-          <button id="add-individual-task-btn" class="travel-add-btn" type="button">+ Add Individual Task</button>
+          <button id="add-individual-task-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Individual Task</button>
         </div>
         <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
         <div id="individual-tasks-list" class="travel-leg-list"></div>
         <div id="individual-tasks-empty" class="travel-empty">No individual tasks yet.</div>
+      </div>
       </div>
     </div>
   </main>
@@ -3336,6 +3383,7 @@
         if (!document.hidden && remoteRefreshPending_) flushPendingRemoteRefresh_();
       });
 
+      initStatusSwipeNavigation_();
       startSession_();
     }
 
@@ -3522,7 +3570,154 @@
         page.classList.toggle('active', page.id === pageId);
       });
       placeGlobalRefreshForPage_(pageId);
+      window.requestAnimationFrame(() => keepActiveStatusTabVisible_(pageId));
       window.scrollTo(0, 0);
+    }
+
+    function keepActiveStatusTabVisible_(pageId) {
+      const page = $(pageId);
+      const tabs = page && page.querySelector('.tier-tabs');
+      const active = tabs && tabs.querySelector('.tier-tab.active');
+      if (!tabs || !active || tabs.scrollWidth <= tabs.clientWidth) return;
+      const left = active.offsetLeft - Math.max(0, (tabs.clientWidth - active.offsetWidth) / 2);
+      tabs.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+
+    function statusSwipeConfig_() {
+      switch (currentRoute_.name) {
+        case 'directory':
+          return {
+            keys: DIRECTORY_TIERS_.map(def => def.key),
+            activeKey: directoryTierKey_,
+            surface: $('directory-body'),
+            go: key => navigate(`#directory/${key}`)
+          };
+        case 'accommodation':
+          return {
+            keys: ACCOMMODATION_SECTIONS_.map(def => def.key),
+            activeKey: accommodationSection_,
+            surface: $('accommodation-swipe-surface'),
+            go: key => navigate(`#accommodation/${key}`)
+          };
+        case 'meetings':
+          return {
+            keys: MEETING_SECTIONS_.map(def => def.key),
+            activeKey: meetingsSection_,
+            surface: $('meetings-swipe-surface'),
+            go: key => navigate(`#meetings/${key}`)
+          };
+        case 'trips':
+          return {
+            keys: TRIP_SECTIONS_.map(def => def.key),
+            activeKey: tripsSection_,
+            surface: $('trips-swipe-surface'),
+            go: key => navigate(`#trips/${key}`)
+          };
+        case 'seva':
+          return {
+            keys: SEVA_VIEWS_.map(def => def.key),
+            activeKey: sevaView_,
+            surface: $('seva-swipe-surface'),
+            go: key => navigate(`#seva/${key}`)
+          };
+        default:
+          return null;
+      }
+    }
+
+    function statusSwipeDialogOpen_() {
+      return Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).some(dialog => {
+        const overlay = dialog.parentElement;
+        return overlay && (overlay.getAttribute('aria-hidden') === 'false' || overlay.style.display === 'flex');
+      });
+    }
+
+    // V2's touch navigation, generalized for every linear status rail in V3.
+    // A normal swipe changes status without dragging the cards around; only a
+    // swipe beyond the first or last status meets resistance and gently
+    // rubber-bands the record surface before springing home.
+    function initStatusSwipeNavigation_() {
+      let gesture = null;
+      let pendingDx = null;
+      let frame = null;
+      const SWIPE_THRESHOLD = 60;
+      const RUBBER_BAND_MAX = 44;
+
+      const interactiveSelector = 'input, textarea, select, button, a, [contenteditable="true"], .tier-tabs, .quick-filters, .segmented, .page-toolbar';
+
+      function applyPendingTransform() {
+        frame = null;
+        if (!gesture || pendingDx === null) return;
+        gesture.surface.style.transform = `translateX(${pendingDx}px)`;
+        pendingDx = null;
+      }
+
+      function releaseRubberBand() {
+        if (!gesture || !gesture.rubberBanding) return;
+        const surface = gesture.surface;
+        surface.style.transition = 'transform 0.2s ease';
+        surface.style.transform = '';
+        window.setTimeout(() => {
+          surface.style.transition = '';
+          surface.style.willChange = '';
+        }, 210);
+      }
+
+      function endGesture(event, cancelled) {
+        if (!gesture) return;
+        if (frame !== null) { cancelAnimationFrame(frame); frame = null; }
+        pendingDx = null;
+        releaseRubberBand();
+
+        if (!cancelled && gesture.isHorizontal && event.changedTouches && event.changedTouches.length) {
+          const dx = event.changedTouches[0].clientX - gesture.startX;
+          const index = gesture.keys.indexOf(gesture.activeKey);
+          if (Math.abs(dx) > SWIPE_THRESHOLD && index !== -1) {
+            if (dx < 0 && index < gesture.keys.length - 1) gesture.go(gesture.keys[index + 1]);
+            else if (dx > 0 && index > 0) gesture.go(gesture.keys[index - 1]);
+          }
+        }
+        gesture = null;
+      }
+
+      document.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1 || statusSwipeDialogOpen_() || event.target.closest(interactiveSelector)) return;
+        const config = statusSwipeConfig_();
+        if (!config || !config.surface || config.keys.length < 2 || !config.surface.contains(event.target)) return;
+        gesture = {
+          ...config,
+          startX: event.touches[0].clientX,
+          startY: event.touches[0].clientY,
+          isHorizontal: null,
+          rubberBanding: false
+        };
+      }, { passive: true });
+
+      document.addEventListener('touchmove', event => {
+        if (!gesture || event.touches.length !== 1 || statusSwipeDialogOpen_()) return;
+        const dx = event.touches[0].clientX - gesture.startX;
+        const dy = event.touches[0].clientY - gesture.startY;
+
+        if (gesture.isHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+          gesture.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+        }
+        if (!gesture.isHorizontal) return;
+
+        const index = gesture.keys.indexOf(gesture.activeKey);
+        const atStart = index === 0 && dx > 0;
+        const atEnd = index === gesture.keys.length - 1 && dx < 0;
+        if (atStart || atEnd) {
+          if (!gesture.rubberBanding) {
+            gesture.rubberBanding = true;
+            gesture.surface.style.willChange = 'transform';
+          }
+          pendingDx = Math.sign(dx) * Math.min(Math.abs(dx) * 0.3, RUBBER_BAND_MAX);
+          if (frame === null) frame = requestAnimationFrame(applyPendingTransform);
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', event => endGesture(event, false), { passive: true });
+      document.addEventListener('touchcancel', event => endGesture(event, true), { passive: true });
     }
 
     function showPageError_(message) {
@@ -4018,8 +4213,8 @@
     // that are deliberately independent of them. Somebody can hold both, and
     // the two views say so rather than one hiding the other.
     const SEVA_VIEWS_ = Object.freeze([
-      { key: 'teams', label: 'Seva Teams', accent: '#1abc9c' },
-      { key: 'tasks', label: 'Individual Tasks', accent: '#71d99d' }
+      { key: 'teams', label: 'Seva Teams', shortLabel: 'Teams', accent: '#F3CD97' },
+      { key: 'tasks', label: 'Individual Tasks', shortLabel: 'Tasks', accent: '#F3CD97' }
     ]);
 
     let sevaView_ = 'teams';
@@ -4057,7 +4252,8 @@
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', String(def.key === sevaView_));
         tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
-        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.setAttribute('aria-label', def.label);
+        tab.appendChild(createElement('span', 'tier-tab-label', def.shortLabel || def.label));
         tab.addEventListener('click', () => {
           if (sevaView_ === def.key) return;
           sevaView_ = def.key;
@@ -4782,13 +4978,13 @@
     // ============================================================
 
     const DIRECTORY_TIERS_ = Object.freeze([
-      { key: 'priority', tier: 1, label: 'Priority', accent: '#ff8b84', zone: 'zone-urgent', description: 'Guests with a real unresolved operational matter' },
-      { key: 'today', tier: 2, label: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Activity today, and not already Priority' },
-      { key: 'upcoming', tier: 3, label: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
-      { key: 'past', tier: 4, label: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
+      { key: 'priority', tier: 1, label: 'Priority', shortLabel: 'Priority', accent: '#ff8b84', zone: 'zone-urgent', description: 'Guests with a real unresolved operational matter' },
+      { key: 'today', tier: 2, label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Activity today, and not already Priority' },
+      { key: 'upcoming', tier: 3, label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
+      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
       // Not a tier of its own — every non-archived record, whichever tier it
       // sits in. Kept last so the four exclusive tiers read as a sequence.
-      { key: 'all', tier: null, label: 'All Guests', accent: '#b878d6', zone: '', description: 'Every active Directory record' }
+      { key: 'all', tier: null, label: 'All Guests', shortLabel: 'All', accent: '#b878d6', zone: '', description: 'Every active Directory record' }
     ]);
 
     const DIRECTORY_CHIPS_ = Object.freeze([
@@ -4866,7 +5062,8 @@
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', String(def.key === directoryTierKey_));
         tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
-        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.setAttribute('aria-label', def.label);
+        tab.appendChild(createElement('span', 'tier-tab-label', def.shortLabel || def.label));
         tab.addEventListener('click', () => {
           if (directoryTierKey_ === def.key) return;
           directoryTierKey_ = def.key;
@@ -5157,12 +5354,11 @@
     // for separately, so switching between them is instant and the counts on
     // the tabs always agree with what the section actually contains.
     const ACCOMMODATION_SECTIONS_ = Object.freeze([
-      { key: 'attention', label: 'Needs Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
-      { key: 'arriving', label: 'Arriving Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today },
-      { key: 'residing', label: 'Residing', accent: '#b878d6', test: (v, today) => v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
-      { key: 'departing', label: 'Departing Today', accent: '#f6bd55', test: (v, today) => v.departureDate === today },
-      { key: 'upcoming', label: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
-      { key: 'past', label: 'Past & Cancelled', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
+      { key: 'attention', label: 'Needs Attention', shortLabel: 'Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
+      { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
+      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
+      { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
+      { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
     ]);
 
     const ACCOMMODATION_CHIPS_ = Object.freeze([
@@ -5191,6 +5387,7 @@
     let accommodationLoaded_ = false;
 
     function loadAccommodationPage_(section) {
+      if (section === 'arriving' || section === 'departing') section = 'today';
       if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) accommodationSection_ = section;
       return loadWorkspaceCached_(
         'accommodation',
@@ -5327,21 +5524,9 @@
         .filter(visit => def.test(visit, today))
         .sort((a, b) => (a.arrivalMs === null ? Infinity : a.arrivalMs) - (b.arrivalMs === null ? Infinity : b.arrivalMs));
 
-      renderAccommodationSummary_(filtered, today);
       rows.forEach(visit => listEl.appendChild(createAccommodationVisitCard(visit)));
       emptyEl.hidden = rows.length > 0;
       emptyEl.textContent = `Nothing in ${def.label.toLowerCase()}.`;
-    }
-
-    function renderAccommodationSummary_(visits, today) {
-      const counts = {};
-      ACCOMMODATION_SECTIONS_.forEach(def => { counts[def.key] = visits.filter(v => def.test(v, today)).length; });
-      renderSummaryTiles_($('accommodation-summary'), [
-        { value: counts.attention, label: 'NEEDS ATTENTION', attention: true },
-        { value: counts.arriving, label: 'ARRIVING TODAY' },
-        { value: counts.residing, label: 'RESIDING IN ASHRAM' },
-        { value: counts.departing, label: 'DEPARTING TODAY' }
-      ]);
     }
 
     // Shared by every workspace page, so the tabs behave and count the same
@@ -5356,7 +5541,8 @@
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', String(def.key === activeKey));
         tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
-        tab.appendChild(createElement('span', 'tier-tab-label', def.label));
+        tab.setAttribute('aria-label', def.label);
+        tab.appendChild(createElement('span', 'tier-tab-label', def.shortLabel || def.label));
         tab.addEventListener('click', () => { if (def.key !== activeKey) onSelect(def.key); });
         container.appendChild(tab);
       });
@@ -6174,11 +6360,11 @@
     // ============================================================
 
     const MEETING_SECTIONS_ = [
-      { key: 'today', label: 'Today' },
-      { key: 'upcoming', label: 'Upcoming' },
-      { key: 'needsCompletion', label: 'Past – Needs Completion' },
-      { key: 'completed', label: 'Completed' },
-      { key: 'cancelled', label: 'Cancelled' }
+      { key: 'today', label: 'Today', shortLabel: 'Today' },
+      { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming' },
+      { key: 'needsCompletion', label: 'Past – Needs Completion', shortLabel: 'To Complete' },
+      { key: 'completed', label: 'Completed', shortLabel: 'Completed' },
+      { key: 'cancelled', label: 'Cancelled', shortLabel: 'Cancelled' }
     ];
 
     // Completed and Cancelled sit behind their own tabs rather than being
@@ -6233,7 +6419,8 @@
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', String(sec.key === meetingsSection_));
         tab.appendChild(createElement('span', 'tier-tab-count', String(rows.length)));
-        tab.appendChild(createElement('span', 'tier-tab-label', sec.label));
+        tab.setAttribute('aria-label', sec.label);
+        tab.appendChild(createElement('span', 'tier-tab-label', sec.shortLabel || sec.label));
         tab.addEventListener('click', () => {
           if (meetingsSection_ === sec.key) return;
           meetingsSection_ = sec.key;
@@ -6241,13 +6428,6 @@
         });
         tabs.appendChild(tab);
       });
-
-      renderSummaryTiles_($('meetings-summary'), [
-        { value: (meetingsData_.today || []).length, label: 'TODAY' },
-        { value: (meetingsData_.upcoming || []).length, label: 'UPCOMING' },
-        { value: (meetingsData_.needsCompletion || []).length, label: 'NEED COMPLETION', attention: true },
-        { value: (meetingsData_.completed || []).length, label: 'COMPLETED' }
-      ]);
 
       const sec = MEETING_SECTIONS_.find(s => s.key === meetingsSection_) || MEETING_SECTIONS_[0];
       const items = filterRows(meetingsData_[sec.key]);
@@ -6424,10 +6604,10 @@
     // Upcoming leads, then Active — the two that still need arranging — with
     // Completed and Cancelled behind their own tabs.
     const TRIP_SECTIONS_ = Object.freeze([
-      { key: 'upcoming', label: 'Upcoming', accent: '#71d99d', test: t => t.status === 'Upcoming' },
-      { key: 'active', label: 'Active', accent: '#6fbaf0', test: t => t.status === 'Active' },
-      { key: 'completed', label: 'Completed', accent: '#aaa', test: t => t.status === 'Completed' },
-      { key: 'cancelled', label: 'Cancelled', accent: '#aaa', test: t => t.status === 'Cancelled' }
+      { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: t => t.status === 'Upcoming' },
+      { key: 'active', label: 'Active', shortLabel: 'Active', accent: '#6fbaf0', test: t => t.status === 'Active' },
+      { key: 'completed', label: 'Completed', shortLabel: 'Completed', accent: '#aaa', test: t => t.status === 'Completed' },
+      { key: 'cancelled', label: 'Cancelled', shortLabel: 'Cancelled', accent: '#aaa', test: t => t.status === 'Cancelled' }
     ]);
 
     let tripsSection_ = 'upcoming';
@@ -6467,8 +6647,6 @@
       });
 
       renderSummaryTiles_($('trips-summary'), [
-        { value: trips.filter(t => t.status === 'Active').length, label: 'ACTIVE' },
-        { value: trips.filter(t => t.status === 'Upcoming').length, label: 'UPCOMING' },
         { value: trips.reduce((sum, t) => sum + (t.unresolvedLegs || 0), 0), label: 'LEGS TO ARRANGE', attention: true },
         { value: trips.reduce((sum, t) => sum + (t.participantCount || 0), 0), label: 'PARTICIPANTS' }
       ]);
