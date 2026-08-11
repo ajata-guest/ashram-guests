@@ -1709,12 +1709,11 @@
 
     .page-title-block {
       min-width: 0;
-      padding: 12px 14px;
-      border: 1px solid var(--border);
+      padding: 8px 0 8px 14px;
+      border: 0;
       border-left: 3px solid var(--accent, var(--salmon));
-      border-radius: 9px;
-      background: var(--surface);
-      background: linear-gradient(105deg, color-mix(in srgb, var(--accent, var(--salmon)) 15%, var(--surface)), var(--surface) 76%);
+      border-radius: 0;
+      background: transparent;
     }
 
     .page-title-row {
@@ -1733,7 +1732,7 @@
       margin: 0;
       gap: 11px;
       align-items: center;
-      color: #fff;
+      color: var(--accent, var(--salmon));
       font-size: 1.55rem;
       line-height: 1.15;
     }
@@ -2167,7 +2166,7 @@
       .add-label-compact { display: inline; }
       .action-label-full { display: none; }
       .action-label-compact { display: inline; }
-      .page-title-block { padding: 10px 11px; }
+      .page-title-block { padding: 8px 0 8px 10px; }
       .page-title { font-size: 1.15rem; }
       .page-title .icon { width: 21px; height: 21px; }
       .page-subtitle { font-size: 0.78rem; }
