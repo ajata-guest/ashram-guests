@@ -1804,8 +1804,8 @@
     .status-swipe-surface { min-width: 0; touch-action: pan-y; }
 
     .workspace-dock {
-      --dock-panel-width: 60px;
-      --dock-panel-height: 356px;
+      --dock-panel-width: 64px;
+      --dock-panel-height: 392px;
       --dock-handle-height: 64px;
       position: fixed;
       top: 50%;
@@ -1837,7 +1837,7 @@
       opacity: 0;
       pointer-events: none;
       transform: translateY(-50%);
-      clip-path: inset(41.02% 0 41.02% 0 round 12px);
+      clip-path: inset(41.84% 0 41.84% 0 round 12px);
       transition: clip-path 0.22s ease, opacity 0.16s ease;
     }
 
@@ -1850,7 +1850,7 @@
     .workspace-dock.dragging .workspace-dock-panel {
       opacity: var(--dock-drag-opacity, 0.24);
       pointer-events: auto;
-      clip-path: inset(var(--dock-drag-inset, 41.02%) 0 round 12px);
+      clip-path: inset(var(--dock-drag-inset, 41.84%) 0 round 12px);
       transition: none;
     }
 
@@ -1859,7 +1859,7 @@
       flex-direction: column;
       width: var(--dock-panel-width);
       height: var(--dock-panel-height);
-      padding: 8px 9px;
+      padding: 8px;
       gap: 4px;
       align-items: center;
       justify-content: center;
@@ -1867,9 +1867,9 @@
 
     .workspace-dock-destination {
       display: inline-flex;
-      width: 42px;
-      height: 42px;
-      flex: 0 0 42px;
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
       align-items: center;
       justify-content: center;
       border: 1px solid transparent;
@@ -1894,8 +1894,8 @@
     }
 
     .workspace-dock-destination .icon {
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       margin: 0;
       flex: none;
       transition: width 0.2s ease, height 0.2s ease;
@@ -1965,7 +1965,18 @@
       transition: width 0.2s ease, height 0.2s ease;
     }
     .workspace-dock.open .workspace-dock-home .icon,
-    .workspace-dock.dragging .workspace-dock-home .icon { width: 28px; height: 28px; }
+    .workspace-dock.dragging .workspace-dock-home .icon { width: 30px; height: 30px; }
+
+    @media (max-height: 430px) {
+      .workspace-dock { --dock-panel-height: 368px; }
+      .workspace-dock-panel { clip-path: inset(41.3% 0 41.3% 0 round 12px); }
+      .workspace-dock.dragging .workspace-dock-panel {
+        clip-path: inset(var(--dock-drag-inset, 41.3%) 0 round 12px);
+      }
+      .workspace-dock-items { padding: 8px 10px; }
+      .workspace-dock-destination { width: 44px; height: 44px; flex-basis: 44px; }
+      .workspace-dock-destination .icon { width: 24px; height: 24px; }
+    }
 
     .page-summary {
       display: grid;
@@ -3799,6 +3810,7 @@
     function initWorkspaceDock_() {
       const dock = $('workspace-dock');
       const items = dock.querySelector('.workspace-dock-items');
+      const handle = $('workspace-dock-handle');
       const toggle = $('workspace-dock-toggle');
       const home = $('workspace-dock-home');
       let drag = null;
@@ -3807,6 +3819,12 @@
 
       function panelWidth() {
         return Math.max(1, Math.round(items.getBoundingClientRect().width));
+      }
+
+      function closedInsetPercent() {
+        const panelHeight = Math.max(1, items.getBoundingClientRect().height);
+        const handleHeight = Math.min(panelHeight, handle.getBoundingClientRect().height);
+        return ((panelHeight - handleHeight) / 2 / panelHeight) * 100;
       }
 
       function finishDrag(event, cancelled) {
@@ -3844,7 +3862,8 @@
           startedOpen: workspaceDockOpen_,
           isHorizontal: null,
           captured: false,
-          width: panelWidth()
+          width: panelWidth(),
+          closedInset: closedInsetPercent()
         };
       });
 
@@ -3871,7 +3890,7 @@
         const progress = width / drag.width;
         dock.classList.add('dragging');
         dock.classList.remove('open');
-        dock.style.setProperty('--dock-drag-inset', `${(1 - progress) * 41.02}%`);
+        dock.style.setProperty('--dock-drag-inset', `${(1 - progress) * drag.closedInset}%`);
         dock.style.setProperty('--dock-drag-opacity', String(0.24 + progress * 0.76));
       });
 
