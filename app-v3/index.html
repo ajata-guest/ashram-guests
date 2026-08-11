@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -2203,29 +2203,20 @@
 
         <div id="invited-purpose-group">
           <div class="input-group">
-            <label class="input-label">Purpose</label>
-            <div class="checkbox-row">
-              <label class="checkbox-label" for="edit-purpose-discourse">
-                <input type="checkbox" id="edit-purpose-discourse" class="checkbox-input purpose-checkbox" data-purpose="Discourse">
-                Discourse
-              </label>
-              <label class="checkbox-label" for="edit-purpose-kirtan">
-                <input type="checkbox" id="edit-purpose-kirtan" class="checkbox-input purpose-checkbox" data-purpose="Kirtan/Music">
-                Kirtan/Music
-              </label>
-              <label class="checkbox-label" for="edit-purpose-interreligious">
-                <input type="checkbox" id="edit-purpose-interreligious" class="checkbox-input purpose-checkbox" data-purpose="Interreligious Presence">
-                Interreligious Presence
-              </label>
-              <label class="checkbox-label" for="edit-purpose-official">
-                <input type="checkbox" id="edit-purpose-official" class="checkbox-input purpose-checkbox" data-purpose="Official/Diplomatic">
-                Official/Diplomatic
-              </label>
-              <label class="checkbox-label" for="edit-purpose-other">
-                <input type="checkbox" id="edit-purpose-other" class="checkbox-input purpose-checkbox" data-purpose="Other">
-                Other
-              </label>
-            </div>
+            <label class="input-label" for="edit-purpose">Purpose</label>
+            <select id="edit-purpose" class="edit-input">
+              <option value="">-- Not specified --</option>
+              <option value="Discourse">Discourse</option>
+              <option value="Kirtan/Music">Kirtan/Music</option>
+              <option value="Interreligious Presence">Interreligious Presence</option>
+              <option value="Official/Diplomatic">Official/Diplomatic</option>
+              <option value="Other">Other</option>
+            </select>
+            <!-- Shown only for a guest whose stored record still carries more
+                 than one purpose from when this was a multi-select. Saying so
+                 is the difference between a deliberate change and quietly
+                 losing something the office entered. -->
+            <div id="edit-purpose-multi-notice" class="field-message" hidden></div>
             <input type="text" id="edit-purpose-other-text" class="edit-input" maxlength="500" placeholder="Describe the purpose" aria-label="Other purpose description" autocomplete="off" hidden>
           </div>
         </div>
@@ -3043,9 +3034,7 @@
       $('save-btn').addEventListener('click', saveGuestFromModal);
 
       $('edit-person-type').addEventListener('change', togglePurposeAssignmentFields);
-      [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
-        box.addEventListener('change', updatePurposeOtherVisibility);
-      });
+      $('edit-purpose').addEventListener('change', updatePurposeOtherVisibility);
       $('modal').addEventListener('click', event => {
         if (event.target === $('modal')) requestCloseModal();
       });
@@ -4451,12 +4440,19 @@
       const card = createElement('article', 'card');
       card.tabIndex = 0;
       card.setAttribute('role', 'button');
-      card.setAttribute('aria-label', `Open ${summary.name || 'guest'}`);
-      card.addEventListener('click', () => openModal('edit', summary.guestId));
+      card.setAttribute('aria-label', `Open ${summary.name || 'guest'}'s profile`);
+      // The card is a summary, so opening it shows the whole record — visits,
+      // meals, meetings, seva, trips — rather than jumping straight into
+      // editing the four basic fields. Editing is one button away on that
+      // page, which is also the only place Archive and the guarded permanent
+      // Delete live. Nothing linked here before, so that page and both of
+      // those actions were unreachable outside a hand-typed URL.
+      const openProfile = () => navigate(`#guest/${encodeURIComponent(summary.guestId)}`);
+      card.addEventListener('click', openProfile);
       card.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          openModal('edit', summary.guestId);
+          openProfile();
         }
       });
 
@@ -5042,7 +5038,7 @@
     function renderAccommodationChips_() {
       // The building chips come from the Rooms collection, so the set itself
       // can change between loads; rebuild only when it actually differs.
-      const signature = accommodationBuildings_().join(' ');
+      const signature = accommodationBuildings_().join(' ');
       if (signature !== accommodationChipsSignature_) {
         buildAccommodationChips_(signature);
         reorderChipRow_('accommodation-chips', 'accommodation');
@@ -6976,7 +6972,7 @@
         $('edit-version').value = guest.version || '';
         $('edit-name').value = guest.name || '';
         $('edit-person-type').value = guest.personType || 'Invited Guest';
-        setPurposeCheckboxes(guest.invitedPurpose || []);
+        setPurposeSelection(guest.invitedPurpose || []);
         $('edit-purpose-other-text').value = guest.invitedPurposeOther || '';
         $('edit-staff-assignment').value = guest.staffAssignment || '';
         updatePurposeOtherVisibility();
@@ -6986,7 +6982,7 @@
 
         $('edit-name').value = '';
         $('edit-person-type').value = 'Invited Guest';
-        setPurposeCheckboxes([]);
+        setPurposeSelection([]);
         $('edit-purpose-other-text').value = '';
         $('edit-staff-assignment').value = '';
         updatePurposeOtherVisibility();
@@ -7410,7 +7406,7 @@
     }
 
     function updatePurposeOtherVisibility() {
-      $('edit-purpose-other-text').hidden = !$('edit-purpose-other').checked;
+      $('edit-purpose-other-text').hidden = $('edit-purpose').value !== 'Other';
     }
 
     function isCabTravelEligible(personType) {
@@ -7439,16 +7435,36 @@
       return String(localDateInfo(dateKey, '', false).display || dateKey).replace(/^[A-Za-z]{3},\s*/, '');
     }
 
-    function setPurposeCheckboxes(purposes) {
-      const selected = new Set(Array.isArray(purposes) ? purposes : []);
-      [...document.querySelectorAll('.purpose-checkbox')].forEach(box => {
-        box.checked = selected.has(box.dataset.purpose);
-      });
+    // Purpose is a single choice now, but the record still holds a list —
+    // every reader (cards, profile, search index, the adapter) expects an
+    // array, so the value is unwrapped on the way in and re-wrapped on the way
+    // out rather than changing the shape of the stored data.
+    function setPurposeSelection(purposes) {
+      const list = (Array.isArray(purposes) ? purposes : []).filter(Boolean);
+      const select = $('edit-purpose');
+      const first = list[0] || '';
+      // A value the dropdown doesn't offer would silently select nothing;
+      // fall back to Other so it stays visible and editable.
+      const known = [...select.options].some(option => option.value === first);
+      select.value = known ? first : (first ? 'Other' : '');
+
+      // A record carrying more than one purpose predates this being a single
+      // choice. Say so plainly rather than dropping the extras on save.
+      const notice = $('edit-purpose-multi-notice');
+      if (list.length > 1) {
+        notice.hidden = false;
+        notice.textContent = `This guest has ${list.length} purposes recorded (${list.join(', ')}). `
+          + 'Saving will keep only the one selected above.';
+      } else {
+        notice.hidden = true;
+        notice.textContent = '';
+      }
       updatePurposeOtherVisibility();
     }
 
     function getSelectedPurposes() {
-      return [...document.querySelectorAll('.purpose-checkbox:checked')].map(box => box.dataset.purpose);
+      const value = $('edit-purpose').value;
+      return value ? [value] : [];
     }
 
     function handleDateChange() {
@@ -8002,7 +8018,7 @@
 
       $('edit-name').value = payload.name || '';
       $('edit-person-type').value = payload.personType || 'Invited Guest';
-      setPurposeCheckboxes(Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : []);
+      setPurposeSelection(Array.isArray(payload.invitedPurpose) ? payload.invitedPurpose : []);
       $('edit-purpose-other-text').value = payload.invitedPurposeOther || '';
       $('edit-staff-assignment').value = payload.staffAssignment || '';
       updatePurposeOtherVisibility();
