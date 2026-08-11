@@ -6033,14 +6033,33 @@
       card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
       badges.appendChild(createPersonTypeBadge(visit.personType));
+      // C-form sits with the identity badges, as in V2 — it is a fact about
+      // this guest's paperwork rather than a step in arranging the stay.
+      if (visit.cformComplete === false && visit.isForeign) {
+        badges.appendChild(createBadge('C-form pending', 'badge-pink'));
+      }
       card.appendChild(badges);
 
+      // Anything settled reads as a plain line; anything still outstanding
+      // becomes a badge — the distinction V2 drew. Those badges have nothing
+      // further to say, so they share one row instead of taking a line each.
       const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      card.appendChild(createDetailLine('icon-calendar', visit.arrivalMs ? `Arrives ${dateFormat(visit.arrivalMs)}` : 'Arrival date TBD'));
+      const outstanding = [];
+
+      if (visit.arrivalMs) card.appendChild(createDetailLine('icon-calendar', `Arrives ${dateFormat(visit.arrivalMs)}`));
+      else outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
+
       if (visit.departureMs) card.appendChild(createDetailLine('icon-calendar', `Departs ${dateFormat(visit.departureMs)}`));
+      else if (visit.accommodation && visit.accommodation !== 'No overnight stay') {
+        outstanding.push({ label: 'Departure date not set', badgeClass: 'badge-action' });
+      }
 
       if (visit.accommodation === 'Ashram') {
-        card.appendChild(createDetailLine('icon-bed', Array.isArray(visit.rooms) && visit.rooms.length ? visit.rooms.join(' & ') : 'Room not assigned'));
+        if (Array.isArray(visit.rooms) && visit.rooms.length) {
+          card.appendChild(createDetailLine('icon-bed', visit.rooms.join(' & ')));
+        } else {
+          outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
+        }
       } else if (visit.accommodation) {
         const labels = {
           'Outside - Arranged by Ashram': 'Outside \u00B7 Arranged by Ashram',
@@ -6051,10 +6070,151 @@
         card.appendChild(createDetailLine('icon-bed', labels[visit.accommodation] || visit.accommodation));
       }
 
-      if (visit.pickupRequired) card.appendChild(createDetailLine('icon-car', 'Pickup required'));
-      if (visit.dropoffRequired) card.appendChild(createDetailLine('icon-car', 'Drop-off required'));
+      if (outstanding.length) card.appendChild(badgeRow_(outstanding));
+
+      appendTransportDetails_(card, visit);
+      appendTravelDetails_(card, visit, 'Required');
+      appendTravelDetails_(card, visit, 'Confirmed');
 
       return card;
+    }
+
+    // ---- Visit card badges -------------------------------------------------
+    // Ported back from V2, where the state of a cab or a travel leg was
+    // readable at a glance from the badge colour. V3's card had flattened all
+    // of it to two grey lines that said "Pickup required" whether the cab was
+    // unbooked, needing a reschedule, or long since confirmed. The badge
+    // styles survived the rewrite untouched; only the code that used them was
+    // lost, so this reinstates the same labels and the same colour meanings.
+
+    function badgeRow_(entries) {
+      const row = createElement('div', 'badge-row');
+      entries.forEach(entry => row.appendChild(createBadge(entry.label, entry.badgeClass)));
+      return row;
+    }
+
+    // A journey already in the past is history, not something to act on, so it
+    // drops to grey however it was booked.
+    function isSchedulePast_(dateKey, ms, hasTime) {
+      if (ms === null || ms === undefined) {
+        return Boolean(dateKey) && dateKey < todayDateKey_();
+      }
+      return hasTime ? ms < Date.now() : Boolean(dateKey) && dateKey < todayDateKey_();
+    }
+
+    function formatCabScheduleText_(dateValue, timeValue) {
+      const info = localDateInfo(dateValue, timeValue || '', false);
+      const display = String(info.display || dateValue);
+      return timeValue ? display : `${display} · time not set`;
+    }
+
+    // Cabs render like travel legs: the badge says what still needs doing, the
+    // line underneath says what the journey actually is.
+    function appendTransportDetails_(card, visit) {
+      if (!visit.pickupRequired && !visit.dropoffRequired) return;
+
+      const entries = [];
+      if (visit.pickupRequired) entries.push(buildCabCardEntry_('pickup', visit));
+      if (visit.dropoffRequired) entries.push(buildCabCardEntry_('dropoff', visit));
+
+      // Nothing scheduled or located on either cab yet — the badges already say
+      // everything there is to say, so keep them side by side on one row rather
+      // than spending a stacked block each to add nothing.
+      if (entries.every(entry => !entry.detail)) {
+        card.appendChild(badgeRow_(entries));
+        return;
+      }
+
+      const stack = createElement('div', 'travel-stack');
+      entries.forEach(entry => {
+        const item = createElement('div', 'travel-item');
+        item.appendChild(badgeRow_([entry]));
+        if (entry.detail) item.appendChild(createDetailLine('icon-car', entry.detail));
+        stack.appendChild(item);
+      });
+      card.appendChild(stack);
+    }
+
+    function buildCabCardEntry_(type, visit) {
+      const isPickup = type === 'pickup';
+      const name = isPickup ? 'Pickup' : 'Drop-off';
+      const state = normalizeCabBookingState(
+        isPickup ? visit.pickupBookingState : visit.dropoffBookingState,
+        isPickup ? visit.pickupBookingConfirmed : visit.dropoffBookingConfirmed
+      );
+      const dateValue = isPickup ? visit.pickupDate : visit.dropoffDate;
+      const timeValue = isPickup ? visit.pickupTime : visit.dropoffTime;
+      const msValue = isPickup ? visit.pickupMs : visit.dropoffMs;
+      const location = (isPickup ? visit.pickupFrom : visit.dropoffTo) || '';
+
+      let label;
+      let badgeClass;
+      if (state === 'Confirmed') {
+        label = `${name} arranged`;
+        badgeClass = isSchedulePast_(dateValue, msValue, Boolean(timeValue))
+          ? 'badge-gray'
+          : (isPickup ? 'badge-pickup' : 'badge-dropoff');
+      } else if (state === 'Needs Rescheduling') {
+        label = `${name} needs rescheduling`;
+        badgeClass = 'badge-warning';
+      } else if (state === 'Needs Reconfirmation') {
+        label = `${name} needs reconfirmation`;
+        badgeClass = 'badge-cab-action';
+      } else {
+        label = `${name} requested`;
+        // Escalates to the louder colour once the workspace itself considers
+        // this cab unresolved, matching V2's priority-reason check.
+        badgeClass = visitAttentionReasons_(visit).includes(isPickup ? 'Pickup to arrange' : 'Drop-off to arrange')
+          ? 'badge-action'
+          : 'badge-cab-action';
+      }
+
+      const parts = [];
+      if (location) parts.push(`${isPickup ? 'From' : 'To'} ${location}`);
+      // "Date not set" is only worth saying next to a location — on its own it
+      // just restates a bare "requested" badge.
+      if (dateValue) parts.push(formatCabScheduleText_(dateValue, timeValue));
+      else if (location) parts.push('Date not set');
+
+      return { label, badgeClass, detail: parts.join(' · ') };
+    }
+
+    function appendTravelDetails_(card, visit, status) {
+      const legs = (Array.isArray(visit.travelLegs) ? visit.travelLegs : [])
+        .filter(leg => leg.status === status);
+      if (!legs.length) return;
+
+      const stack = createElement('div', 'travel-stack');
+      legs.forEach(leg => {
+        const item = createElement('div', 'travel-item');
+        let label;
+        let badgeClass;
+        if (status === 'Confirmed') {
+          label = `${leg.direction} ${leg.transportType} confirmed`;
+          badgeClass = isSchedulePast_(leg.travelDate, leg.travelMs, Boolean(leg.travelTime))
+            ? 'badge-gray'
+            : 'badge-confirmed';
+        } else {
+          label = `${leg.direction} ${leg.transportType} to arrange`;
+          // No date at all is the more urgent of the two: there is nothing to
+          // book against yet.
+          badgeClass = leg.travelDate ? 'badge-travel-action' : 'badge-travel-critical';
+        }
+        item.appendChild(badgeRow_([{ label, badgeClass }]));
+        item.appendChild(createTravelDetailLine_(leg));
+        stack.appendChild(item);
+      });
+      card.appendChild(stack);
+    }
+
+    function createTravelDetailLine_(leg) {
+      const route = [leg.from, leg.to].filter(Boolean).join(' → ');
+      const dateText = leg.travelDisplay || 'Date not set';
+      const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
+      return createDetailLine(
+        getTravelIconId(leg.transportType),
+        `${route || leg.transportType} · ${dateText}${service}`
+      );
     }
 
     // Generic search-existing-or-create-new guest picker, reusable by any
