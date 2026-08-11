@@ -347,6 +347,8 @@
 
     .add-btn:hover { background: #e96f62; }
 
+    .add-label-compact { display: none; }
+
     #app {
       max-width: 1200px;
       margin: 0 auto;
@@ -2077,14 +2079,29 @@
       .ribbon-desc { display: none; }
       .ribbon-go span { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; }
-      .ws-info { grid-column: 1 / -1; padding-left: 50px; }
+      .ws-head { grid-column: 1; grid-row: 1; }
+      .ws-info { grid-column: 1 / -1; grid-row: 2; padding-left: 50px; }
+      .ws-go { grid-column: 2; grid-row: 1; align-self: center; justify-self: end; }
       .page-title { font-size: 1.3rem; }
     }
 
     @media (max-width: 620px) {
       body { padding: 14px; }
-      .header-container { align-items: stretch; }
-      .controls { max-width: none; }
+      .header-container {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+      }
+      .title-block h1 { font-size: 1.2rem; }
+      .title-block .app-subtitle { font-size: 0.8rem; }
+      .last-updated { font-size: 0.67rem; }
+      .controls { max-width: none; flex: 0 0 auto; gap: 7px; }
+      .icon-button { width: 36px; height: 36px; flex: 0 0 36px; }
+      .add-btn { min-width: 0; height: 36px; padding: 0 10px; gap: 6px; font-size: 0.76rem; }
+      .add-btn .icon { width: 16px; height: 16px; }
+      .add-label-full { display: none; }
+      .add-label-compact { display: inline; }
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
@@ -2100,6 +2117,13 @@
         grid-template-columns: 1fr 1fr;
         gap: 8px;
       }
+    }
+
+    @media (max-width: 340px) {
+      .header-container { gap: 8px; }
+      .title-block h1 { font-size: 1.1rem; }
+      .add-btn { width: 36px; padding: 0; flex: 0 0 36px; }
+      .add-label-compact { display: none; }
     }
   </style>
 </head>
@@ -2149,7 +2173,8 @@
       </button>
       <button id="add-btn" class="add-btn" type="button" aria-label="Add new guest" title="Add new guest">
         <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
-        <span>Add new guest</span>
+        <span class="add-label-full">Add new guest</span>
+        <span class="add-label-compact">Add guest</span>
       </button>
     </div>
   </header>
@@ -2177,7 +2202,7 @@
       <span class="ribbon-go"><span>Open Directory</span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></span>
     </button>
 
-    <div class="section-label">Operational Workspaces</div>
+    <div class="section-label">Workspaces</div>
     <div id="workspace-grid" class="workspace-grid"></div>
 
     <div id="home-search-wrap" hidden>
