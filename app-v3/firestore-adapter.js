@@ -35,7 +35,7 @@ const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff
 const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
 // NONE is deliberately outside the four tabs. A guest who has only just been
-// entered has no visit and no engagements — nothing today, nothing upcoming,
+// entered has no visit and no engagements â€” nothing today, nothing upcoming,
 // and emphatically nothing past. Sorting them into Past (which is what falling
 // through to it did) told the office a brand-new record was finished business.
 // They belong under All Guests until something is actually scheduled for them.
@@ -345,7 +345,7 @@ function priorityReasons(record, now, todayKey) {
   if (visit.accommodation === "Ashram" && !visit.rooms.length) reasons.push("Room missing");
   // The C-form registers a foreign national staying on the premises, so it
   // only applies once they are actually here and only when the ashram itself
-  // is housing them — not for a guest the ashram booked into a hotel.
+  // is housing them â€” not for a guest the ashram booked into a hotel.
   if (record.isForeign && !visit.cformComplete && visit.accommodation === "Ashram"
       && visit.arrivalMs !== null && visit.arrivalMs <= now) reasons.push("C-form pending");
   if (cabEligible) {
@@ -364,7 +364,7 @@ function priorityReasons(record, now, todayKey) {
 // Note: priorityReasons are deliberately NOT consulted here any more. They
 // used to short-circuit to a Priority tier, which meant a guest arriving today
 // with an unassigned room vanished from Today. Reasons still drive the card
-// badges, the search index and the homepage attention counts — they just no
+// badges, the search index and the homepage attention counts â€” they just no
 // longer decide which tab a guest appears under.
 function directoryTier(record, reasons, todayKey) {
   const visit = record.visit;
@@ -453,7 +453,7 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       // Every dated stay, not just the current one, so the client can warn
       // about a date landing outside them while it is being picked. A guest
       // with two visits has two windows and a gap between them that no single
-      // min/max range could express — hence a list, matching the same shape
+      // min/max range could express â€” hence a list, matching the same shape
       // validateEngagementDate enforces on save.
       stayWindows: stayWindows(allVisits),
       sevaTeams: teams,
@@ -477,20 +477,36 @@ function homeSummary(canonical, records) {
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
-    accommodation: { arrivingToday: 0, departingToday: 0, currentlyResiding: 0, attentionNeeded: 0 },
+    accommodation: { today: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, upcoming: 0, attentionNeeded: 0 },
     meals: { counts: { Breakfast: 0, Lunch: 0, Dinner: 0 }, residentCount: 0, exceptionCount: 0 },
     meetings: { today: 0, upcoming: 0, needsCompletion: 0 },
     seva: { activeTeams: 0, activeTeamMembers: 0, activeSpecificSeva: 0, startingSoon: 0 },
     trips: { active: 0, upcoming: 0, needingTravel: 0 }
   };
   const activeTeams = new Set(), futureTeams = new Set();
+
+  // These three figures mirror the Accommodation workspace tiers and count
+  // visits rather than only each guest's single current/nearest visit. That
+  // keeps the homepage correct when one guest has more than one future stay.
+  const activeGuestIds = new Set(records.map(record => record.guestId));
+  canonical.visits
+    .filter(visit => !visit.isCancelled && activeGuestIds.has(visit.guestId))
+    .forEach(visit => {
+      const arrival = visit.arrivalDateKey || dateKeyOf(visit.arrivalAt);
+      const departure = visit.departureDateKey || dateKeyOf(visit.departureAt);
+      if (arrival === today) result.accommodation.arrivingToday += 1;
+      if (departure === today) result.accommodation.departingToday += 1;
+      if (arrival === today || departure === today) result.accommodation.today += 1;
+      if (visit.accommodation === "Ashram" && arrival && arrival <= today && (!departure || departure >= today)) {
+        result.accommodation.currentlyResiding += 1;
+      }
+      if (arrival && arrival > today) result.accommodation.upcoming += 1;
+    });
+
   records.forEach(record => {
     if (record.priorityReasons.length) result.directory.needsAttention += 1;
     const visit = record.visit;
     if (visit) {
-      if (visit.arrivalDate === today) result.accommodation.arrivingToday += 1;
-      if (visit.departureDate === today) result.accommodation.departingToday += 1;
-      if (record.residingInAshram) result.accommodation.currentlyResiding += 1;
       if (record.priorityReasons.some(reason => /arrival|accommodation|room|c-form|pickup|drop-off|required/i.test(reason))) result.accommodation.attentionNeeded += 1;
     }
     const defaults = Boolean(record.residingInAshram);
@@ -594,8 +610,8 @@ export function createFirestoreBridge(firebaseApp) {
   function refreshCanonical_(force = false) {
     // A forced read must not settle for one that was already in flight before
     // it was asked for. Every write path calls loadCanonical(true) to validate
-    // against current server state — room conflicts, engagement windows,
-    // "this guest has history" — so piggybacking on an older request would let
+    // against current server state â€” room conflicts, engagement windows,
+    // "this guest has history" â€” so piggybacking on an older request would let
     // a save be checked against data from before that save was attempted.
     if (canonicalPromise && !force) return canonicalPromise;
     const generation = cacheGeneration;
@@ -1803,8 +1819,8 @@ export function createFirestoreBridge(firebaseApp) {
 
   // ---- Permanent deletes -------------------------------------------------
   // Deleting is now the only way to remove any of these. The soft-delete that
-  // sat alongside it — cancelVisit, a Cancelled meeting status, a trip
-  // cancelled flag — went unused in practice while costing a filter in every
+  // sat alongside it â€” cancelVisit, a Cancelled meeting status, a trip
+  // cancelled flag â€” went unused in practice while costing a filter in every
   // read path, so it was taken out.
   //
   // A visit and a trip each own child collections. Firestore has no cascade
@@ -1861,7 +1877,7 @@ export function createFirestoreBridge(firebaseApp) {
     return { meetingId: id, deleted: true };
   }
 
-  // Deleting a meal override doesn't remove a meal — it drops the exception,
+  // Deleting a meal override doesn't remove a meal â€” it drops the exception,
   // so the guest reverts to whatever their residency implies for that day.
   async function deleteMealOverride(overrideId) {
     const actor = ensureApproved();
