@@ -450,6 +450,12 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       version: versionOf(guest),
       visit: findCurrentOrNearestVisit(allVisits, now),
       visitCount: allVisits.length,
+      // Every dated stay, not just the current one, so the client can warn
+      // about a date landing outside them while it is being picked. A guest
+      // with two visits has two windows and a gap between them that no single
+      // min/max range could express — hence a list, matching the same shape
+      // validateEngagementDate enforces on save.
+      stayWindows: stayWindows(allVisits),
       sevaTeams: teams,
       specificSeva: tasks,
       mealsToday: meals.filter(item => item.date === todayKey),
@@ -1359,6 +1365,82 @@ export function createFirestoreBridge(firebaseApp) {
     return { legId: id, tripId, version: await committedVersion("tripTravelLegs", id) };
   }
 
+  // ---- Permanent deletes -------------------------------------------------
+  // These remove the record outright, unlike cancelVisit / setMeetingStatus /
+  // the trip cancelled flag, which keep it visible as cancelled. Both exist on
+  // purpose: cancelling records that something was called off, deleting is for
+  // a row that should never have been there.
+  //
+  // A visit and a trip each own child collections. Deleting the parent without
+  // its children would leave rooms and travel legs pointing at an id that no
+  // longer resolves — invisible in the app, but still counted by every read
+  // that groups by that id. Children go in the same batch, so it is one atomic
+  // commit or nothing.
+
+  async function deleteChildDocs_(batch, collectionName, field, parentId) {
+    const snapshot = await getDocs(query(collection(db, collectionName), where(field, "==", parentId)));
+    snapshot.docs.forEach(item => batch.delete(item.ref));
+    return snapshot.size;
+  }
+
+  async function deleteVisit(visitId) {
+    const actor = ensureApproved();
+    const id = clean(visitId, 100);
+    const reference = doc(db, "visits", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This visit no longer exists.");
+    const batch = writeBatch(db);
+    const rooms = await deleteChildDocs_(batch, "visitRooms", "visitId", id);
+    const legs = await deleteChildDocs_(batch, "visitTravelLegs", "visitId", id);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "visit", id, "delete", ["document", `rooms:${rooms}`, `travelLegs:${legs}`]);
+    await batch.commit();
+    invalidate();
+    return { visitId: id, deleted: true, roomsDeleted: rooms, travelLegsDeleted: legs };
+  }
+
+  async function deleteTrip(tripId) {
+    const actor = ensureApproved();
+    const id = clean(tripId, 100);
+    const reference = doc(db, "trips", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This trip no longer exists.");
+    const batch = writeBatch(db);
+    const participants = await deleteChildDocs_(batch, "tripParticipants", "tripId", id);
+    const legs = await deleteChildDocs_(batch, "tripTravelLegs", "tripId", id);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "trip", id, "delete", ["document", `participants:${participants}`, `travelLegs:${legs}`]);
+    await batch.commit();
+    invalidate();
+    return { tripId: id, deleted: true, participantsDeleted: participants, travelLegsDeleted: legs };
+  }
+
+  async function deleteMeeting(meetingId) {
+    const actor = ensureApproved();
+    const id = clean(meetingId, 100);
+    const reference = doc(db, "meetings", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This meeting no longer exists.");
+    const batch = writeBatch(db);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "meeting", id, "delete", ["document"]);
+    await batch.commit();
+    invalidate();
+    return { meetingId: id, deleted: true };
+  }
+
+  // Deleting a meal override doesn't remove a meal — it drops the exception,
+  // so the guest reverts to whatever their residency implies for that day.
+  async function deleteMealOverride(overrideId) {
+    const actor = ensureApproved();
+    const id = clean(overrideId, 100);
+    const reference = doc(db, "mealOverrides", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This meal record no longer exists.");
+    const batch = writeBatch(db);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "mealOverride", id, "delete", ["document"]);
+    await batch.commit();
+    invalidate();
+    return { overrideId: id, deleted: true };
+  }
+
   async function deleteTripTravelLeg(legId) {
     const actor = ensureApproved();
     const id = clean(legId, 100);
@@ -1409,6 +1491,10 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "saveVisitPlan") return saveVisitPlan(extra.payload || {});
       if (action === "cancelVisit") return setVisitCancelled(extra.visitId, extra.version, true);
       if (action === "restoreVisit") return setVisitCancelled(extra.visitId, extra.version, false);
+      if (action === "deleteVisit") return deleteVisit(extra.visitId);
+      if (action === "deleteTrip") return deleteTrip(extra.tripId);
+      if (action === "deleteMeeting") return deleteMeeting(extra.meetingId);
+      if (action === "deleteMealOverride") return deleteMealOverride(extra.overrideId);
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
       if (action === "upsertMeeting") return upsertMeeting(extra.payload || {});
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);

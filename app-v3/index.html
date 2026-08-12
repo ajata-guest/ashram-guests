@@ -1440,6 +1440,22 @@
        different inline margins (16px, 16px, 8px) for the same thing. */
     .dialog-subtitle { margin-bottom: 15px; }
 
+    /* Tells you the guest's stay dates while you are picking, and says so the
+       moment the date falls outside them. Deliberately advisory, not a bound
+       on the picker: a guest can have several stays with a gap between them,
+       or an open-ended one, or none recorded yet — none of which a single
+       min/max can express, and the office often knows a meeting date before
+       the flight is booked. The save still refuses a genuinely invalid date. */
+    .stay-hint {
+      margin-top: 7px;
+      color: var(--subtle);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .stay-hint:empty { display: none; }
+    .stay-hint.outside { color: #f6bd55; }
+
 
     /* Jump-to-section chips for a dialog long enough to need them — V2's
        treatment, restored. It was removed when the guest dialog shrank to a
@@ -2942,6 +2958,7 @@
           <input type="date" id="meeting-editor-date" class="edit-input" aria-label="Meeting date">
           <input type="time" id="meeting-editor-time" class="edit-input" aria-label="Meeting time">
         </div>
+        <div id="meeting-editor-stay-hint" class="stay-hint" aria-live="polite"></div>
       </div>
       <div class="input-group">
         <label class="input-label" for="meeting-editor-notes">Notes</label>
@@ -3120,6 +3137,7 @@
             <input type="date" id="edit-task-end" class="edit-input">
           </div>
         </div>
+        <div id="specific-seva-stay-hint" class="stay-hint" aria-live="polite"></div>
       </div>
       <div id="specific-seva-form-message" class="field-message" aria-live="polite"></div>
       <div class="dialog-actions">
@@ -3230,6 +3248,7 @@
       <div class="card-action-sheet-name" id="visit-action-sheet-name"></div>
       <button type="button" class="card-action-sheet-btn" id="visit-action-edit-btn">Edit Visit</button>
       <button type="button" class="card-action-sheet-btn destructive" id="visit-action-cancel-visit-btn">Cancel Visit</button>
+      <button type="button" class="card-action-sheet-btn destructive" id="visit-action-delete-visit-btn">Delete permanently</button>
       <button type="button" class="card-action-sheet-btn" id="visit-action-dismiss-btn">Dismiss</button>
     </div>
   </div>
@@ -3476,6 +3495,7 @@
         if (visit) openVisitEditor(visit.guestId, visit.visitId);
       });
       $('visit-action-cancel-visit-btn').addEventListener('click', cancelVisitFromActionSheet_);
+      $('visit-action-delete-visit-btn').addEventListener('click', deleteVisitFromActionSheet_);
       $('room-share-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeRoomShareSheet_);
       $('room-share-cancel-btn').addEventListener('click', closeRoomShareSheet_);
       $('room-share-confirm-btn').addEventListener('click', () => {
@@ -3585,6 +3605,9 @@
       $('specific-seva-save-btn').addEventListener('click', saveSpecificSevaFromForm_);
       $('specific-seva-cancel-btn').addEventListener('click', closeSpecificSevaForm_);
       $('specific-seva-close-btn').addEventListener('click', closeSpecificSevaForm_);
+      $('edit-task-start').addEventListener('input', syncSpecificSevaStayHint_);
+      $('edit-task-end').addEventListener('input', syncSpecificSevaStayHint_);
+      $('meeting-editor-date').addEventListener('input', syncMeetingStayHint_);
       $('specific-seva-modal').addEventListener('click', event => {
         if (event.target === $('specific-seva-modal')) closeSpecificSevaForm_();
       });
@@ -5142,6 +5165,7 @@
       $('edit-task-start').value = task ? (task.startDate || '') : '';
       $('edit-task-end').value = task ? (task.endDate || '') : '';
       $('specific-seva-form-message').textContent = '';
+      syncSpecificSevaStayHint_();
       $('specific-seva-modal-title').textContent = task ? 'Edit Individual Seva' : 'Add Individual Seva';
       $('specific-seva-modal').style.display = 'flex';
       $('specific-seva-modal').setAttribute('aria-hidden', 'false');
@@ -6169,6 +6193,31 @@
         .catch(error => handleApiError(error, err => showToast(`Couldn't cancel visit: ${getErrorMessage(err)}`, 'error')));
     }
 
+    // Cancelling keeps the visit on the record; this removes it outright, and
+    // takes its rooms and travel legs with it. Names what goes so the choice
+    // between the two is made with the consequences in view.
+    function deleteVisitFromActionSheet_() {
+      const visit = visitActionSheetTarget_;
+      closeVisitActionSheet_();
+      if (!visit || !visit.visitId) return;
+      const owned = [
+        (visit.rooms || []).length && `${visit.rooms.length} room assignment${visit.rooms.length === 1 ? '' : 's'}`,
+        (visit.travelLegs || []).length && `${visit.travelLegs.length} travel leg${visit.travelLegs.length === 1 ? '' : 's'}`
+      ].filter(Boolean);
+      const tail = owned.length ? `\n\nThis also deletes its ${owned.join(' and ')}.` : '';
+      if (!window.confirm(
+        `Permanently delete ${visit.name || 'this guest'}'s visit? This cannot be undone.${tail}`
+        + '\n\nTo keep it on the record as cancelled instead, use Cancel Visit.'
+      )) return;
+      apiCall('deleteVisit', { visitId: visit.visitId })
+        .then(() => {
+          showToast('Visit deleted.', 'success');
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't delete visit: ${getErrorMessage(err)}`, 'error')));
+    }
+
     function createAccommodationVisitCard(visit) {
       const card = createElement('article', 'card');
       card.tabIndex = 0;
@@ -6260,6 +6309,68 @@
     function hasVisitArrived_(visit) {
       if (visit.arrivalMs !== null && visit.arrivalMs !== undefined) return visit.arrivalMs <= Date.now();
       return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayDateKey_();
+    }
+
+    // ---- Stay-window hints -------------------------------------------------
+    // V2 could constrain every date against the stay because arrival and
+    // departure lived on the guest and everything was edited in one dialog.
+    // In V3 those dates belong to a Visit and meals/meetings/seva are edited
+    // elsewhere, so the rule is enforced on save and surfaced afterwards. That
+    // is correct but late — this puts the same information back at the moment
+    // of picking, without pretending a single date range can describe a guest
+    // who has two stays, an open-ended one, or none yet.
+
+    function guestStayWindows_(guestId) {
+      const record = directoryRecords_.find(item => item.guestId === guestId);
+      if (!record) return null;                       // not loaded — say nothing
+      return Array.isArray(record.stayWindows) ? record.stayWindows : [];
+    }
+
+    function describeStayWindows_(windows) {
+      if (!windows.length) return '';
+      return windows.map(window => (window.to
+        ? `${formatDateKeyDisplay(window.from)} – ${formatDateKeyDisplay(window.to)}`
+        : `from ${formatDateKeyDisplay(window.from)} (no departure yet)`)).join(', ');
+    }
+
+    function isDateInsideStay_(windows, dateKey) {
+      return windows.some(window => dateKey >= window.from && (!window.to || dateKey <= window.to));
+    }
+
+    // dateKeys may hold more than one field (seva has a start and an end).
+    function renderStayHint_(hintId, guestId, dateKeys) {
+      const hint = $(hintId);
+      if (!hint) return;
+      const windows = guestStayWindows_(guestId);
+      const dates = (Array.isArray(dateKeys) ? dateKeys : [dateKeys]).filter(Boolean);
+
+      if (windows === null) { hint.textContent = ''; hint.classList.remove('outside'); return; }
+
+      if (!windows.length) {
+        hint.classList.remove('outside');
+        hint.textContent = 'No stay dates recorded for this guest yet, so this date can\'t be checked against a visit.';
+        return;
+      }
+
+      const outside = dates.filter(key => !isDateInsideStay_(windows, key));
+      const staying = `Staying ${describeStayWindows_(windows)}.`;
+      if (!outside.length) {
+        hint.classList.remove('outside');
+        hint.textContent = staying;
+        return;
+      }
+      hint.classList.add('outside');
+      hint.textContent = `${staying} ${outside.map(formatDateKeyDisplay).join(' and ')} `
+        + `${outside.length === 1 ? 'falls' : 'fall'} outside that — saving will be refused unless the visit dates change.`;
+    }
+
+    function syncMeetingStayHint_() {
+      renderStayHint_('meeting-editor-stay-hint', $('meeting-editor-guest-id').value, $('meeting-editor-date').value);
+    }
+
+    function syncSpecificSevaStayHint_() {
+      renderStayHint_('specific-seva-stay-hint', $('edit-task-guest-id').value,
+        [$('edit-task-start').value, $('edit-task-end').value]);
     }
 
     function badgeRow_(entries) {
@@ -6986,6 +7097,20 @@
     function handleAddMealGuestClick_() {
       const date = $('meals-workspace-date').value || todayDateKey_();
       openGuestPicker_(guestId => {
+        // The meals date is chosen at the top of the page rather than in a
+        // field of its own, so the stay check belongs here — the moment the
+        // guest and the date are first paired. Caught locally the answer is
+        // immediate and specific; the save would refuse anyway, a round trip
+        // later and with less to say.
+        const windows = guestStayWindows_(guestId);
+        if (windows && windows.length && !isDateInsideStay_(windows, date)) {
+          showToast(
+            `${formatDateKeyDisplay(date)} falls outside this guest's stay (${describeStayWindows_(windows)}). `
+            + 'Adjust the visit dates first, or pick a date inside the stay.',
+            'error'
+          );
+          return;
+        }
         apiCall('upsertMealOverride', { payload: { guestId, date, meal: mealsActiveMeal_, included: true } })
           .then(() => {
             showToast(`Invited for ${mealsActiveMeal_.toLowerCase()}.`, 'success');
@@ -7018,7 +7143,39 @@
       });
       card.appendChild(mealsRow);
 
+      // A meal attribute is the exception itself, so deleting it doesn't remove
+      // a meal — it drops the exception and lets the guest fall back to what
+      // their residency implies for that day. Only offered where an exception
+      // actually exists; a guest sitting on their default has nothing to clear.
+      const exceptions = ALLOWED_MEALS.filter(meal => (row.meals[meal] || {}).overrideId);
+      if (exceptions.length) {
+        const actions = createElement('div', 'seva-team-row-actions');
+        exceptions.forEach(meal => {
+          const btn = createElement('button', 'row-btn danger', `Clear ${meal.toLowerCase()}`);
+          btn.type = 'button';
+          btn.addEventListener('click', () => deleteMealOverrideAction_(row, meal, date));
+          actions.appendChild(btn);
+        });
+        card.appendChild(actions);
+      }
+
       return card;
+    }
+
+    function deleteMealOverrideAction_(row, meal, date) {
+      const state = row.meals[meal] || {};
+      if (!state.overrideId) return;
+      if (!window.confirm(
+        `Delete the ${meal.toLowerCase()} record for ${row.name || 'this guest'} on ${formatDateKeyDisplay(date)}?\n\n`
+        + 'They go back to whatever their residency implies for that day.'
+      )) return;
+      apiCall('deleteMealOverride', { overrideId: state.overrideId })
+        .then(() => {
+          showToast(`${meal} record cleared.`, 'success');
+          loadMealsPage_(date);
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't clear that record: ${getErrorMessage(err)}`, 'error')));
     }
 
     // Applied locally and drawn immediately; the write goes out in the
@@ -7188,9 +7345,33 @@
         reopenBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled'));
         actions.appendChild(reopenBtn);
       }
+
+      // Offered in every section, including Cancelled — cancelling records that
+      // the meeting was called off, which is worth keeping; deleting is for one
+      // that should never have been entered.
+      const deleteBtn = createElement('button', 'row-btn danger', 'Delete');
+      deleteBtn.type = 'button';
+      deleteBtn.addEventListener('click', () => deleteMeetingAction_(meeting));
+      actions.appendChild(deleteBtn);
+
       card.appendChild(actions);
 
       return card;
+    }
+
+    function deleteMeetingAction_(meeting) {
+      const when = meeting.date ? formatDateKeyDisplay(meeting.date) : 'this meeting';
+      if (!window.confirm(
+        `Permanently delete ${meeting.name || 'this guest'}'s meeting on ${when}? This cannot be undone.`
+        + '\n\nTo keep it on the record as called off instead, use Cancel.'
+      )) return;
+      apiCall('deleteMeeting', { meetingId: meeting.meetingId })
+        .then(() => {
+          showToast('Meeting deleted.', 'success');
+          loadMeetingsPage_();
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't delete meeting: ${getErrorMessage(err)}`, 'error')));
     }
 
     function setMeetingStatusAction_(meetingId, version, status) {
@@ -7260,6 +7441,7 @@
           $('meeting-editor-time').value = meeting ? meeting.time : '';
           $('meeting-editor-notes').value = meeting ? meeting.notes : '';
           $('meeting-editor-modal-title').textContent = meeting ? 'Reschedule Meeting' : 'Add Meeting with Swamiji';
+          syncMeetingStayHint_();
           $('meeting-editor-modal').style.display = 'flex';
           $('meeting-editor-modal').setAttribute('aria-hidden', 'false');
         })
@@ -7396,7 +7578,37 @@
         card.appendChild(createDetailLine('icon-flight', `${trip.unresolvedLegCount} leg${trip.unresolvedLegCount === 1 ? '' : 's'} to arrange`));
       }
 
+      const actions = createElement('div', 'seva-team-row-actions');
+      const deleteBtn = createElement('button', 'row-btn danger', 'Delete');
+      deleteBtn.type = 'button';
+      // Stops the card's own click handler opening the editor behind the confirm.
+      deleteBtn.addEventListener('click', event => { event.stopPropagation(); deleteTripAction_(trip); });
+      actions.appendChild(deleteBtn);
+      card.appendChild(actions);
+
       return card;
+    }
+
+    // Cancelling a trip keeps it listed under Cancelled; this removes it along
+    // with its roster and its whole itinerary.
+    function deleteTripAction_(trip) {
+      const legCount = (trip.legs || []).length;
+      const owned = [
+        trip.participantCount && `${trip.participantCount} participant${trip.participantCount === 1 ? '' : 's'}`,
+        legCount && `${legCount} travel leg${legCount === 1 ? '' : 's'}`
+      ].filter(Boolean);
+      const tail = owned.length ? `\n\nThis also deletes its ${owned.join(' and ')}.` : '';
+      if (!window.confirm(
+        `Permanently delete "${trip.name || 'this trip'}"? This cannot be undone.${tail}`
+        + '\n\nTo keep it on the record as cancelled instead, open it and tick Cancelled.'
+      )) return;
+      apiCall('deleteTrip', { tripId: trip.tripId })
+        .then(() => {
+          showToast('Trip deleted.', 'success');
+          loadTripsPage_();
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't delete trip: ${getErrorMessage(err)}`, 'error')));
     }
 
     function handleAddTripClick_() {
@@ -9190,8 +9402,14 @@
           if (occupants.length >= capacity) {
             // At capacity — a hard block same as before, no override
             // possible from here (matches Code.gs's ceiling).
+            // "Shared by" only when there genuinely is more than one person in
+            // there. A single-capacity room with one guest is occupied, not
+            // shared, and calling it shared implied an arrangement that
+            // doesn't exist — which is the commonest case of all.
             option.disabled = true;
-            option.textContent = `${option.dataset.baseLabel} — Full, shared by ${names}`;
+            option.textContent = occupants.length > 1
+              ? `${option.dataset.baseLabel} — Full, shared by ${names}`
+              : `${option.dataset.baseLabel} — Occupied by ${names}`;
           } else {
             // Under capacity: stays pickable. Selecting it is the
             // deliberate-share gesture; the actual confirmation happens at
