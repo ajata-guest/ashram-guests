@@ -942,7 +942,7 @@
       border-top: 1px solid #3c3c3c;
     }
 
-    #add-visit-manager-view[hidden] + #visit-plan-view .visit-plan-divider { display: none; }
+    #add-visit-manager-view[hidden] ~ #visit-plan-view .visit-plan-divider { display: none; }
 
     .visit-dialog-footer {
       display: grid;
@@ -1593,6 +1593,7 @@
 
     /* So a jump lands a section below the sticky bar rather than behind it —
        the browser has no idea a pinned sibling covers the top ~54px. */
+    #add-visit-basic-details,
     #visit-sec-stay,
     #visit-sec-accommodation,
     #visit-sec-cabs,
@@ -2761,7 +2762,20 @@
             <div id="add-visit-selection-notice" class="add-visit-selection-notice" role="status" hidden></div>
           </div>
         </section>
+      </div>
 
+      <!-- One navigation bar serves both routes: for a new guest it begins
+           with Basic Details; for an existing guest or a direct card edit,
+           that chip disappears and the Visit sections begin with Stay. -->
+      <div class="modal-section-nav" id="visit-section-nav" aria-label="Jump to section" hidden>
+        <button type="button" class="section-nav-pill" data-target="add-visit-basic-details">Basic Details</button>
+        <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
+      </div>
+
+      <div id="add-visit-manager-details" class="add-visit-manager" hidden>
         <section id="add-visit-basic-details" class="add-visit-manager-section" aria-labelledby="add-visit-basic-heading" hidden>
           <h3 id="add-visit-basic-heading" class="form-section-title">
             <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
@@ -2822,15 +2836,6 @@
       <hr class="visit-plan-divider">
 
       <div id="visit-editor-guest-name" class="app-subtitle dialog-subtitle"></div>
-
-      <!-- Cabs and Travel are hidden for a Visitor, so their chips hide with
-           them rather than jumping to nothing. -->
-      <div class="modal-section-nav" id="visit-section-nav" aria-label="Jump to section">
-        <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
-        <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
-        <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
-        <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
-      </div>
       <div id="visit-editor-warning" class="warning-banner" hidden></div>
       <input type="hidden" id="visit-editor-guest-id">
       <input type="hidden" id="visit-editor-visit-id">
@@ -6834,6 +6839,8 @@
       $('add-visit-new-visit-btn').hidden = true;
       $('add-visit-manager-actions').hidden = false;
       $('add-visit-manager-save-btn').disabled = true;
+      $('add-visit-manager-details').hidden = true;
+      $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       hideAddVisitGuestSuggestions_();
     }
@@ -6842,6 +6849,8 @@
       resetAddVisitManager_();
       addVisitManagerOpen_ = true;
       $('add-visit-manager-view').hidden = false;
+      $('add-visit-manager-details').hidden = false;
+      $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       $('visit-editor-modal-title').textContent = 'Add Visit';
       $('visit-editor-cancel-visit-btn').hidden = true;
@@ -6996,6 +7005,7 @@
       $('add-visit-new-visit-btn').hidden = true;
       $('add-visit-manager-actions').hidden = false;
       $('add-visit-manager-save-btn').disabled = true;
+      $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       $('visit-editor-cancel-visit-btn').hidden = true;
       $('visit-editor-restore-visit-btn').hidden = true;
@@ -7012,6 +7022,7 @@
       $('add-visit-guest-name').value = guest.name || '';
       $('add-visit-guest-name').disabled = true;
       $('add-visit-basic-details').hidden = true;
+      $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       $('add-visit-manager-actions').hidden = false;
       renderAddVisitSelectionNotice_(guest.archived ? 'Guest already added · Archived' : 'Guest already added');
@@ -7105,7 +7116,7 @@
       updateAddVisitBasicConditionalFields_();
       renderUpcomingVisitsForAdd_(profile);
       $('add-visit-new-visit-btn').hidden = true;
-      revealVisitPlanInManager_(profile, null);
+      revealVisitPlanInManager_(profile, null, 'add-visit-basic-details');
       modalDirty = false;
     }
 
@@ -7171,7 +7182,12 @@
       };
     }
 
-    function revealVisitPlanInManager_(profile, visit) {
+    function setActiveVisitSection_(targetId) {
+      const pills = [...$('visit-section-nav').querySelectorAll('.section-nav-pill')];
+      pills.forEach(pill => pill.classList.toggle('active', !pill.hidden && pill.dataset.target === targetId));
+    }
+
+    function revealVisitPlanInManager_(profile, visit, initialTarget = 'visit-sec-stay') {
       if (!profile) return;
       if (!$('visit-plan-view').hidden && modalDirty
           && !window.confirm('Open this visit and discard the unsaved visit details?')) return;
@@ -7179,12 +7195,17 @@
       populateVisitEditor_(profile, visit);
       renderVisitWarnings_(profile);
       $('visit-plan-view').hidden = false;
+      $('visit-section-nav').hidden = false;
       $('add-visit-manager-actions').hidden = true;
       $('add-visit-new-visit-btn').hidden = true;
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'Add Visit';
       modalDirty = false;
       syncVisitSectionNav_();
-      window.setTimeout(() => $('visit-plan-view').scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      setActiveVisitSection_(initialTarget);
+      window.setTimeout(() => {
+        const target = $(initialTarget);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
     }
 
     function openBlankVisitForSelectedGuest_() {
@@ -7223,12 +7244,15 @@
           if (visitId && !visit) throw new Error('That visit no longer exists.');
           resetAddVisitManager_();
           $('add-visit-manager-view').hidden = true;
+          $('add-visit-manager-details').hidden = true;
+          $('visit-section-nav').hidden = false;
           $('visit-plan-view').hidden = false;
           populateVisitEditor_(profile, visit);
           renderVisitWarnings_(profile);
           modalDirty = false;
           openVisitEditorShell_();
           syncVisitSectionNav_();
+          setActiveVisitSection_('visit-sec-stay');
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't open visit: ${getErrorMessage(err)}`, 'error')));
     }
@@ -7240,6 +7264,7 @@
       $('visit-editor-modal').setAttribute('aria-hidden', 'true');
       resetAddVisitManager_();
       $('add-visit-manager-view').hidden = true;
+      $('add-visit-manager-details').hidden = true;
     }
 
     // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
