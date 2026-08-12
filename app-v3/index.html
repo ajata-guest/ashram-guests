@@ -3864,8 +3864,7 @@
       const toggle = $('workspace-dock-toggle');
       const home = $('workspace-dock-home');
       let drag = null;
-      let suppressNextClick = false;
-      let suppressTimer = null;
+      let dragReleaseClick_ = null;
 
       function panelWidth() {
         return Math.max(1, Math.round(items.getBoundingClientRect().width));
@@ -3890,9 +3889,15 @@
         dock.style.removeProperty('--dock-drag-inset');
         dock.style.removeProperty('--dock-drag-opacity');
         if (moved) {
-          suppressNextClick = true;
-          window.clearTimeout(suppressTimer);
-          suppressTimer = window.setTimeout(() => { suppressNextClick = false; }, 450);
+          // A completed pointer drag may emit one compatibility click at the
+          // release point. Remember only that exact, immediate click. A broad
+          // "swallow the next click" window made the user's first intentional
+          // icon tap disappear whenever it followed the swipe quickly.
+          dragReleaseClick_ = {
+            x: event.clientX,
+            y: event.clientY,
+            expiresAt: event.timeStamp + 120
+          };
         }
         setWorkspaceDockOpen_(shouldOpen);
         drag = null;
@@ -3947,13 +3952,16 @@
       dock.addEventListener('pointerup', event => finishDrag(event, false));
       dock.addEventListener('pointercancel', event => finishDrag(event, true));
 
-      // A drag ends with a synthetic click on some browsers. Swallow that
-      // one click so pulling the ribbon can never accidentally send the user
-      // Home or toggle the tray a second time.
+      // Suppress only the compatibility click emitted immediately at the
+      // drag-release coordinates. Any later tap — even the user's very first
+      // tap after opening the rail — goes straight to its destination.
       dock.addEventListener('click', event => {
-        if (!suppressNextClick) return;
-        suppressNextClick = false;
-        window.clearTimeout(suppressTimer);
+        if (!dragReleaseClick_) return;
+        const release = dragReleaseClick_;
+        dragReleaseClick_ = null;
+        const immediate = event.timeStamp <= release.expiresAt;
+        const atReleasePoint = Math.hypot(event.clientX - release.x, event.clientY - release.y) <= 18;
+        if (!immediate || !atReleasePoint) return;
         event.preventDefault();
         event.stopImmediatePropagation();
       }, true);
