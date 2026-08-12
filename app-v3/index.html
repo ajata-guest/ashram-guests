@@ -57,8 +57,8 @@
       --red-deep: color-mix(in srgb, var(--red) 72%, black);
       /* Room-tier tints reuse --purple rather than a new hue. V3: a Visitor
          (formerly Visiting Guest) can now have Accommodation = Ashram and
-         hold a room like anyone else — Person Type and room eligibility are
-         independent — so the two purple badges CAN legitimately land on the
+         hold a room like anyone else â€” Person Type and room eligibility are
+         independent â€” so the two purple badges CAN legitimately land on the
          same card now. That's fine visually (one's a top identity badge, the
          other's a room-tier badge lower down); nothing here depends any
          longer on them being mutually exclusive. */
@@ -78,7 +78,7 @@
     }
 
     /* Opaque full-viewport overlay covering the rest of the page (header,
-       tabs, cards, modal — none of which need their own signed-out state)
+       tabs, cards, modal â€” none of which need their own signed-out state)
        until sign-in succeeds. Hiding it is the only thing that reveals the
        app; nothing underneath has to know whether the user is signed in. */
     #signin-gate {
@@ -142,7 +142,7 @@
       min-height: 44px;
     }
 
-    /* Stacked in the same grid cell rather than side by side — only one of
+    /* Stacked in the same grid cell rather than side by side â€” only one of
        the two is ever meant to be visible at a time, driven by a single
        .verifying flag on #signin-gate (see handleCredentialResponse) so
        the button and the spinner can never both show, or both hide, by
@@ -468,7 +468,7 @@
       font-size: 0.88rem;
     }
 
-    /* Tier 3 only — splits "Currently Residing" (date-active, any
+    /* Tier 3 only â€” splits "Currently Residing" (date-active, any
        Accommodation) into who's actually an Ashram resident vs who's just
        staying elsewhere during the same window. A step down from
        .zone-header, since it's a sub-grouping within one already-labeled
@@ -506,8 +506,8 @@
     }
 
     /* No content-visibility here, deliberately. These cards vary a lot in
-       height — a name-only record next to one carrying dates, a room and a
-       cab — so a single contain-intrinsic-size guess is wrong for most of
+       height â€” a name-only record next to one carrying dates, a room and a
+       cab â€” so a single contain-intrinsic-size guess is wrong for most of
        them. Every card that scrolls into view then resizes its grid row and
        shifts everything below it, which re-triggers the same work on the next
        card down. At this list's size (tens of records, not thousands) the
@@ -568,7 +568,7 @@
       text-transform: uppercase;
     }
 
-    /* Identity/category badges (who or what this is) — deliberately kept
+    /* Identity/category badges (who or what this is) â€” deliberately kept
        out of the amber "needs attention" and red/green "state" families
        below, so they never get mistaken for a warning or a good outcome. */
     .badge-salmon { border: 1px solid rgba(250, 128, 114, 0.35); background: rgba(250, 128, 114, 0.16); color: var(--salmon); }
@@ -576,33 +576,33 @@
     .badge-purple { background: rgba(155, 89, 182, 0.2); color: var(--purple); }
     .badge-gray { background: rgba(149, 165, 166, 0.18); color: #bdc3c7; }
     /* Silver, for the "Other" Person Type. Carries a border and a brighter,
-       cooler tone than badge-gray above — the two are both grey-family and
+       cooler tone than badge-gray above â€” the two are both grey-family and
        can land on the same card (an "Other" guest whose cab has already
        passed), so they need to stay tellable apart. */
     .badge-silver { border: 1px solid rgba(203, 213, 225, 0.45); background: rgba(203, 213, 225, 0.16); color: #dfe6ee; }
-    /* Teal, for Event Staff — a distinct hue from every other identity badge
+    /* Teal, for Event Staff â€” a distinct hue from every other identity badge
        and from the green/orange/red operational-state families. */
     .badge-teal { border: 1px solid rgba(26, 188, 156, 0.35); background: rgba(26, 188, 156, 0.16); color: var(--teal); }
     .badge-pink { border: 1px solid rgba(255, 118, 117, 0.3); background: rgba(255, 118, 117, 0.14); color: var(--pink); }
-    /* Room tiers share --purple with the Visitor identity badge — see the
+    /* Room tiers share --purple with the Visitor identity badge â€” see the
        --purple-light/deep comment in :root for why that's fine now. */
-    /* On a dark theme, dimming a color mutes it further — the top tier
+    /* On a dark theme, dimming a color mutes it further â€” the top tier
        needs to be brighter, not darker, to actually stand out. VIP gets
        the quieter, darker tint; VVIP gets the vivid, undiluted base hue. */
     .badge-room-vip { border: 1px solid color-mix(in srgb, var(--purple-deep) 40%, transparent); background: color-mix(in srgb, var(--purple-deep) 18%, transparent); color: var(--purple-deep); }
     .badge-room-vvip { border: 1px solid rgba(184, 120, 214, 0.55); background: rgba(184, 120, 214, 0.24); color: var(--purple); }
 
-    /* Confirmed / good outcome — one green family across pickup, dropoff,
+    /* Confirmed / good outcome â€” one green family across pickup, dropoff,
        and travel legs, so "green = handled" reads the same everywhere. */
     .badge-pickup { border: 1px solid rgba(46, 204, 113, 0.3); background: rgba(46, 204, 113, 0.14); color: var(--green); }
     .badge-dropoff { border: 1px solid color-mix(in srgb, var(--green-deep) 40%, transparent); background: color-mix(in srgb, var(--green-deep) 16%, transparent); color: var(--green-deep); }
     .badge-confirmed { border: 1px solid color-mix(in srgb, var(--green-light) 40%, transparent); background: color-mix(in srgb, var(--green-light) 16%, transparent); color: var(--green-light); }
 
-    /* Needs attention — amber family, darker/stronger means more urgent. */
+    /* Needs attention â€” amber family, darker/stronger means more urgent. */
     .badge-action { border: 1px solid rgba(243, 156, 18, 0.38); background: rgba(243, 156, 18, 0.16); color: #f6bd55; }
     .badge-cab-action { border: 1px solid rgba(243, 156, 18, 0.28); background: rgba(243, 156, 18, 0.1); color: #d9aa5b; }
 
-    /* Real problems — red family, kept clear of --pink. */
+    /* Real problems â€” red family, kept clear of --pink. */
     .badge-warning { border: 1px solid rgba(231, 76, 60, 0.3); background: rgba(231, 76, 60, 0.14); color: var(--red); }
     .badge-travel-critical { border: 1px solid color-mix(in srgb, var(--red-deep) 48%, transparent); background: color-mix(in srgb, var(--red-deep) 20%, transparent); color: var(--red-deep); }
     .badge-travel-action { border: 1px solid rgba(250, 128, 114, 0.46); background: rgba(250, 128, 114, 0.16); color: #ff9d92; }
@@ -650,7 +650,7 @@
     }
 
     /* Every dialog in the app. The five workspaces became pages; what stays
-       a dialog is editing one record — a guest, a visit, a trip, a meeting —
+       a dialog is editing one record â€” a guest, a visit, a trip, a meeting â€”
        plus the guest picker shared by the Add flows. */
     #modal, #visit-editor-modal, #trip-editor-modal, #meeting-editor-modal, #add-to-workspace-modal,
     #seva-team-modal, #specific-seva-modal {
@@ -741,7 +741,7 @@
 
     /* The bottom padding exists to hold the last field off the section's own
        rule. The last section has no rule, so that padding is just dead space
-       stacked on top of whatever follows — 40px above the Save row instead of
+       stacked on top of whatever follows â€” 40px above the Save row instead of
        the 22px every other dialog uses. */
     .form-section:last-of-type {
       margin-bottom: 12px;
@@ -785,7 +785,7 @@
     }
 
     .conditional-fields.expanded {
-      /* Only a ceiling for the open/close transition, never a real limit —
+      /* Only a ceiling for the open/close transition, never a real limit â€”
          but it clips silently if content ever outgrows it, so there's
          deliberate headroom over the ~390px the tallest block currently uses. */
       max-height: 900px;
@@ -1008,7 +1008,7 @@
 
     .checkbox-label.disabled-label { color: #5f5f5f; cursor: not-allowed; }
 
-    /* Vertical, not the horizontal-wrap .checkbox-row — team names and their
+    /* Vertical, not the horizontal-wrap .checkbox-row â€” team names and their
        status/date text run too long to sit side by side comfortably, and
        the list length varies with how many teams exist. */
     .seva-team-checkbox-list {
@@ -1215,14 +1215,14 @@
     .custom-select-option.occupied:hover { background: transparent; }
     .custom-select-option.occupied .custom-select-option-label { text-decoration: line-through; }
 
-    /* A room under capacity stays pickable — struck-through/dimmed like
+    /* A room under capacity stays pickable â€” struck-through/dimmed like
        .occupied would wrongly read as "you can't have this," when tapping it
        is exactly how you deliberately share it. Blue rather than red for the
        same reason: informational, not a blocker. */
     .custom-select-occupied-note.shareable-note { color: #6fbaf0; }
 
     /* Label takes whatever's left and truncates rather than squeezing the
-       badge — badges use width:max-content (see .badge), which without a
+       badge â€” badges use width:max-content (see .badge), which without a
        shrink guard here would otherwise get crushed down to near-zero width
        by the flex layout and wrap its text letter by letter. */
     .custom-select-option-label {
@@ -1237,7 +1237,7 @@
 
     /* Its own full-width line below the label/badge row (flex-basis: 100%
        forces the wrap) rather than a third item competing for the same row
-       — that's what was pushing the badge into a sliver of space before. */
+       â€” that's what was pushing the badge into a sliver of space before. */
     .custom-select-occupied-note {
       flex: 1 0 100%;
       color: #e77d76;
@@ -1252,13 +1252,13 @@
     }
 
     /* The From/To location is part of the schedule above it, not a preamble
-       to the confirmation below — so it hugs the date row and takes a
+       to the confirmation below â€” so it hugs the date row and takes a
        deliberate break before the checkbox. */
     .cab-schedule-group { margin-bottom: 9px; }
     .cab-location-group { margin-bottom: 20px; }
 
     /* Reserved height stops the form jumping when a validation message
-       appears — but only earns that space once there's a message. Empty, it
+       appears â€” but only earns that space once there's a message. Empty, it
        was wedging 24px between a schedule and the field that belongs to it. */
     .field-message:empty {
       min-height: 0;
@@ -1435,11 +1435,11 @@
     .travel-add-btn:hover { background: rgba(250, 128, 114, 0.2); }
 
     /* A card can need more than one room (a named pair split across two
-       rooms, or a group label like "Tibetan Monks" needing several) — same
+       rooms, or a group label like "Tibetan Monks" needing several) â€” same
        repeatable-row interaction as the Travel Itinerary list above, just
        with a single field per row instead of a whole leg's worth. */
     /* This block sits between two ordinary fields, and its "+ Add room"
-       button is 34px tall against an 18px label — with only the default
+       button is 34px tall against an 18px label â€” with only the default
        spacing the button crowded both the field above and the room list
        below. The margin-top has to beat the previous field's 15px bottom
        margin, since adjacent siblings collapse to the larger of the two. */
@@ -1470,8 +1470,8 @@
     .room-row .custom-select { flex: 1; min-width: 0; }
 
     /* No margin of its own: this message only ever appears in place of an
-       empty list, so whatever sits above it — a section header or its help
-       text — already owns the spacing. Giving it a margin too doubled the gap
+       empty list, so whatever sits above it â€” a section header or its help
+       text â€” already owns the spacing. Giving it a margin too doubled the gap
        in exactly the state where it is the only thing visible. */
     .travel-empty {
       padding: 12px;
@@ -1485,7 +1485,7 @@
     /* One primary-action button across every dialog. These used to fall back
        to the browser's default grey button in the Visit, Trip, Meeting and
        Seva dialogs, because only the guest modal's save had ever been given a
-       style — which is why "Save Visit" looked unlike anything else. */
+       style â€” which is why "Save Visit" looked unlike anything else. */
     /* A class rather than the list of ids this used to be: id selectors
        outranked every layout rule that tried to arrange these, so a dialog
        footer could not lay out its own buttons. */
@@ -1507,7 +1507,7 @@
     .dialog-primary-btn:disabled { background: #555; cursor: wait; }
 
     /* The other buttons in a dialog footer. They used to borrow
-       .travel-remove-btn — a 0.76rem control built for a row inside a list —
+       .travel-remove-btn â€” a 0.76rem control built for a row inside a list â€”
        so beside a 1rem bold Save they sat shorter, smaller and rounder. */
     .dialog-secondary-btn {
       padding: 12px 18px;
@@ -1534,7 +1534,7 @@
     /* Tells you the guest's stay dates while you are picking, and says so the
        moment the date falls outside them. Deliberately advisory, not a bound
        on the picker: a guest can have several stays with a gap between them,
-       or an open-ended one, or none recorded yet — none of which a single
+       or an open-ended one, or none recorded yet â€” none of which a single
        min/max can express, and the office often knows a meeting date before
        the flight is booked. The save still refuses a genuinely invalid date. */
     .stay-hint {
@@ -1548,7 +1548,7 @@
     .stay-hint.outside { color: #f6bd55; }
 
 
-    /* Jump-to-section chips for a dialog long enough to need them — V2's
+    /* Jump-to-section chips for a dialog long enough to need them â€” V2's
        treatment, restored. It was removed when the guest dialog shrank to a
        single section; the Visit dialog now has four, which is exactly the
        case it existed for. Sticky, so it stays reachable while scrolling. */
@@ -1567,7 +1567,7 @@
     }
 
     /* Lets the sticky bar's background reach the dialog's edges without
-       negative margins on the sticky element itself — negative margins plus
+       negative margins on the sticky element itself â€” negative margins plus
        position:sticky is a known source of inconsistent behaviour. */
     .modal-section-nav::before {
       content: '';
@@ -1594,7 +1594,7 @@
     .section-nav-pill:hover { color: var(--text); }
     .section-nav-pill.active { background: rgba(250, 128, 114, 0.15); color: var(--salmon); }
 
-    /* So a jump lands a section below the sticky bar rather than behind it —
+    /* So a jump lands a section below the sticky bar rather than behind it â€”
        the browser has no idea a pinned sibling covers the top ~54px. */
     #add-visit-basic-details,
     #visit-sec-stay,
@@ -1602,7 +1602,7 @@
     #visit-sec-cabs,
     #visit-sec-travel { scroll-margin-top: 76px; }
     /* The row of actions that closes a dialog. Separated from the content
-       above by a rule and real space — previously the buttons sat flush
+       above by a rule and real space â€” previously the buttons sat flush
        against whatever the last field happened to be. */
     .dialog-actions {
       display: flex;
@@ -1653,7 +1653,7 @@
 
     .toast-action-btn:hover { background: rgba(52, 152, 219, 0.24); }
 
-    /* Long-press-on-a-card context menu (mobile) — a lightweight bottom
+    /* Long-press-on-a-card context menu (mobile) â€” a lightweight bottom
        sheet rather than reusing the full edit modal, since "delete this
        guest" is the only action it needs to offer. */
     .card-action-sheet {
@@ -1770,8 +1770,8 @@
        PAGES
        Every destination is a page, not an overlay: the Directory and all
        five workspaces replace the main content area, keep their own URL,
-       and answer the browser's Back button. Only small focused edits —
-       one meeting, one meal, one Seva task, a guest's basic details —
+       and answer the browser's Back button. Only small focused edits â€”
+       one meeting, one meal, one Seva task, a guest's basic details â€”
        remain dialogs, because those genuinely are interruptions rather
        than places you navigate to.
        ==================================================================== */
@@ -1780,7 +1780,7 @@
 
     /* The one place a page's width is decided. Everything inside a page
        inherits this column, so a card grid, an empty state or a form can
-       never drift wider than the header above it — which is exactly what
+       never drift wider than the header above it â€” which is exactly what
        happened while the header centred itself and the content below ran
        to the window edges. Components that keep their own max-width (used
        by the pages with no wrapper) simply resolve to 100% in here. */
@@ -2101,8 +2101,8 @@
       background: var(--surface);
     }
 
-    /* Amber only ever means "unresolved" — the same meaning it carries on
-       every badge — so an attention tile can never be mistaken for a
+    /* Amber only ever means "unresolved" â€” the same meaning it carries on
+       every badge â€” so an attention tile can never be mistaken for a
        neutral count. */
     .summary-tile.attention { border-color: rgba(243, 156, 18, 0.38); background: rgba(243, 156, 18, 0.07); }
     .summary-value { color: #fff; font-size: 1.5rem; font-weight: 700; line-height: 1; }
@@ -2110,11 +2110,11 @@
     .summary-label { margin-top: 5px; color: var(--subtle); font-size: 0.74rem; }
 
     /* ====================================================================
-       HOMEPAGE — Directory ribbon + operational workspace cards
+       HOMEPAGE â€” Directory ribbon + operational workspace cards
        ==================================================================== */
     /* Deliberately neither a card nor a chip: full width, shallow, its own
        surface treatment and a leading accent rail, so the Directory reads as
-       a different KIND of destination from the five workspaces below it —
+       a different KIND of destination from the five workspaces below it â€”
        people-centric rather than task-centric. */
     .directory-ribbon {
       display: flex;
@@ -2293,7 +2293,7 @@
        doesn't require opening the full editor first. */
     .card-actions { display: flex; margin-top: 4px; gap: 8px; flex-wrap: wrap; }
 
-    /* The suggested next action on a card — Mark Completed, Reschedule,
+    /* The suggested next action on a card â€” Mark Completed, Reschedule,
        Restore. These are things you are being invited to do, so they carry
        the same blue the app uses for every affirmative action, matching an
        active filter chip and the dialog Save button. They were previously
@@ -2322,7 +2322,7 @@
     .row-btn.danger:hover { border-color: rgba(231, 76, 60, 0.7); background: rgba(231, 76, 60, 0.18); }
     .row-btn:disabled { cursor: wait; opacity: 0.55; }
 
-    /* Hairline group separator inside a full guest card — keeps eight lines
+    /* Hairline group separator inside a full guest card â€” keeps eight lines
        of merged cross-workspace information readable instead of one
        undifferentiated run. */
     .card-divider { margin: 3px 0 1px; border-top: 1px solid #313131; }
@@ -2472,7 +2472,7 @@
       .visit-dialog-footer .dialog-secondary-btn { padding: 11px 10px; font-size: 0.88rem; }
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
-      /* Date and time stay side by side rather than stacking — stacking cost
+      /* Date and time stay side by side rather than stacking â€” stacking cost
          125px a row against 64px here, and with four such rows that was most
          of the modal's scroll. The pair reads as date-then-time on its own
          (the time field carries a clock icon), same as desktop, so neither
@@ -2561,7 +2561,7 @@
       <span class="ribbon-body">
         <span class="ribbon-title-row">
           <span class="ribbon-title">Guest Directory</span>
-          <span id="ribbon-stats" class="ribbon-stats">Loading…</span>
+          <span id="ribbon-stats" class="ribbon-stats">Loadingâ€¦</span>
         </span>
         <span class="ribbon-desc">Browse full guest records, priorities and activity</span>
       </span>
@@ -2629,7 +2629,7 @@
         <div class="modal-header-actions">
           <!-- No Delete here. Archiving and the guarded permanent delete live
                on the guest's own profile page, where the backend has already
-               said whether a delete is possible at all — an interface that
+               said whether a delete is possible at all â€” an interface that
                offers Delete and then answers "archive instead" is worse than
                one that never offered it. -->
           <button id="close-btn" class="close-btn" type="button" aria-label="Close dialog">
@@ -2675,7 +2675,7 @@
           </select>
         </div>
 
-        <!-- Foreign National is a standalone attribute of the person — never
+        <!-- Foreign National is a standalone attribute of the person â€” never
              hidden or cleared by Person Type/Accommodation, unlike V2 where
              it used to disappear for Visiting Guest. -->
         <div class="checkbox-row" id="foreign-cform-row">
@@ -2723,8 +2723,8 @@
     </div>
   </div>
 
-  <!-- A Visit is the most involved editor in the app — dates, accommodation,
-       rooms, C-form, two cabs and a whole travel itinerary — so it gets a
+  <!-- A Visit is the most involved editor in the app â€” dates, accommodation,
+       rooms, C-form, two cabs and a whole travel itinerary â€” so it gets a
        page of its own rather than being squeezed into an overlay. -->
 <!-- Editing one record is an interruption, not a destination: you open it
        from a card, change something, and come straight back to the list you
@@ -2735,11 +2735,11 @@
       <div class="modal-header">
         <h2 id="visit-editor-modal-title">Edit Visit</h2>
         <div class="modal-header-actions">
-          <!-- Cancelling a visit is a delete in everything but name, so it
-               gets the same trash icon and the same corner it occupies
-               everywhere else, rather than a wide text button sitting next to
-               Save where it reads as the discard half of a save/discard pair. -->
-          <button id="visit-editor-cancel-visit-btn" class="delete-btn" type="button" aria-label="Cancel this visit" title="Cancel this visit" hidden>
+          <!-- The bin means what a bin means everywhere else in the app: the
+               record goes. Cancelling is the softer, reversible thing, so it
+               sits in the footer as a named button rather than hiding behind
+               an icon that reads as deletion. -->
+          <button id="visit-editor-delete-visit-btn" class="delete-btn" type="button" aria-label="Delete this visit permanently" title="Delete this visit permanently" hidden>
             <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
           </button>
           <button id="visit-editor-close-btn" class="close-btn" type="button" aria-label="Close dialog">
@@ -2874,8 +2874,8 @@
           <label class="input-label" for="edit-accommodation">Accommodation</label>
           <select id="edit-accommodation" class="edit-input">
             <option value="Ashram">Ashram</option>
-            <option value="Outside - Arranged by Ashram">Outside — arranged by Ashram</option>
-            <option value="Outside - Self-arranged">Outside — self-arranged</option>
+            <option value="Outside - Arranged by Ashram">Outside â€” arranged by Ashram</option>
+            <option value="Outside - Self-arranged">Outside â€” self-arranged</option>
             <option value="No overnight stay">No overnight stay</option>
             <option value="TBD">TBD</option>
           </select>
@@ -3018,7 +3018,11 @@
         <button id="visit-editor-save-btn" class="dialog-primary-btn" type="button">Save Changes</button>
         <button id="visit-editor-discard-btn" class="dialog-secondary-btn" type="button">Discard</button>
       </div>
+      <!-- The reversible half of the pair. Deleting is the bin in the header;
+           this keeps the visit on the guest's record as called off. Only one
+           of the two ever applies, so only one is ever shown. -->
       <div class="visit-restore-actions">
+        <button id="visit-editor-cancel-visit-btn" type="button" class="dialog-secondary-btn" hidden>Cancel Visit</button>
         <button id="visit-editor-restore-visit-btn" type="button" class="dialog-secondary-btn" hidden>Restore Visit</button>
       </div>
       </div>
@@ -3198,23 +3202,23 @@
         <input type="text" id="edit-trip-name" class="edit-input" maxlength="500" autocomplete="off">
       </div>
       <div class="input-group">
-        <label class="input-label" for="edit-trip-purpose">Purpose — optional</label>
+        <label class="input-label" for="edit-trip-purpose">Purpose â€” optional</label>
         <input type="text" id="edit-trip-purpose" class="edit-input" maxlength="500" autocomplete="off">
       </div>
       <div class="input-group">
         <div class="date-time-row">
           <div>
-            <label class="input-label" for="edit-trip-start">Start date — optional</label>
+            <label class="input-label" for="edit-trip-start">Start date â€” optional</label>
             <input type="date" id="edit-trip-start" class="edit-input">
           </div>
           <div>
-            <label class="input-label" for="edit-trip-end">End date — optional</label>
+            <label class="input-label" for="edit-trip-end">End date â€” optional</label>
             <input type="date" id="edit-trip-end" class="edit-input">
           </div>
         </div>
       </div>
       <div class="input-group">
-        <label class="input-label" for="edit-trip-notes">Notes — optional</label>
+        <label class="input-label" for="edit-trip-notes">Notes â€” optional</label>
         <input type="text" id="edit-trip-notes" class="edit-input" maxlength="500" autocomplete="off">
       </div>
       <div class="checkbox-row">
@@ -3233,7 +3237,7 @@
           <h3 class="travel-section-title">Participants</h3>
           <button id="trip-add-participant-btn" class="travel-add-btn" type="button">+ Add Participant</button>
         </div>
-        <p class="travel-help">Any Person Type, including Visitors — Trip participation is independent of personal cab/travel eligibility.</p>
+        <p class="travel-help">Any Person Type, including Visitors â€” Trip participation is independent of personal cab/travel eligibility.</p>
         <div id="trip-participants-list" class="seva-team-roster"></div>
         <div id="trip-participants-empty" class="travel-empty">No participants yet.</div>
       </div>
@@ -3312,11 +3316,11 @@
       <div class="input-group">
         <div class="date-time-row">
           <div>
-            <label class="input-label" for="edit-task-start">Start date — optional</label>
+            <label class="input-label" for="edit-task-start">Start date â€” optional</label>
             <input type="date" id="edit-task-start" class="edit-input">
           </div>
           <div>
-            <label class="input-label" for="edit-task-end">End date — optional</label>
+            <label class="input-label" for="edit-task-end">End date â€” optional</label>
             <input type="date" id="edit-task-end" class="edit-input">
           </div>
         </div>
@@ -3353,7 +3357,7 @@
           <h3 class="travel-section-title">Teams</h3>
           <button id="add-seva-team-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Seva Team</button>
         </div>
-        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual tasks.</p>
+        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not â€” but any of them may still hold individual tasks.</p>
         <div id="seva-teams-list" class="travel-leg-list"></div>
         <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
       </div>
@@ -3363,7 +3367,7 @@
           <h3 class="travel-section-title">Individual Tasks</h3>
           <button id="add-individual-task-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Individual Task</button>
         </div>
-        <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
+        <p class="travel-help">Independent of any Seva Team â€” every Person Type is eligible.</p>
         <div id="individual-tasks-list" class="travel-leg-list"></div>
         <div id="individual-tasks-empty" class="travel-empty">No individual tasks yet.</div>
       </div>
@@ -3475,7 +3479,7 @@
   </svg>
 
   <script>
-    // Mirrors Code-V3.gs's PERSON_TYPE_NEEDS_REVIEW — never offered in the
+    // Mirrors Code-V3.gs's PERSON_TYPE_NEEDS_REVIEW â€” never offered in the
     // Person Type dropdown, only ever seen on a guest whose sheet row holds
     // an unrecognized value.
     const PERSON_TYPE_NEEDS_REVIEW = 'Needs Review';
@@ -3532,12 +3536,12 @@
       return waitForFirestoreBridge_().then(bridge => bridge.apiCall(action, extra || {}));
     }
 
-    // Shared by every apiCall .catch() — auth-shaped failures are handled
+    // Shared by every apiCall .catch() â€” auth-shaped failures are handled
     // once, here, so each call site only has to deal with its own ordinary
     // (non-auth) failure the way it already did with google.script.run.
     function handleApiError(error, onOtherError) {
       if (error.isAccessDenied) { showAccessDenied(); return; }
-      if (error.isAuthError) { showSignInGate('Your session expired — please sign in again.'); return; }
+      if (error.isAuthError) { showSignInGate('Your session expired â€” please sign in again.'); return; }
       onOtherError(error);
     }
 
@@ -3562,7 +3566,7 @@
       const gate = $('signin-gate');
       gate.classList.remove('denied');
       gate.classList.add('verifying');
-      $('signin-message').textContent = 'Loading your guest data…';
+      $('signin-message').textContent = 'Loading your guest dataâ€¦';
 
       if (!remoteListenerStarted_) {
         remoteListenerStarted_ = true;
@@ -3594,7 +3598,7 @@
           const gate = $('signin-gate');
           gate.classList.remove('denied');
           gate.classList.add('verifying');
-          $('signin-message').textContent = 'Opening Google sign-in…';
+          $('signin-message').textContent = 'Opening Google sign-inâ€¦';
           try {
             await bridge.signIn();
           } catch (error) {
@@ -3709,6 +3713,7 @@
       });
       $('visit-editor-save-btn').addEventListener('click', saveVisitFromEditor);
       $('visit-editor-discard-btn').addEventListener('click', requestCloseVisitEditor_);
+      $('visit-editor-delete-visit-btn').addEventListener('click', deleteCurrentVisit_);
       $('visit-editor-cancel-visit-btn').addEventListener('click', cancelCurrentVisit_);
       $('visit-editor-restore-visit-btn').addEventListener('click', restoreCurrentVisit_);
       $('add-visit-guest-name').addEventListener('input', handleAddVisitGuestNameInput_);
@@ -3798,7 +3803,7 @@
         }
         // Innermost first: the picker and the meeting dialog can both open
         // over the visit or trip editor, so closing must unwind in that order.
-        // The two Seva dialogs sit above the picker for the same reason —
+        // The two Seva dialogs sit above the picker for the same reason â€”
         // adding a team member opens the picker on top of the team dialog.
         if (isGuestPickerOpen_()) { closeGuestPicker_(); return; }
         if (isSevaTeamFormOpen_()) { closeSevaTeamForm(); return; }
@@ -3849,7 +3854,7 @@
 
       switch (currentRoute_.name) {
         // Home and Directory both come from the bootstrap payload, so one
-        // call refreshes either of them — and keeps the device cache current
+        // call refreshes either of them â€” and keeps the device cache current
         // at the same time.
         case 'home':
           loadBootstrap_().then(() => { renderHome_(); done(); }).catch(fail);
@@ -3879,7 +3884,7 @@
           loadTripsPage_(currentRoute_.arg).then(done, fail);
           break;
         default:
-          // Visit and Trip editors deliberately don't auto-refresh — they
+          // Visit and Trip editors deliberately don't auto-refresh â€” they
           // hold unsaved input by nature.
           done();
       }
@@ -3902,7 +3907,7 @@
       seva: { page: 'page-seva', load: arg => loadSevaPage_(arg) },
       trips: { page: 'page-trips', load: arg => loadTripsPage_(arg) },
       guest: { page: 'page-guest', load: arg => loadGuestProfile_(arg) }
-      // Editing a visit or a trip is not a destination — both are dialogs
+      // Editing a visit or a trip is not a destination â€” both are dialogs
       // opened over the list you are working through, so neither has a route.
     });
 
@@ -3958,7 +3963,7 @@
       return Promise.resolve()
         .then(() => route.load(next.arg))
         .then(() => {
-          // A newer navigation started while this one was loading — that one
+          // A newer navigation started while this one was loading â€” that one
           // owns the screen now, so this result is dropped rather than
           // yanking the user back to a page they already left.
           if (token !== routeToken_) return;
@@ -3978,7 +3983,7 @@
         });
     }
 
-    // Deliberately just the refresh button spinning down and the cursor —
+    // Deliberately just the refresh button spinning down and the cursor â€”
     // no overlay, no skeleton. The previous page stays fully readable while
     // the next one loads, which is less disruptive than replacing it with a
     // placeholder.
@@ -4156,8 +4161,8 @@
       dock.addEventListener('pointercancel', event => finishDrag(event, true));
 
       // Suppress only the compatibility click emitted immediately at the
-      // drag-release coordinates. Any later tap — even the user's very first
-      // tap after opening the rail — goes straight to its destination.
+      // drag-release coordinates. Any later tap â€” even the user's very first
+      // tap after opening the rail â€” goes straight to its destination.
       dock.addEventListener('click', event => {
         if (!dragReleaseClick_) return;
         const release = dragReleaseClick_;
@@ -4171,7 +4176,7 @@
 
       // Home navigation hides the dock before a mobile browser emits its
       // delayed compatibility click. That click is therefore retargeted to
-      // whatever has appeared underneath — on the Home page this can be the
+      // whatever has appeared underneath â€” on the Home page this can be the
       // Meals portal. Catch it at document level, before delegated page
       // navigation sees it. A real subsequent tap starts with pointerdown and
       // clears this guard, so it is never sacrificed.
@@ -4433,7 +4438,7 @@
     // The last good startup payload, kept on the device so opening the app
     // draws from it at once instead of waiting on the network. The copy is
     // refreshed in the background every time and replaced when the new one
-    // lands, so it is never more than one launch behind — the same
+    // lands, so it is never more than one launch behind â€” the same
     // read-from-local, revalidate-behind pattern a phone app uses.
     // ============================================================
 
@@ -4446,7 +4451,7 @@
         const parsed = JSON.parse(raw);
         return (parsed && parsed.summary && parsed.directory) ? parsed : null;
       } catch (error) {
-        // Corrupt or unreadable — not worth failing over, just fetch fresh.
+        // Corrupt or unreadable â€” not worth failing over, just fetch fresh.
         return null;
       }
     }
@@ -4456,7 +4461,7 @@
         localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify(payload));
       } catch (error) {
         // Quota exceeded on a large guest list. The app works without the
-        // cache — it simply waits for the network on open, as it used to.
+        // cache â€” it simply waits for the network on open, as it used to.
         console.warn('Could not cache startup data on this device:', error);
       }
     }
@@ -4488,7 +4493,7 @@
         all[name] = data;
         localStorage.setItem(WORKSPACE_CACHE_KEY, JSON.stringify(all));
       } catch (error) {
-        // Quota. The app still works — it just fetches on first visit as it
+        // Quota. The app still works â€” it just fetches on first visit as it
         // did before, so this is not worth surfacing.
         console.warn('Could not cache workspace data on this device:', error);
       }
@@ -4503,7 +4508,7 @@
         accommodationVisits_ = Array.isArray(cached.accommodation.visits) ? cached.accommodation.visits : [];
         accommodationLoaded_ = true;
       }
-      // Only for the day it was actually captured — a stale day would be
+      // Only for the day it was actually captured â€” a stale day would be
       // worse than a short wait.
       if (cached.meals && cached.meals.date === todayDateKey_()) mealsData_ = cached.meals;
       if (cached.meetings) meetingsData_ = cached.meetings;
@@ -4529,7 +4534,7 @@
     }
 
     // A searchable blob per guest, built once when the snapshot lands. This
-    // is what makes the search bar honest about the fields it promises —
+    // is what makes the search bar honest about the fields it promises â€”
     // rooms, dates, travel, seva, meetings and trips are all in here, and
     // matching happens locally instead of asking the server to re-derive it.
     function prepareRecordForDisplay_(record) {
@@ -4578,15 +4583,15 @@
     }
 
     // The sign-in gate is the app's only loading screen. It stays up until
-    // everything the app needs is actually in hand — the homepage summary
-    // AND the whole directory — and only then does it drop, revealing a
-    // finished page. Dropping it first and showing a "Loading…" placeholder
+    // everything the app needs is actually in hand â€” the homepage summary
+    // AND the whole directory â€” and only then does it drop, revealing a
+    // finished page. Dropping it first and showing a "Loadingâ€¦" placeholder
     // underneath makes you wait twice for one startup, and puts an empty
     // shell on screen in between; the app should never appear before it is
     // ready to be used.
     function startSession_() {
       // If this device has been here before, draw from what it already holds
-      // and let the gate go straight away — then refresh behind the finished
+      // and let the gate go straight away â€” then refresh behind the finished
       // app. Nothing is waited on that can already be shown.
       const cached = readCachedBootstrap_();
       if (cached) {
@@ -4614,7 +4619,7 @@
           prefetchWorkspaces_();
         })
         .catch(error => handleApiError(error, err => {
-          // Report inside the gate rather than behind it — the gate is what
+          // Report inside the gate rather than behind it â€” the gate is what
           // is on screen, and removing .verifying brings the sign-in button
           // back so this is recoverable rather than a dead end.
           const gate = $('signin-gate');
@@ -4676,7 +4681,7 @@
       ];
       steps.reduce(
         (chain, step) => chain.then(() => {
-          // Skip anything the user has already navigated to — they have the
+          // Skip anything the user has already navigated to â€” they have the
           // real thing, and re-fetching it underneath them is pointless.
           if (currentRoute_.name !== 'home' && currentRoute_.name !== 'directory') return null;
           return step().catch(() => null);
@@ -4828,8 +4833,8 @@
     }
 
     // ============================================================
-    // Seva Teams — a shared entity, managed from its own workspace screen.
-    // V3 Operational Workspaces Architecture — Phase H: membership/roster
+    // Seva Teams â€” a shared entity, managed from its own workspace screen.
+    // V3 Operational Workspaces Architecture â€” Phase H: membership/roster
     // editing moved here too (addTeamMemberAction_/removeTeamMemberAction_
     // below), out of the guest modal.
     // ============================================================
@@ -4853,9 +4858,9 @@
       return 'Seva active';
     }
 
-    // V3 Operational Workspaces Architecture — Phase H. Team roster and
+    // V3 Operational Workspaces Architecture â€” Phase H. Team roster and
     // Individual Tasks (Specific Seva) both move here from the guest modal,
-    // driven by getWorkspaceData('seva') rather than allGuests — so a
+    // driven by getWorkspaceData('seva') rather than allGuests â€” so a
     // roster add/remove or task save shows correctly immediately, not only
     // after the next 30s getAppData poll.
     let sevaWorkspaceData_ = { teams: [], individualTasks: [] };
@@ -4864,7 +4869,7 @@
       return loadSevaPage_();
     }
 
-    // Two views over the same fetched data — Teams, and the individual tasks
+    // Two views over the same fetched data â€” Teams, and the individual tasks
     // that are deliberately independent of them. Somebody can hold both, and
     // the two views say so rather than one hiding the other.
     const SEVA_VIEWS_ = Object.freeze([
@@ -4933,7 +4938,7 @@
 
     // ============================================================
     // GUEST PROFILE
-    // The complete record for one person — every Visit including cancelled
+    // The complete record for one person â€” every Visit including cancelled
     // ones, and every meal, meeting, seva involvement and trip. Operational
     // records are edited in their owning workspace; this page shows the
     // whole picture and links out to where each part is actually changed.
@@ -4964,7 +4969,7 @@
       $('guest-profile-archive-btn').textContent = profile.archived ? 'Restore' : 'Archive';
       // Always offered, on every guest. Hiding it whenever the backend judged
       // the guest undeletable meant the button appeared on some profiles and
-      // not others with nothing on screen explaining the difference — which
+      // not others with nothing on screen explaining the difference â€” which
       // read as the app being inconsistent rather than as a rule. It is now
       // always present and always answers: it deletes when it can, and when it
       // can't it says exactly what history is in the way.
@@ -4972,7 +4977,7 @@
       deleteBtn.hidden = false;
       deleteBtn.title = profile.canHardDelete
         ? 'Permanently delete this guest'
-        : 'This guest has operational history — deleting is blocked, archive instead';
+        : 'This guest has operational history â€” deleting is blocked, archive instead';
 
       const warning = $('guest-profile-warning');
       const stranded = profile.engagementsOutsideStay || [];
@@ -4994,7 +4999,7 @@
       }
 
       body.appendChild(buildProfileSection_('icon-bed', 'Visits', (profile.visits || []).map(visit => ({
-        main: `${visit.arrivalDate || 'Arrival TBD'} → ${visit.departureDate || 'Departure TBD'}`,
+        main: `${visit.arrivalDate || 'Arrival TBD'} â†’ ${visit.departureDate || 'Departure TBD'}`,
         meta: [visit.accommodation, (visit.rooms || []).join(' & '), visit.cancelled ? 'Cancelled' : ''].filter(Boolean).join(' \u00B7 '),
         cancelled: visit.cancelled,
         action: { label: 'Open visit', run: () => openVisitEditor(profile.guestId, visit.visitId) }
@@ -5066,7 +5071,7 @@
 
     // Reloading every guest is the single most expensive call the app makes,
     // so nothing waits on it. After a write it is kicked off quietly and the
-    // page it affects is redrawn if and when it lands — the alternative,
+    // page it affects is redrawn if and when it lands â€” the alternative,
     // blocking the interface on a full directory fetch after each small
     // edit, is what made every change feel like a stall. Overlapping calls
     // collapse into one.
@@ -5107,7 +5112,7 @@
         ].filter(Boolean);
         const summary = held.length ? held.join(', ') : 'operational history';
         if (window.confirm(
-          `${profile.name} can't be permanently deleted — ${summary} would be left orphaned.\n\n`
+          `${profile.name} can't be permanently deleted â€” ${summary} would be left orphaned.\n\n`
           + 'Archive instead? They stay searchable and every record is kept, but they drop out of the Directory and every workspace.'
         )) {
           toggleArchiveCurrentGuest_();
@@ -5132,7 +5137,7 @@
       return ms ? new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
     }
 
-    // Local calendar-date components, not toISOString() (UTC) — a ms
+    // Local calendar-date components, not toISOString() (UTC) â€” a ms
     // timestamp at local midnight can land on the previous UTC day, which
     // would silently shift a date-input value back by one.
     function msToDateInputValue_(ms) {
@@ -5159,7 +5164,7 @@
 
     function createSevaTeamRow(team) {
       const members = Array.isArray(team.roster) ? team.roster : [];
-      const dateRange = [msToDateDisplay_(team.startMs), msToDateDisplay_(team.endMs)].filter(Boolean).join(' – ');
+      const dateRange = [msToDateDisplay_(team.startMs), msToDateDisplay_(team.endMs)].filter(Boolean).join(' â€“ ');
 
       const row = createElement('div', 'travel-leg-editor');
       row.dataset.teamId = team.teamId;
@@ -5218,7 +5223,7 @@
       roster.appendChild(addMemberBtn);
 
       const actions = createElement('div', 'seva-team-row-actions');
-      // Not the salmon "+ Add" style it used to borrow — Edit opens something,
+      // Not the salmon "+ Add" style it used to borrow â€” Edit opens something,
       // it doesn't create anything.
       const editBtn = createElement('button', 'row-btn', 'Edit');
       editBtn.type = 'button';
@@ -5354,7 +5359,7 @@
     }
 
     // ============================================================
-    // Individual Tasks (Specific Seva) — independent of any team, own dates
+    // Individual Tasks (Specific Seva) â€” independent of any team, own dates
     // (or none yet), no Person Type eligibility gate. Each task is its own
     // upsertSpecificSeva/deleteSpecificSeva row-level call now, driven by
     // sevaWorkspaceData_.individualTasks rather than a per-guest bulk list.
@@ -5369,7 +5374,7 @@
     }
 
     function createIndividualTaskRow_(task) {
-      const dateRange = [task.startDate, task.endDate].filter(Boolean).join(' – ');
+      const dateRange = [task.startDate, task.endDate].filter(Boolean).join(' â€“ ');
       const row = createElement('article', 'card');
       attachLongPress_(row, () => ({
         title: `${task.name || 'Unnamed Guest'} \u00B7 ${task.description || 'Seva task'}`,
@@ -5397,7 +5402,7 @@
 
     // task === null means a brand-new task for this guest. Editing an
     // existing task already has its guest name from sevaWorkspaceData_, so
-    // only the new-task path needs a getGuestProfile round-trip — same
+    // only the new-task path needs a getGuestProfile round-trip â€” same
     // split openVisitEditor/openMeetingEditor_ use.
     function openSpecificSevaForm_(guestId, guestName, task) {
       $('edit-task-guest-id').value = guestId;
@@ -5605,8 +5610,8 @@
       };
     }
 
-    // The Directory record doesn't carry canHardDelete — only the profile read
-    // does — so this asks the backend and reports whatever it answers, rather
+    // The Directory record doesn't carry canHardDelete â€” only the profile read
+    // does â€” so this asks the backend and reports whatever it answers, rather
     // than guessing and being wrong in either direction.
     function deleteGuestFromActionSheet_(summary) {
       if (!summary) return;
@@ -5620,7 +5625,7 @@
           refreshDirectoryInBackground_();
         })
         .catch(error => handleApiError(error, err => {
-          // The usual refusal is "this guest has history" — turn that into the
+          // The usual refusal is "this guest has history" â€” turn that into the
           // action that does work instead of a dead end.
           const message = getErrorMessage(err);
           if (/archive/i.test(message)) {
@@ -5644,13 +5649,13 @@
         .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
     }
 
-    // V3 Operational Workspaces Architecture — Phase D. The "full guest
+    // V3 Operational Workspaces Architecture â€” Phase D. The "full guest
     // card" for the new Directory/homepage-search renders straight from one
-    // self-contained card-summary object — the backend has already joined
+    // self-contained card-summary object â€” the backend has already joined
     // in everything it needs (accommodation/visit, Seva team names+status,
     // Specific Seva, today's meals, upcoming meetings, trips). Operational
     // warning badges (Room missing, C-form pending, cab booking state, etc.)
-    // are deliberately NOT reproduced here — those live in the Accommodation
+    // are deliberately NOT reproduced here â€” those live in the Accommodation
     // & Travel workspace, which is where they're actually actionable; this
     // card is informational only.
     function createFullGuestCard(summary) {
@@ -5658,8 +5663,8 @@
       card.tabIndex = 0;
       card.setAttribute('role', 'button');
       card.setAttribute('aria-label', `Open ${summary.name || 'guest'}'s profile`);
-      // The card is a summary, so opening it shows the whole record — visits,
-      // meals, meetings, seva, trips — rather than jumping straight into
+      // The card is a summary, so opening it shows the whole record â€” visits,
+      // meals, meetings, seva, trips â€” rather than jumping straight into
       // editing the four basic fields. Editing is one button away on that
       // page, which is also the only place Archive and the guarded permanent
       // Delete live. Nothing linked here before, so that page and both of
@@ -5753,8 +5758,8 @@
       return card;
     }
 
-    // V3 Operational Workspaces Architecture — Phase D. The 5-tile
-    // homepage, driven by getHomeSummary — deliberately the lightest read
+    // V3 Operational Workspaces Architecture â€” Phase D. The 5-tile
+    // homepage, driven by getHomeSummary â€” deliberately the lightest read
     // in the whole API (aggregate counts only, no guest-level rows), so the
     // homepage never needs the full dataset just to render. Static
     // structure/labels defined once here; renderHomeTiles just rebuilds the
@@ -5808,8 +5813,8 @@
 
     // ============================================================
     // GUEST DIRECTORY
-    // The V2 dashboard's visual language — tier tabs, filter chips, zone
-    // headers, a responsive grid of full cards — over the whole guest list
+    // The V2 dashboard's visual language â€” tier tabs, filter chips, zone
+    // headers, a responsive grid of full cards â€” over the whole guest list
     // held in memory. No pagination and no per-keystroke request: every
     // record is already here, so tiering, filtering and searching are all
     // instant and all local.
@@ -5818,7 +5823,7 @@
     const DIRECTORY_TIERS_ = Object.freeze([
       // All leads, and is where the Directory opens. Priority used to sit here
       // and swallowed every guest who had any unresolved matter, which pulled
-      // them out of Today/Upcoming/Past — so the tab you'd expect someone to be
+      // them out of Today/Upcoming/Past â€” so the tab you'd expect someone to be
       // in was the one place they weren't. The reasons themselves are still
       // computed and still shown on the card and in search; they just no longer
       // decide which tab a guest lives in.
@@ -5914,7 +5919,7 @@
       });
     }
 
-    // The chips are built once and then left alone — V2's arrangement, and the
+    // The chips are built once and then left alone â€” V2's arrangement, and the
     // reason its chips always felt instant. Every full Directory render used to
     // throw all fourteen away and rebuild them with fresh listeners, so a
     // background refresh landing mid-interaction destroyed the very element
@@ -5927,7 +5932,7 @@
     // V2's collapsed filter row, restored. A dozen-odd chips wrapping onto
     // three lines pushed the actual guest list below the fold before anyone
     // had filtered anything, so only the first few show until asked for.
-    // Shared by both chip rows (Directory and Accommodation) — they had the
+    // Shared by both chip rows (Directory and Accommodation) â€” they had the
     // same problem and there is no reason for them to behave differently.
     const CHIP_VISIBLE_COUNT_ = 6;
     const CHIP_EXPANDED_KEY_ = 'ashram-app-v3-chips-expanded';
@@ -5944,7 +5949,7 @@
       try {
         window.localStorage.setItem(`${CHIP_EXPANDED_KEY_}-${rowKey}`, String(expanded));
       } catch (error) {
-        // Storage unavailable — the toggle still works, it just resets on reload.
+        // Storage unavailable â€” the toggle still works, it just resets on reload.
       }
     }
 
@@ -5970,25 +5975,25 @@
       try {
         window.localStorage.setItem(`${CHIP_USAGE_KEY_}-${rowKey}`, JSON.stringify(usage));
       } catch (error) {
-        // Storage unavailable (private browsing, quota) — chips still work,
+        // Storage unavailable (private browsing, quota) â€” chips still work,
         // they just won't remember usage across sessions.
       }
       // Deliberately does not reorder. The callers hold that back until the
       // selection is empty, so the row never shuffles mid-selection.
     }
 
-    // Called on first build, and once a selection is fully cleared — never
+    // Called on first build, and once a selection is fully cleared â€” never
     // while a chip is active, or the row would move out from under the finger
     // reaching for a second filter.
     function reorderChipRow_(containerId, rowKey) {
       const container = $(containerId);
       const usage = loadChipUsage_(rowKey);
       // Sort is stable, so chips of equal usage keep the curated order they
-      // were written in — a fresh device still gets a sensible row.
+      // were written in â€” a fresh device still gets a sensible row.
       [...container.querySelectorAll('.filter-chip')]
         .sort((a, b) => (usage[b.dataset.chipLabel] || 0) - (usage[a.dataset.chipLabel] || 0))
         .forEach(chip => container.appendChild(chip));
-      // The toggle isn't a .filter-chip, so the sort above never touches it —
+      // The toggle isn't a .filter-chip, so the sort above never touches it â€”
       // re-append it so it always lands after the last chip.
       const toggle = container.querySelector('.filter-chip-toggle');
       if (toggle) container.appendChild(toggle);
@@ -6019,7 +6024,7 @@
         return;
       }
       toggle.hidden = false;
-      toggle.textContent = expanded ? '− Show less' : `+${hiddenCount} more`;
+      toggle.textContent = expanded ? 'âˆ’ Show less' : `+${hiddenCount} more`;
       toggle.setAttribute('aria-expanded', String(expanded));
     }
 
@@ -6129,7 +6134,7 @@
           ? directoryShowArchived_
           : directoryActiveChips_.has(chip.dataset.chipLabel);
         chip.classList.toggle('active', active);
-        // The colour and the ✕ are invisible to a screen reader; aria-pressed
+        // The colour and the âœ• are invisible to a screen reader; aria-pressed
         // is what actually announces on/off for a toggle button.
         chip.setAttribute('aria-pressed', String(active));
       });
@@ -6181,13 +6186,13 @@
     }
 
     // ============================================================
-    // V3 Operational Workspaces Architecture — Phase E. Accommodation &
+    // V3 Operational Workspaces Architecture â€” Phase E. Accommodation &
     // Travel workspace: a list of current/upcoming Visits (getWorkspaceData
     // 'accommodation'), each opening the Visit Editor below. The Visit
     // Editor reuses the room/cab/travel-leg editor markup and validation
     // logic that used to live in the guest modal's Stay/Accommodation/Cabs/
     // Travel sections (see openModal/saveGuestFromModal above, now stripped
-    // to guest basics) — only the data source (getGuestProfile) and save
+    // to guest basics) â€” only the data source (getGuestProfile) and save
     // target (saveVisitPlan, Visit-scoped) changed.
     // ============================================================
 
@@ -6252,7 +6257,7 @@
     // `active` once at build time and closed over that value, and its click
     // handler re-rendered the list without ever touching the chip's own class.
     // So the chip never turned blue, and because the captured `active` stayed
-    // false it could only ever add to the filter set — clicking a second time
+    // false it could only ever add to the filter set â€” clicking a second time
     // re-added the same label instead of clearing it.
     let accommodationChipsSignature_ = null;
 
@@ -6469,7 +6474,7 @@
       card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
       badges.appendChild(createPersonTypeBadge(visit.personType));
-      // C-form sits with the identity badges, as in V2 — it is a fact about
+      // C-form sits with the identity badges, as in V2 â€” it is a fact about
       // this guest's paperwork rather than a step in arranging the stay.
       if (isCformPending_(visit)) {
         badges.appendChild(createBadge('C-form pending', 'badge-pink'));
@@ -6477,7 +6482,7 @@
       card.appendChild(badges);
 
       // Anything settled reads as a plain line; anything still outstanding
-      // becomes a badge — the distinction V2 drew. Those badges have nothing
+      // becomes a badge â€” the distinction V2 drew. Those badges have nothing
       // further to say, so they share one row instead of taking a line each.
       const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const outstanding = [];
@@ -6527,7 +6532,7 @@
     // badge and the workspace filter chip, and matching the same rule in the
     // adapter. It is a police registration for a foreign national staying on
     // the premises, so it only applies once they have actually arrived, and
-    // only when the ashram itself is housing them — not for a guest the ashram
+    // only when the ashram itself is housing them â€” not for a guest the ashram
     // booked into a hotel, and not weeks before they turn up.
     function isCformPending_(visit) {
       if (!visit || !visit.isForeign || visit.cformComplete) return false;
@@ -6545,20 +6550,20 @@
     // departure lived on the guest and everything was edited in one dialog.
     // In V3 those dates belong to a Visit and meals/meetings/seva are edited
     // elsewhere, so the rule is enforced on save and surfaced afterwards. That
-    // is correct but late — this puts the same information back at the moment
+    // is correct but late â€” this puts the same information back at the moment
     // of picking, without pretending a single date range can describe a guest
     // who has two stays, an open-ended one, or none yet.
 
     function guestStayWindows_(guestId) {
       const record = directoryRecords_.find(item => item.guestId === guestId);
-      if (!record) return null;                       // not loaded — say nothing
+      if (!record) return null;                       // not loaded â€” say nothing
       return Array.isArray(record.stayWindows) ? record.stayWindows : [];
     }
 
     function describeStayWindows_(windows) {
       if (!windows.length) return '';
       return windows.map(window => (window.to
-        ? `${formatDateKeyDisplay(window.from)} – ${formatDateKeyDisplay(window.to)}`
+        ? `${formatDateKeyDisplay(window.from)} â€“ ${formatDateKeyDisplay(window.to)}`
         : `from ${formatDateKeyDisplay(window.from)} (no departure yet)`)).join(', ');
     }
 
@@ -6590,7 +6595,7 @@
       }
       hint.classList.add('outside');
       hint.textContent = `${staying} ${outside.map(formatDateKeyDisplay).join(' and ')} `
-        + `${outside.length === 1 ? 'falls' : 'fall'} outside that — saving will be refused unless the visit dates change.`;
+        + `${outside.length === 1 ? 'falls' : 'fall'} outside that â€” saving will be refused unless the visit dates change.`;
     }
 
     function syncMeetingStayHint_() {
@@ -6620,7 +6625,7 @@
     function formatCabScheduleText_(dateValue, timeValue) {
       const info = localDateInfo(dateValue, timeValue || '', false);
       const display = String(info.display || dateValue);
-      return timeValue ? display : `${display} · time not set`;
+      return timeValue ? display : `${display} Â· time not set`;
     }
 
     // Cabs render like travel legs: the badge says what still needs doing, the
@@ -6632,7 +6637,7 @@
       if (visit.pickupRequired) entries.push(buildCabCardEntry_('pickup', visit));
       if (visit.dropoffRequired) entries.push(buildCabCardEntry_('dropoff', visit));
 
-      // Nothing scheduled or located on either cab yet — the badges already say
+      // Nothing scheduled or located on either cab yet â€” the badges already say
       // everything there is to say, so keep them side by side on one row rather
       // than spending a stacked block each to add nothing.
       if (entries.every(entry => !entry.detail)) {
@@ -6686,12 +6691,12 @@
 
       const parts = [];
       if (location) parts.push(`${isPickup ? 'From' : 'To'} ${location}`);
-      // "Date not set" is only worth saying next to a location — on its own it
+      // "Date not set" is only worth saying next to a location â€” on its own it
       // just restates a bare "requested" badge.
       if (dateValue) parts.push(formatCabScheduleText_(dateValue, timeValue));
       else if (location) parts.push('Date not set');
 
-      return { label, badgeClass, detail: parts.join(' · ') };
+      return { label, badgeClass, detail: parts.join(' Â· ') };
     }
 
     function appendTravelDetails_(card, visit, status) {
@@ -6723,17 +6728,17 @@
     }
 
     function createTravelDetailLine_(leg) {
-      const route = [leg.from, leg.to].filter(Boolean).join(' → ');
+      const route = [leg.from, leg.to].filter(Boolean).join(' â†’ ');
       const dateText = leg.travelDisplay || 'Date not set';
-      const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
+      const service = leg.serviceNumber ? ` Â· ${leg.serviceNumber}` : '';
       return createDetailLine(
         getTravelIconId(leg.transportType),
-        `${route || leg.transportType} · ${dateText}${service}`
+        `${route || leg.transportType} Â· ${dateText}${service}`
       );
     }
 
     // Generic search-existing-or-create-new guest picker, reusable by any
-    // workspace's "Add" flow (plan §4) — Trips/Meals/Meetings/Seva will
+    // workspace's "Add" flow (plan Â§4) â€” Trips/Meals/Meetings/Seva will
     // reuse this in their own phases rather than each building their own.
     let guestPickerOnSelect_ = null;
     let guestPickerSearchTimer_ = null;
@@ -6856,6 +6861,7 @@
       $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       $('visit-editor-modal-title').textContent = 'Add Visit';
+      $('visit-editor-delete-visit-btn').hidden = true;
       $('visit-editor-cancel-visit-btn').hidden = true;
       $('visit-editor-restore-visit-btn').hidden = true;
       modalDirty = false;
@@ -6919,7 +6925,7 @@
         option.dataset.newGuest = 'true';
         option.setAttribute('role', 'option');
         option.setAttribute('aria-selected', 'false');
-        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add “${query}” as a new guest`));
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add â€œ${query}â€ as a new guest`));
         option.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Continue with basic details and this visit'));
         option.addEventListener('click', () => selectNewGuestForVisit_(query));
         list.appendChild(option);
@@ -7010,6 +7016,7 @@
       $('add-visit-manager-save-btn').disabled = true;
       $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
+      $('visit-editor-delete-visit-btn').hidden = true;
       $('visit-editor-cancel-visit-btn').hidden = true;
       $('visit-editor-restore-visit-btn').hidden = true;
       $('visit-editor-modal-title').textContent = 'Add Visit';
@@ -7028,7 +7035,7 @@
       $('visit-section-nav').hidden = true;
       $('visit-plan-view').hidden = true;
       $('add-visit-manager-actions').hidden = false;
-      renderAddVisitSelectionNotice_(guest.archived ? 'Guest already added · Archived' : 'Guest already added');
+      renderAddVisitSelectionNotice_(guest.archived ? 'Guest already added Â· Archived' : 'Guest already added');
 
       const requestId = ++addVisitProfileRequest_;
       apiCall('getGuestProfile', { guestId: guest.guestId })
@@ -7038,7 +7045,7 @@
           renderUpcomingVisitsForAdd_(profile);
           $('add-visit-new-visit-btn').hidden = Boolean(profile.archived);
           if (profile.archived) {
-            renderAddVisitSelectionNotice_('Guest already added · Archived. Restore this guest in the Directory before adding a visit.');
+            renderAddVisitSelectionNotice_('Guest already added Â· Archived. Restore this guest in the Directory before adding a visit.');
           }
           modalDirty = false;
         })
@@ -7062,7 +7069,7 @@
     function addVisitDateSummary_(visit) {
       const arrival = visit.arrivalDate ? formatDateKeyDisplay(visit.arrivalDate) : '';
       const departure = visit.departureDate ? formatDateKeyDisplay(visit.departureDate) : '';
-      if (arrival && departure) return `${arrival} – ${departure}`;
+      if (arrival && departure) return `${arrival} â€“ ${departure}`;
       if (arrival) return `From ${arrival}`;
       if (departure) return `Until ${departure}`;
       return 'Dates not set';
@@ -7123,7 +7130,8 @@
             $('visit-section-nav').hidden = true;
             $('add-visit-manager-actions').hidden = false;
             $('visit-editor-modal-title').textContent = 'Add Visit';
-            $('visit-editor-cancel-visit-btn').hidden = true;
+            $('visit-editor-delete-visit-btn').hidden = true;
+      $('visit-editor-cancel-visit-btn').hidden = true;
             $('visit-editor-restore-visit-btn').hidden = true;
             $('visit-editor-visit-id').value = '';
             modalDirty = false;
@@ -7167,7 +7175,7 @@
       $('add-visit-purpose-other-text').value = '';
       $('add-visit-staff-assignment').value = '';
       $('add-visit-basic-details').hidden = false;
-      renderAddVisitSelectionNotice_('New guest · Basic details and the first visit will be saved together');
+      renderAddVisitSelectionNotice_('New guest Â· Basic details and the first visit will be saved together');
       updateAddVisitBasicConditionalFields_();
       renderUpcomingVisitsForAdd_(profile);
       $('add-visit-new-visit-btn').hidden = true;
@@ -7283,15 +7291,15 @@
         + '. Move or remove them, or widen the stay, so the schedule matches the dates.';
     }
 
-    // Visit Editor — Stay/Accommodation/Cabs/Travel, moved wholesale out of
+    // Visit Editor â€” Stay/Accommodation/Cabs/Travel, moved wholesale out of
     // the guest modal. visitId === '' means a brand-new Visit for this
-    // guest (no auto-create — this is the one deliberate path that DOES
-    // create a Visit, per plan §1.2/§1.4).
+    // guest (no auto-create â€” this is the one deliberate path that DOES
+    // create a Visit, per plan Â§1.2/Â§1.4).
     let visitEditorGuestPersonType_ = 'Invited Guest';
     let visitEditorGuestIsForeign_ = false;
     let visitEditorIsCancelled_ = false;
 
-    // visitId === '' means a brand-new Visit for this guest — the one
+    // visitId === '' means a brand-new Visit for this guest â€” the one
     // deliberate path in the app that creates one.
     let visitEditorOpen_ = false;
 
@@ -7326,7 +7334,7 @@
       $('add-visit-manager-details').hidden = true;
     }
 
-    // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
+    // Same unsaved-changes guard the guest dialog uses â€” leaving a half-filled
     // visit by clicking the backdrop should not silently discard it.
     function requestCloseVisitEditor_() {
       if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return;
@@ -7368,8 +7376,8 @@
         if (!section) return;
         // Highlighted on the tap itself instead of waiting for the scroll to
         // report back, and held there while the smooth scroll runs. The last
-        // section can never reach the top of the dialog — there isn't enough
-        // below it to scroll — so position alone would leave the chip you
+        // section can never reach the top of the dialog â€” there isn't enough
+        // below it to scroll â€” so position alone would leave the chip you
         // just pressed looking unselected.
         [...nav.querySelectorAll('.section-nav-pill')].forEach(p => p.classList.toggle('active', p === pill));
         navClickLockUntil = Date.now() + 700;
@@ -7377,7 +7385,7 @@
       });
 
       // Follows the scroll rather than only reacting to taps, so the active
-      // chip reflects where you actually are — including after scrolling by
+      // chip reflects where you actually are â€” including after scrolling by
       // hand, or being carried somewhere by a validation error.
       body.addEventListener('scroll', () => {
         if (Date.now() < navClickLockUntil) return;
@@ -7491,6 +7499,7 @@
       handleDateChange();
       updateTransportConstraints();
 
+      $('visit-editor-delete-visit-btn').hidden = !visit;
       $('visit-editor-cancel-visit-btn').hidden = !visit || visitEditorIsCancelled_;
       $('visit-editor-restore-visit-btn').hidden = !visit || !visitEditorIsCancelled_;
     }
@@ -7610,7 +7619,7 @@
     }
 
     // Rooms this card has picked that would create or extend a deliberate
-    // overlap with someone else — excluding any room that was ALREADY on
+    // overlap with someone else â€” excluding any room that was ALREADY on
     // the card when it was opened, since that share was already agreed and
     // the backend carries it forward on its own (see getExistingSharedOkVisitRooms_
     // in Code-V3.gs). Only a room picked or changed just now needs asking about.
@@ -7634,7 +7643,7 @@
       const list = $('room-share-sheet-list');
       list.replaceChildren();
       pending.forEach(entry => {
-        list.appendChild(createElement('div', 'room-share-item', `${entry.room} — share with ${entry.shareWith}`));
+        list.appendChild(createElement('div', 'room-share-item', `${entry.room} â€” share with ${entry.shareWith}`));
       });
       $('room-share-sheet-title').textContent = pending.length === 1 ? 'Share this room?' : 'Share these rooms?';
       $('room-share-sheet').hidden = false;
@@ -7680,6 +7689,34 @@
         .catch(error => handleApiError(error, err => showToast(`Couldn't cancel visit: ${getErrorMessage(err)}`, 'error')));
     }
 
+    // The bin in the header. Removes the visit outright, taking its rooms and
+    // travel legs with it â€” named so the choice against Cancel is made with
+    // the consequences in view.
+    function deleteCurrentVisit_() {
+      const visitId = $('visit-editor-visit-id').value;
+      if (!visitId) return;
+      const rooms = getRoomRowValues().filter(Boolean).length;
+      const legs = $('travel-leg-list').querySelectorAll('.travel-leg-editor').length;
+      const owned = [
+        rooms && `${rooms} room assignment${rooms === 1 ? '' : 's'}`,
+        legs && `${legs} travel leg${legs === 1 ? '' : 's'}`
+      ].filter(Boolean);
+      const tail = owned.length ? `\n\nThis also deletes its ${owned.join(' and ')}.` : '';
+      if (!window.confirm(
+        `Permanently delete this visit? This cannot be undone.${tail}`
+        + '\n\nTo keep it on the record as cancelled instead, use Cancel Visit.'
+      )) return;
+      apiCall('deleteVisit', { visitId })
+        .then(() => {
+          clearEditorDirty_();
+          closeVisitEditor();
+          showToast('Visit deleted.', 'success');
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't delete visit: ${getErrorMessage(err)}`, 'error')));
+    }
+
     function restoreCurrentVisit_() {
       const visitId = $('visit-editor-visit-id').value;
       const version = $('visit-editor-version').value;
@@ -7695,9 +7732,9 @@
     }
 
     // ============================================================
-    // V3 Operational Workspaces Architecture — Phase F. Meals workspace:
+    // V3 Operational Workspaces Architecture â€” Phase F. Meals workspace:
     // pick a date, see every guest's meal inclusion for that day, toggle
-    // individual meals — fully row-level via upsertMealOverride (plan §2),
+    // individual meals â€” fully row-level via upsertMealOverride (plan Â§2),
     // replacing the old bulk-replace-per-guest path whose 60-day grid cap
     // silently dropped exclusions past day 60 on any unrelated save.
     // ============================================================
@@ -7720,7 +7757,7 @@
 
       return loadWorkspaceCached_(
         'meals',
-        // Keyed on the date, not merely on having loaded once — each day is a
+        // Keyed on the date, not merely on having loaded once â€” each day is a
         // different answer, so yesterday's data must not be shown for today.
         () => Boolean(mealsData_ && mealsData_.date === date),
         () => { renderMealTabs_(); renderMealsList_(); },
@@ -7802,7 +7839,7 @@
       const date = $('meals-workspace-date').value || todayDateKey_();
       openGuestPicker_(guestId => {
         // The meals date is chosen at the top of the page rather than in a
-        // field of its own, so the stay check belongs here — the moment the
+        // field of its own, so the stay check belongs here â€” the moment the
         // guest and the date are first paired. Caught locally the answer is
         // immediate and specific; the save would refuse anyway, a round trip
         // later and with less to say.
@@ -7836,7 +7873,7 @@
             run: () => deleteMealOverrideAction_(row, meal, date)
           }));
         if (!actions.length) return null;      // nothing to offer; no sheet
-        return { title: `${row.name || 'Unnamed Guest'} · ${formatDateKeyDisplay(date)}`, actions };
+        return { title: `${row.name || 'Unnamed Guest'} Â· ${formatDateKeyDisplay(date)}`, actions };
       });
       card.appendChild(createElement('div', 'guest-name', row.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
@@ -7860,7 +7897,7 @@
       card.appendChild(mealsRow);
 
       // A meal attribute is the exception itself, so deleting it doesn't remove
-      // a meal — it drops the exception and lets the guest fall back to what
+      // a meal â€” it drops the exception and lets the guest fall back to what
       // their residency implies for that day. Only offered where an exception
       // actually exists; a guest sitting on their default has nothing to clear.
       const exceptions = ALLOWED_MEALS.filter(meal => (row.meals[meal] || {}).overrideId);
@@ -7897,7 +7934,7 @@
     // Applied locally and drawn immediately; the write goes out in the
     // background. Waiting for the round trip and then refetching the whole
     // day meant two server trips and a frozen checkbox for every single
-    // tick — the sheet is the record of truth, but it doesn't have to be
+    // tick â€” the sheet is the record of truth, but it doesn't have to be
     // consulted before the interface is allowed to respond. If the write
     // fails the change is rolled back and said out loud.
     function handleMealToggle_(guestId, meal, date, checkbox, overrideId) {
@@ -7933,12 +7970,12 @@
     }
 
     // ============================================================
-    // V3 Operational Workspaces Architecture — Phase G. Meetings with
-    // Swamiji workspace: Today/Upcoming/Past–Needs Completion/Completed/
-    // Cancelled, backed by getWorkspaceData('meetings') — Past–Needs
+    // V3 Operational Workspaces Architecture â€” Phase G. Meetings with
+    // Swamiji workspace: Today/Upcoming/Pastâ€“Needs Completion/Completed/
+    // Cancelled, backed by getWorkspaceData('meetings') â€” Pastâ€“Needs
     // Completion is purely a display bucket (date < today, still Scheduled)
-    // computed server-side, never its own stored status (plan §1.5). Each
-    // meeting is its own upsertMeeting/setMeetingStatus call — an unfilled
+    // computed server-side, never its own stored status (plan Â§1.5). Each
+    // meeting is its own upsertMeeting/setMeetingStatus call â€” an unfilled
     // draft simply never gets submitted, since there's no bulk save to
     // silently include it in.
     // ============================================================
@@ -7946,7 +7983,7 @@
     const MEETING_SECTIONS_ = [
       { key: 'today', label: 'Today', shortLabel: 'Today' },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming' },
-      { key: 'needsCompletion', label: 'Past – Needs Completion', shortLabel: 'To Complete' },
+      { key: 'needsCompletion', label: 'Past â€“ Needs Completion', shortLabel: 'To Complete' },
       { key: 'completed', label: 'Completed', shortLabel: 'Completed' },
       { key: 'cancelled', label: 'Cancelled', shortLabel: 'Cancelled' }
     ];
@@ -8027,7 +8064,7 @@
     function meetingCardSheet_(meeting, sectionKey) {
       const live = sectionKey === 'today' || sectionKey === 'upcoming' || sectionKey === 'needsCompletion';
       return {
-        title: `${meeting.name || 'Unnamed Guest'} · ${formatDateKeyDisplay(meeting.date)}`,
+        title: `${meeting.name || 'Unnamed Guest'} Â· ${formatDateKeyDisplay(meeting.date)}`,
         actions: [
           { label: 'Reschedule', run: () => openMeetingEditor_(meeting.guestId, meeting) },
           live && { label: 'Mark Completed', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Completed') },
@@ -8049,7 +8086,7 @@
 
       const actions = createElement('div', 'seva-team-row-actions');
       if (sectionKey === 'today' || sectionKey === 'upcoming' || sectionKey === 'needsCompletion') {
-        // Rescheduling is not destructive — it opens the editor. Only Cancel
+        // Rescheduling is not destructive â€” it opens the editor. Only Cancel
         // below actually takes the meeting away, so only Cancel stays red.
         const rescheduleBtn = createElement('button', 'row-btn', 'Reschedule');
         rescheduleBtn.type = 'button';
@@ -8078,7 +8115,7 @@
         actions.appendChild(reopenBtn);
       }
 
-      // Offered in every section, including Cancelled — cancelling records that
+      // Offered in every section, including Cancelled â€” cancelling records that
       // the meeting was called off, which is worth keeping; deleting is for one
       // that should never have been entered.
       const deleteBtn = createElement('button', 'row-btn danger', 'Delete');
@@ -8118,7 +8155,7 @@
             if (found) found.meeting.version = result.version;
           }
           // The homepage tile counts meetings too, so it is brought back
-          // into step quietly — never blocking this page.
+          // into step quietly â€” never blocking this page.
           loadHomeSummary_()
             .then(() => { if (currentRoute_.name === 'home') renderHome_(); })
             .catch(() => {});
@@ -8132,7 +8169,7 @@
     }
 
     // Meetings are grouped into their sections client-side, so a status
-    // change is just a move between those lists — nothing needs refetching
+    // change is just a move between those lists â€” nothing needs refetching
     // to show it.
     const MEETING_STATUS_SECTION_ = Object.freeze({ Completed: 'completed', Cancelled: 'cancelled' });
 
@@ -8154,7 +8191,7 @@
 
       let target = MEETING_STATUS_SECTION_[status];
       if (!target) {
-        // Reopened — it belongs wherever its own date now puts it.
+        // Reopened â€” it belongs wherever its own date now puts it.
         const today = todayDateKey_();
         target = meeting.date === today ? 'today' : (meeting.date > today ? 'upcoming' : 'needsCompletion');
       }
@@ -8214,11 +8251,11 @@
     }
 
     // ============================================================
-    // V3 Operational Workspaces Architecture — Phase I. Trips workspace:
+    // V3 Operational Workspaces Architecture â€” Phase I. Trips workspace:
     // shared, multi-participant travel independent of any one guest's
     // personal Visit Travel Legs. No Person-Type restriction anywhere here
-    // — a Visitor can participate and a trip can freely have both
-    // participants and Travel Legs at once (plan Context/§1.4). Reuses the
+    // â€” a Visitor can participate and a trip can freely have both
+    // participants and Travel Legs at once (plan Context/Â§1.4). Reuses the
     // same travel-leg editor as the Visit Editor (renderTravelLegEditors
     // etc., now parameterized by list/empty element ID).
     // ============================================================
@@ -8226,7 +8263,7 @@
     let tripsWorkspaceData_ = { trips: [] };
     let tripEditorOriginalLegIds_ = [];
 
-    // Upcoming leads, then Active — the two that still need arranging — with
+    // Upcoming leads, then Active â€” the two that still need arranging â€” with
     // Completed and Cancelled behind their own tabs.
     const TRIP_SECTIONS_ = Object.freeze([
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: t => t.status === 'Upcoming' },
@@ -8312,7 +8349,7 @@
       badges.appendChild(createBadge(trip.status, trip.status === 'Cancelled' ? 'badge-gray' : 'badge-teal'));
       card.appendChild(badges);
 
-      const dateRange = [msToDateDisplay_(trip.startMs), msToDateDisplay_(trip.endMs)].filter(Boolean).join(' – ');
+      const dateRange = [msToDateDisplay_(trip.startMs), msToDateDisplay_(trip.endMs)].filter(Boolean).join(' â€“ ');
       if (dateRange) card.appendChild(createDetailLine('icon-calendar', dateRange));
       if (trip.purpose) card.appendChild(createDetailLine('icon-user', trip.purpose));
       card.appendChild(createDetailLine('icon-people', `${trip.participantCount} participant${trip.participantCount === 1 ? '' : 's'}`));
@@ -8494,9 +8531,9 @@
     }
 
     // Trip basics save as one saveTrip call, same as every other workspace's
-    // editor. Travel legs are different — upsertTripTravelLeg/
-    // deleteTripTravelLeg are per-row actions on the backend (plan §2), not
-    // bundled into saveTrip — so Save Trip walks the editor's current leg
+    // editor. Travel legs are different â€” upsertTripTravelLeg/
+    // deleteTripTravelLeg are per-row actions on the backend (plan Â§2), not
+    // bundled into saveTrip â€” so Save Trip walks the editor's current leg
     // rows and issues one call per row (plus a delete for any row removed
     // since the editor opened), sequentially so ordering stays predictable.
     function saveTripFromEditor_() {
@@ -8585,7 +8622,7 @@
       if (startDate && endDate) {
         return startDate === endDate
           ? formatDateKeyDisplay(startDate)
-          : `${formatDateKeyDisplay(startDate)} – ${formatDateKeyDisplay(endDate)}`;
+          : `${formatDateKeyDisplay(startDate)} â€“ ${formatDateKeyDisplay(endDate)}`;
       }
       return formatDateKeyDisplay(startDate || endDate || '');
     }
@@ -8620,7 +8657,7 @@
     // One place decides what colour a Person Type is. This mapping used to be
     // written inline inside the Directory's card builder, so the workspace
     // cards written later each picked their own colour and settled on salmon
-    // for everyone — which is the Invited Guest colour, so an Event Staff and
+    // for everyone â€” which is the Invited Guest colour, so an Event Staff and
     // a Visitor read as Invited Guests on the Accommodation and Meals lists.
     const PERSON_TYPE_BADGE_CLASS_ = Object.freeze({
       'Invited Guest': 'badge-salmon',
@@ -8631,7 +8668,7 @@
     });
 
     function personTypeBadgeClass(personType) {
-      // An unrecognized value is a data problem, not a category — it gets the
+      // An unrecognized value is a data problem, not a category â€” it gets the
       // warning colour rather than being quietly folded into Invited Guest.
       if (personType === PERSON_TYPE_NEEDS_REVIEW) return 'badge-warning';
       return PERSON_TYPE_BADGE_CLASS_[personType] || 'badge-salmon';
@@ -8654,7 +8691,7 @@
     // every time.
     let roomOptionsGrouped = {};
     let roomCapacityMap = new Map();
-    // The room list as it was when the modal was opened — a shareable room
+    // The room list as it was when the modal was opened â€” a shareable room
     // already in this list needs no fresh confirmation on save (it was
     // agreed before, and the backend carries that forward on its own).
     let roomsOriginalForShareCheck = [];
@@ -8675,7 +8712,7 @@
 
     // The row's real <select> stays the source of truth for every existing
     // behavior (availability checks, save-time validation, payload
-    // collection) — the custom dropdown next to it is purely a visual
+    // collection) â€” the custom dropdown next to it is purely a visual
     // mirror, same pattern as the original single-room picker.
     function populateRoomRowOptions(row) {
       const select = row.querySelector('.room-select');
@@ -8754,7 +8791,7 @@
       }
       const base = selected.dataset.baseLabel || selected.textContent;
       // A room you've deliberately chosen to share stays flagged in the
-      // trigger itself, not just in the dropdown list — otherwise re-opening
+      // trigger itself, not just in the dropdown list â€” otherwise re-opening
       // this card later gives no hint the room isn't yours alone.
       row.querySelector('.room-trigger-label').textContent = selected.dataset.shareWith
         ? `${base} \u00B7 Sharing`
@@ -8780,7 +8817,7 @@
 
         let note = optionEl.querySelector('.custom-select-occupied-note');
         if (occupied && realOption) {
-          const occupancyText = realOption.textContent.split(' — ')[1] || '';
+          const occupancyText = realOption.textContent.split(' â€” ')[1] || '';
           if (!note) {
             note = createElement('span', 'custom-select-occupied-note');
             optionEl.appendChild(note);
@@ -8812,7 +8849,7 @@
       toggleRoomRowList(row, false);
     }
 
-    // Closes every open room-row dropdown except (optionally) one — used
+    // Closes every open room-row dropdown except (optionally) one â€” used
     // both for "clicking outside closes whichever one is open" and for
     // "opening one row's list closes any other row's list left open."
     function closeAllRoomRowLists(exceptRow) {
@@ -8900,7 +8937,7 @@
       $(`edit-${prefix}-${prefix === 'pickup' ? 'from' : 'to'}`).disabled = true;
     }
 
-    // Named per direction rather than a generic "Cab booking confirmed" —
+    // Named per direction rather than a generic "Cab booking confirmed" â€”
     // both cabs carry this checkbox, and once the section header has scrolled
     // off there was nothing on screen saying which one you were ticking.
     function cabBookingLabelText(type, needsReconfirmation) {
@@ -8908,12 +8945,12 @@
       return `${name} booking ${needsReconfirmation ? 'reconfirmed' : 'confirmed'}`;
     }
 
-    // V3 Operational Workspaces Architecture — Phase E. Takes a Visit object
-    // (getGuestProfile's shape — readVisitsByGuest_ in Code-V3.gs), not the
+    // V3 Operational Workspaces Architecture â€” Phase E. Takes a Visit object
+    // (getGuestProfile's shape â€” readVisitsByGuest_ in Code-V3.gs), not the
     // old allGuests-shaped guest object this used to read.
     // Mirrors the four values calculateCabBookingState_ produces server-side.
     // The state is always computed there and read back on the Visit, so this
-    // only guards against a missing or unrecognised value — in which case the
+    // only guards against a missing or unrecognised value â€” in which case the
     // booking flag alone decides, which is what the state meant before the
     // machine existed.
     const CAB_BOOKING_STATES_ = Object.freeze(['Requested', 'Needs Rescheduling', 'Needs Reconfirmation', 'Confirmed']);
@@ -9146,7 +9183,7 @@
         option.dataset.newGuest = 'true';
         option.setAttribute('role', 'option');
         option.setAttribute('aria-selected', 'false');
-        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add “${query}” as a new guest`));
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add â€œ${query}â€ as a new guest`));
         option.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Continue with basic guest details'));
         option.addEventListener('click', () => selectNewGuestFromGlobalLookup_(query));
         list.appendChild(option);
@@ -9251,7 +9288,7 @@
     // The one Add/Edit Guest form, used both from the header's Add button and
     // from every workspace's create-new-guest path, so a guest created inside
     // Meals gets exactly the same complete basic-details form as one created
-    // from the Directory — never a silent name-only record.
+    // from the Directory â€” never a silent name-only record.
     function openModal(mode, guestId = '', options = {}) {
       resetCloseConfirm();
       modalDirty = false;
@@ -9306,10 +9343,10 @@
       window.setTimeout(() => $('edit-name').focus(), 0);
     }
 
-    // listId/emptyId default to the Visit Editor's own IDs — every existing
+    // listId/emptyId default to the Visit Editor's own IDs â€” every existing
     // call site passes neither, so this stays byte-for-byte unchanged there.
     // The Trip Editor (Phase I) passes its own IDs to reuse this same
-    // editor for Trip Travel Legs, per plan §6's "reused travel-leg editor".
+    // editor for Trip Travel Legs, per plan Â§6's "reused travel-leg editor".
     function renderTravelLegEditors(legs, listId = 'travel-leg-list', emptyId = 'travel-empty') {
       const list = $(listId);
       list.replaceChildren();
@@ -9364,11 +9401,11 @@
               <input class="edit-input" data-field="to" type="text" maxlength="500" autocomplete="off">
             </div>
             <div class="input-group">
-              <label class="input-label">Travel date — optional</label>
+              <label class="input-label">Travel date â€” optional</label>
               <input class="edit-input" data-field="travelDate" type="date">
             </div>
             <div class="input-group">
-              <label class="input-label">Travel time — optional</label>
+              <label class="input-label">Travel time â€” optional</label>
               <input class="edit-input" data-field="travelTime" type="time">
             </div>
             <div class="input-group span-two">
@@ -9383,15 +9420,15 @@
             <span class="travel-leg-optional-label">Optional details</span>
             <div class="travel-leg-grid">
               <div class="input-group">
-                <label class="input-label">Service / flight / train number — optional</label>
+                <label class="input-label">Service / flight / train number â€” optional</label>
                 <input class="edit-input" data-field="serviceNumber" type="text" maxlength="500" autocomplete="off">
               </div>
               <div class="input-group">
-                <label class="input-label">Booking reference / PNR — optional</label>
+                <label class="input-label">Booking reference / PNR â€” optional</label>
                 <input class="edit-input" data-field="bookingReference" type="text" maxlength="500" autocomplete="off">
               </div>
               <div class="input-group span-two">
-                <label class="input-label">Notes — optional</label>
+                <label class="input-label">Notes â€” optional</label>
                 <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
               </div>
             </div>
@@ -9452,7 +9489,7 @@
       const from = value('from');
       const to = value('to');
       const dateValue = value('travelDate');
-      const route = [from, to].filter(Boolean).join(' → ');
+      const route = [from, to].filter(Boolean).join(' â†’ ');
       const dateText = dateValue
         ? String(localDateInfo(dateValue, '', false).display || dateValue).replace(/^[A-Za-z]{3},\s*/, '')
         : 'date not set';
@@ -9589,7 +9626,7 @@
       return true;
     }
 
-    // The single "actually close" implementation — always closes, no guard.
+    // The single "actually close" implementation â€” always closes, no guard.
     // Called directly (bypassing the guard entirely) after a successful save
     // or delete, since committing a change is never something to warn about.
     function closeModal() {
@@ -9607,18 +9644,18 @@
       modalDirty = true;
     }
 
-    // Entry point for overlay-click and Escape — triggers most often by
+    // Entry point for overlay-click and Escape â€” triggers most often by
     // accident, so it's fully blocked while there are unsaved edits rather
     // than requiring a second click to confirm.
     function requestCloseModal() {
       if (modalDirty) {
-        showToast('You have unsaved changes. Use the × button to close and discard them.');
+        showToast('You have unsaved changes. Use the Ã— button to close and discard them.');
         return;
       }
       closeModal();
     }
 
-    // Entry point for the × button — a deliberate click, so it gets the
+    // Entry point for the Ã— button â€” a deliberate click, so it gets the
     // same click-again-to-confirm pattern already used for delete instead
     // of being blocked outright.
     function handleCloseButtonClick() {
@@ -9633,7 +9670,7 @@
       closeConfirmArmed = true;
       $('close-btn').classList.add('confirm-state');
       $('close-btn').setAttribute('aria-label', 'Discard unsaved changes? Click again to confirm.');
-      showToast('Unsaved changes — click × again to discard them.');
+      showToast('Unsaved changes â€” click Ã— again to discard them.');
       closeConfirmTimeout = window.setTimeout(resetCloseConfirm, 3000);
     }
 
@@ -9644,7 +9681,7 @@
       $('close-btn').setAttribute('aria-label', 'Close dialog');
     }
 
-    // Capability predicates — keep in sync with Code-V3.gs. Each answers one
+    // Capability predicates â€” keep in sync with Code-V3.gs. Each answers one
     // real-world question rather than comparing a category value directly,
     // so the rule stays correct as Person Types/Accommodation values change.
     function requiresAshramRoom(guest) {
@@ -9664,7 +9701,7 @@
         && (departureMs === null || departureMs > nowMs);
     }
 
-    // Accommodation-agnostic — the broader population that lands in tier 3
+    // Accommodation-agnostic â€” the broader population that lands in tier 3
     // at all (the pre-V3 "arrived, not departed" definition). Deliberately
     // distinct from isCurrentlyResidingGuest, which narrows that same tier
     // down to specifically who's an Ashram resident, for the tier-3
@@ -9676,7 +9713,7 @@
       return arrivalMs !== null && arrivalMs <= nowMs && (departureMs === null || departureMs > nowMs);
     }
 
-    // Only Ashram room assignment is force-cleared when hidden — it's a
+    // Only Ashram room assignment is force-cleared when hidden â€” it's a
     // shared physical resource, so an assigned-but-hidden room would
     // silently hold a bed hostage from conflict/capacity checks. The
     // outside-arranged and self-arranged fields below are preserved even
@@ -9709,7 +9746,7 @@
     }
 
     // Purpose/Assignment are preserved-but-hidden, same as the accommodation
-    // sub-fields — switching Person Type away and back never loses what was
+    // sub-fields â€” switching Person Type away and back never loses what was
     // already entered, since only visibility changes here, not values.
     function togglePurposeAssignmentFields() {
       const personType = $('edit-person-type').value;
@@ -9747,7 +9784,7 @@
       return String(localDateInfo(dateKey, '', false).display || dateKey).replace(/^[A-Za-z]{3},\s*/, '');
     }
 
-    // Purpose is a single choice now, but the record still holds a list —
+    // Purpose is a single choice now, but the record still holds a list â€”
     // every reader (cards, profile, search index, the adapter) expects an
     // array, so the value is unwrapped on the way in and re-wrapped on the way
     // out rather than changing the shape of the stored data.
@@ -9966,7 +10003,7 @@
 
       // Surface the live transition (an edit just knocked a confirmed
       // booking back to "needs reconfirmation") as a toast, not only the
-      // small passive field-message below — but only once per transition,
+      // small passive field-message below â€” but only once per transition,
       // not on every keystroke while it stays in that state.
       if (needsReconfirmation) {
         if (booking.dataset.reconfirmWarned !== 'true') {
@@ -10003,7 +10040,7 @@
       $(`label-${prefix}-booking-confirmed`).classList.toggle('disabled-label', !canConfirm);
 
       // Details and the From/To location are notes you gather *while*
-      // arranging — you learn the driver's name and the terminal on the
+      // arranging â€” you learn the driver's name and the terminal on the
       // phone call that hasn't produced a confirmed booking yet. Gating them
       // behind the confirm tick (as details used to be) inverted the real
       // order of events, so both are editable as soon as the cab is required.
@@ -10080,7 +10117,7 @@
     }
 
     // Mirrors Code.gs's resolveRoomOccupantName_: when a room is occupied,
-    // name the actual person in it rather than the whole card — only when
+    // name the actual person in it rather than the whole card â€” only when
     // that's knowable (the name splits into exactly as many "&"-joined
     // tokens as that guest has rooms, so position-for-position pairing is
     // unambiguous). A collective label like "Tibetan Monks" just falls back
@@ -10111,12 +10148,12 @@
       const newArrival = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
       const newDeparture = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
       const currentGuestId = $('edit-guest-id').value;
-      // room value -> every other overlapping occupant's name — a list, not
+      // room value -> every other overlapping occupant's name â€” a list, not
       // a single entry, since a room under capacity can already hold more
       // than one guest before this save even happens.
       const occupiedRooms = new Map();
 
-      // Advisory only — saveVisitPlan runs the authoritative conflict check
+      // Advisory only â€” saveVisitPlan runs the authoritative conflict check
       // server-side. This reads the directory snapshot, whose per-guest visit
       // carries that guest's current rooms and dates, so a clash shows while
       // picking rather than only on save.
@@ -10147,7 +10184,7 @@
         const select = row.querySelector('.room-select');
         const ownValue = select.value;
         // A room already picked by a sibling row on this same card can't be
-        // picked again — mirrors Code.gs's own-card duplicate rejection.
+        // picked again â€” mirrors Code.gs's own-card duplicate rejection.
         // Always a hard block, unrelated to capacity.
         const siblingValues = new Set(
           rows.filter(other => other !== row)
@@ -10159,7 +10196,7 @@
           if (!option.value) return;
           if (siblingValues.has(option.value) && option.value !== ownValue) {
             option.disabled = true;
-            option.textContent = `${option.dataset.baseLabel} — already assigned to this guest above`;
+            option.textContent = `${option.dataset.baseLabel} â€” already assigned to this guest above`;
             return;
           }
 
@@ -10172,22 +10209,22 @@
             .join(' and ');
 
           if (occupants.length >= capacity) {
-            // At capacity — a hard block same as before, no override
+            // At capacity â€” a hard block same as before, no override
             // possible from here (matches Code.gs's ceiling).
             // "Shared by" only when there genuinely is more than one person in
             // there. A single-capacity room with one guest is occupied, not
             // shared, and calling it shared implied an arrangement that
-            // doesn't exist — which is the commonest case of all.
+            // doesn't exist â€” which is the commonest case of all.
             option.disabled = true;
             option.textContent = occupants.length > 1
-              ? `${option.dataset.baseLabel} — Full, shared by ${names}`
-              : `${option.dataset.baseLabel} — Occupied by ${names}`;
+              ? `${option.dataset.baseLabel} â€” Full, shared by ${names}`
+              : `${option.dataset.baseLabel} â€” Occupied by ${names}`;
           } else {
             // Under capacity: stays pickable. Selecting it is the
             // deliberate-share gesture; the actual confirmation happens at
             // Save (see confirmPendingRoomShares_).
             option.dataset.shareWith = names;
-            option.textContent = `${option.dataset.baseLabel} — Share with ${names}`;
+            option.textContent = `${option.dataset.baseLabel} â€” Share with ${names}`;
           }
         });
 
@@ -10211,7 +10248,7 @@
 
     // "Has this guest actually arrived" needs a different default than
     // arrivalMs elsewhere (residency/sorting/room conflicts, which
-    // intentionally treat the arrival date as starting at midnight) —
+    // intentionally treat the arrival date as starting at midnight) â€”
     // locking pickup should only kick in once there's real evidence of
     // arrival: an explicit time that's passed, or the whole arrival day
     // having elapsed with no time ever recorded. Reuses getInputTimestamp's
@@ -10252,12 +10289,12 @@
       return false;
     }
 
-    // V3 Operational Workspaces Architecture — Phase E. Arrival/departure,
+    // V3 Operational Workspaces Architecture â€” Phase E. Arrival/departure,
     // accommodation, rooms, cabs, and travel legs are edited exclusively in
-    // the Visit Editor now (see openVisitEditor/saveVisitFromEditor below) —
+    // the Visit Editor now (see openVisitEditor/saveVisitFromEditor below) â€”
     // this modal only ever collects/validates guest basics plus the
-    // still-embedded Seva/Meals/Meetings sections (Phases F–H's job to move
-    // out). The former room-share-confirmation flow moved with the rooms —
+    // still-embedded Seva/Meals/Meetings sections (Phases Fâ€“H's job to move
+    // out). The former room-share-confirmation flow moved with the rooms â€”
     // see confirmPendingVisitRoomShares_.
     function saveGuestFromModal() {
       if (selectedExistingGuestId_) return;
@@ -10271,14 +10308,14 @@
       proceedWithGuestSave_();
     }
 
-    // The actual save — kept as its own function so a caller (or a future
+    // The actual save â€” kept as its own function so a caller (or a future
     // confirmation step) can invoke it directly without re-running
     // validation above.
     function proceedWithGuestSave_() {
       const payload = collectGuestPayload();
       const mode = $('modal-mode').value;
       const usedSmartLookup = modalUsesSmartLookup_;
-      // Guest basics only — the Directory record and nothing operational.
+      // Guest basics only â€” the Directory record and nothing operational.
       // The two scoped actions replace the old single bulk-replace save, so
       // this can no longer touch a visit, meal, meeting, seva record or trip
       // even by accident.
@@ -10295,8 +10332,8 @@
 
           // The edited fields are patched straight into the in-memory copy so
           // the change is on screen at once. Tier and priority stay untouched
-          // here — those are the server's to decide, and guessing at them
-          // locally is the drift this rework removed — so the full snapshot
+          // here â€” those are the server's to decide, and guessing at them
+          // locally is the drift this rework removed â€” so the full snapshot
           // is refetched in the background to settle them.
           const record = directoryRecords_.find(r => r.guestId === payload.guestId);
           if (record) {
@@ -10328,11 +10365,11 @@
     // fingerprint state is correctly re-derived from the current (snapshot-
     // restored) guest data; the user's actual entries are then overlaid on
     // top of that correctly-initialized form.
-    // V3 Operational Workspaces Architecture — Phase E. payload here is
+    // V3 Operational Workspaces Architecture â€” Phase E. payload here is
     // whatever collectGuestPayload() built, which no longer carries
-    // accommodation/dates/rooms/cabs/travel legs at all — only guest basics
+    // accommodation/dates/rooms/cabs/travel legs at all â€” only guest basics
     // need restoring after a failed save; Seva/Meals/Meetings all moved to
-    // their own workspaces by now (Phases F–H).
+    // their own workspaces by now (Phases Fâ€“H).
     function reopenModalWithPayload_(mode, payload, options = {}) {
       openModal(mode, mode === 'edit' ? payload.guestId : '', options);
 
@@ -10346,11 +10383,11 @@
       $('edit-foreign').checked = Boolean(payload.isForeign);
     }
 
-    // V3 Operational Workspaces Architecture — Phase B. Accommodation, stay
+    // V3 Operational Workspaces Architecture â€” Phase B. Accommodation, stay
     // dates, rooms, and cabs/travel are no longer part of this payload at
-    // all — the backend (rejectMigratedAwayFields_) now rejects a save that
+    // all â€” the backend (rejectMigratedAwayFields_) now rejects a save that
     // includes any of those keys, so they're deliberately absent here, not
-    // just left blank. Seva/Meals/Meetings are untouched — those sheets
+    // just left blank. Seva/Meals/Meetings are untouched â€” those sheets
     // weren't part of the Visit migration and still save through here until
     // their own workspace phases (F/G/H) give them row-level actions.
     function collectGuestPayload() {
