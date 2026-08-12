@@ -3231,25 +3231,16 @@
   <!-- Press and hold a Directory card. Archive and the permanent delete are
        otherwise only on the profile page, which is a tap away but not
        reachable at all while scanning a long list. -->
-  <div id="guest-action-sheet" class="card-action-sheet" hidden>
+  <!-- One sheet for every card in the app. Guests and visits each had their
+       own with hand-written buttons, which meant a third card type wanting the
+       same gesture needed a third copy. The buttons are built from whatever
+       the card offers, so every attribute gets press-and-hold for free. -->
+  <div id="attribute-action-sheet" class="card-action-sheet" hidden>
     <div class="card-action-sheet-backdrop"></div>
-    <div class="card-action-sheet-panel" role="dialog" aria-label="Guest actions">
-      <div class="card-action-sheet-name" id="guest-action-sheet-name"></div>
-      <button type="button" class="card-action-sheet-btn" id="guest-action-profile-btn">Open full profile</button>
-      <button type="button" class="card-action-sheet-btn" id="guest-action-archive-btn">Archive</button>
-      <button type="button" class="card-action-sheet-btn destructive" id="guest-action-delete-btn">Delete permanently</button>
-      <button type="button" class="card-action-sheet-btn" id="guest-action-dismiss-btn">Dismiss</button>
-    </div>
-  </div>
-
-  <div id="visit-action-sheet" class="card-action-sheet" hidden>
-    <div class="card-action-sheet-backdrop"></div>
-    <div class="card-action-sheet-panel" role="dialog" aria-label="Visit actions">
-      <div class="card-action-sheet-name" id="visit-action-sheet-name"></div>
-      <button type="button" class="card-action-sheet-btn" id="visit-action-edit-btn">Edit Visit</button>
-      <button type="button" class="card-action-sheet-btn destructive" id="visit-action-cancel-visit-btn">Cancel Visit</button>
-      <button type="button" class="card-action-sheet-btn destructive" id="visit-action-delete-visit-btn">Delete permanently</button>
-      <button type="button" class="card-action-sheet-btn" id="visit-action-dismiss-btn">Dismiss</button>
+    <div class="card-action-sheet-panel" role="dialog" aria-label="Actions">
+      <div class="card-action-sheet-name" id="attribute-action-sheet-name"></div>
+      <div id="attribute-action-sheet-actions"></div>
+      <button type="button" class="card-action-sheet-btn" id="attribute-action-dismiss-btn">Dismiss</button>
     </div>
   </div>
 
@@ -3478,24 +3469,10 @@
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
         if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
       });
-      $('guest-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeGuestActionSheet_);
-      $('guest-action-dismiss-btn').addEventListener('click', closeGuestActionSheet_);
-      $('guest-action-profile-btn').addEventListener('click', () => {
-        const summary = guestActionSheetTarget_;
-        closeGuestActionSheet_();
-        if (summary) navigate(`#guest/${encodeURIComponent(summary.guestId)}`);
-      });
-      $('guest-action-archive-btn').addEventListener('click', () => archiveGuestFromActionSheet_());
-      $('guest-action-delete-btn').addEventListener('click', deleteGuestFromActionSheet_);
-      $('visit-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeVisitActionSheet_);
-      $('visit-action-dismiss-btn').addEventListener('click', closeVisitActionSheet_);
-      $('visit-action-edit-btn').addEventListener('click', () => {
-        const visit = visitActionSheetTarget_;
-        closeVisitActionSheet_();
-        if (visit) openVisitEditor(visit.guestId, visit.visitId);
-      });
-      $('visit-action-cancel-visit-btn').addEventListener('click', cancelVisitFromActionSheet_);
-      $('visit-action-delete-visit-btn').addEventListener('click', deleteVisitFromActionSheet_);
+      // The sheet's own buttons are built per card, so only the two fixed
+      // ways out need binding here.
+      $('attribute-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeActionSheet_);
+      $('attribute-action-dismiss-btn').addEventListener('click', closeActionSheet_);
       $('room-share-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeRoomShareSheet_);
       $('room-share-cancel-btn').addEventListener('click', closeRoomShareSheet_);
       $('room-share-confirm-btn').addEventListener('click', () => {
@@ -3614,12 +3591,8 @@
 
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        if (isGuestActionSheetOpen_()) {
-          closeGuestActionSheet_();
-          return;
-        }
-        if (isVisitActionSheetOpen_()) {
-          closeVisitActionSheet_();
+        if (isActionSheetOpen_()) {
+          closeActionSheet_();
           return;
         }
         if (!$('room-share-sheet').hidden) {
@@ -4997,6 +4970,13 @@
 
       const row = createElement('div', 'travel-leg-editor');
       row.dataset.teamId = team.teamId;
+      attachLongPress_(row, () => ({
+        title: team.name || 'Unnamed Seva Team',
+        actions: [
+          { label: 'Edit Team', run: () => openSevaTeamForm(team) },
+          { label: 'Delete permanently', destructive: true, run: () => deleteSevaTeamRow(team.teamId, team.name) }
+        ]
+      }));
 
       const summary = createElement('div', 'travel-leg-summary');
       const summaryText = createElement('div', 'travel-leg-summary-text');
@@ -5198,6 +5178,13 @@
     function createIndividualTaskRow_(task) {
       const dateRange = [task.startDate, task.endDate].filter(Boolean).join(' – ');
       const row = createElement('article', 'card');
+      attachLongPress_(row, () => ({
+        title: `${task.name || 'Unnamed Guest'} \u00B7 ${task.description || 'Seva task'}`,
+        actions: [
+          { label: 'Edit Task', run: () => openSpecificSevaForm_(task.guestId, task.name, task) },
+          { label: 'Delete permanently', destructive: true, run: () => deleteIndividualTaskAction_(task.sevaId) }
+        ]
+      }));
       row.appendChild(createElement('div', 'guest-name', task.name || 'Unnamed Guest'));
       row.appendChild(createDetailLine('icon-people', `${task.description}${dateRange ? ` \u00B7 ${dateRange}` : ' \u00B7 dates TBD'} \u00B7 ${task.status}`));
 
@@ -5299,6 +5286,89 @@
         .catch(error => handleApiError(error, err => showToast(`Delete failed: ${getErrorMessage(err)}`, 'error')));
     }
 
+    // ---- Press and hold, for every card ------------------------------------
+    // On a phone there is no hover and no room for a delete control on each
+    // card, so destructive actions live behind a deliberate gesture. Written
+    // once: the gesture, the sheet and the dismissal are shared, and each card
+    // supplies only its own title and list of actions.
+    const LONG_PRESS_MS_ = 550;
+    const LONG_PRESS_SLOP_PX_ = 10;
+
+    let actionSheetActions_ = [];
+
+    function attachLongPress_(element, buildSheet) {
+      let timer = null;
+      let startX = 0;
+      let startY = 0;
+      const clear = () => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
+
+      element.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) return;
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        clear();
+        timer = window.setTimeout(() => {
+          timer = null;
+          // A long press fires its own click on release; swallow that one so
+          // holding a card doesn't also open whatever tapping it would.
+          element.dataset.suppressClick = '1';
+          const sheet = buildSheet();
+          if (sheet) openActionSheet_(sheet);
+        }, LONG_PRESS_MS_);
+      }, { passive: true });
+
+      element.addEventListener('touchmove', event => {
+        if (timer === null || !event.touches.length) return;
+        if (Math.abs(event.touches[0].clientX - startX) > LONG_PRESS_SLOP_PX_
+            || Math.abs(event.touches[0].clientY - startY) > LONG_PRESS_SLOP_PX_) clear();
+      }, { passive: true });
+
+      element.addEventListener('touchend', clear, { passive: true });
+      element.addEventListener('touchcancel', clear, { passive: true });
+      // Otherwise the browser's own press-and-hold menu opens on top of ours.
+      element.addEventListener('contextmenu', event => {
+        if (element.dataset.suppressClick === '1') event.preventDefault();
+      });
+    }
+
+    // Swallows the click a long press generates on release. Every card that
+    // uses attachLongPress_ routes its own click handler through this.
+    function consumedLongPressClick_(element) {
+      if (element.dataset.suppressClick !== '1') return false;
+      delete element.dataset.suppressClick;
+      return true;
+    }
+
+    // sheet = { title, actions: [{ label, destructive, run }] }
+    function openActionSheet_(sheet) {
+      const list = $('attribute-action-sheet-actions');
+      list.replaceChildren();
+      actionSheetActions_ = (sheet.actions || []).filter(Boolean);
+      actionSheetActions_.forEach(action => {
+        const button = createElement('button', `card-action-sheet-btn${action.destructive ? ' destructive' : ''}`, action.label);
+        button.type = 'button';
+        button.addEventListener('click', () => {
+          closeActionSheet_();
+          action.run();
+        });
+        list.appendChild(button);
+      });
+      $('attribute-action-sheet-name').textContent = sheet.title || '';
+      $('attribute-action-sheet').hidden = false;
+    }
+
+    function closeActionSheet_() {
+      $('attribute-action-sheet').hidden = true;
+      // Emptied as well as hidden, so the next card can never flash the
+      // previous one's actions before its own are built.
+      $('attribute-action-sheet-actions').replaceChildren();
+      actionSheetActions_ = [];
+    }
+
+    function isActionSheetOpen_() {
+      return !$('attribute-action-sheet').hidden;
+    }
+
     function normalizeSearchText(value) {
       return String(value || '')
         .normalize('NFD')
@@ -5329,64 +5399,23 @@
       return Boolean(guest && guest.arrivalMs && guest.arrivalMs <= Date.now());
     }
 
-    // Press and hold a Directory card for Archive / Delete without first
-    // opening the profile. Same gesture and same 550ms/10px thresholds as the
-    // visit cards, so one habit works across the app.
-    let guestActionSheetTarget_ = null;
-
-    function attachGuestLongPress_(card, summary) {
-      let timer = null;
-      let startX = 0;
-      let startY = 0;
-      const clear = () => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
-
-      card.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1) return;
-        startX = event.touches[0].clientX;
-        startY = event.touches[0].clientY;
-        clear();
-        timer = window.setTimeout(() => {
-          timer = null;
-          card.dataset.suppressClick = '1';
-          openGuestActionSheet_(summary);
-        }, LONG_PRESS_MS_);
-      }, { passive: true });
-
-      card.addEventListener('touchmove', event => {
-        if (timer === null || !event.touches.length) return;
-        if (Math.abs(event.touches[0].clientX - startX) > LONG_PRESS_SLOP_PX_
-            || Math.abs(event.touches[0].clientY - startY) > LONG_PRESS_SLOP_PX_) clear();
-      }, { passive: true });
-
-      card.addEventListener('touchend', clear, { passive: true });
-      card.addEventListener('touchcancel', clear, { passive: true });
-      card.addEventListener('contextmenu', event => {
-        if (card.dataset.suppressClick === '1') event.preventDefault();
-      });
-    }
-
-    function openGuestActionSheet_(summary) {
-      guestActionSheetTarget_ = summary;
-      $('guest-action-sheet-name').textContent = summary.name || 'Unnamed Guest';
-      $('guest-action-archive-btn').textContent = summary.archived ? 'Restore' : 'Archive';
-      $('guest-action-sheet').hidden = false;
-    }
-
-    function closeGuestActionSheet_() {
-      $('guest-action-sheet').hidden = true;
-      guestActionSheetTarget_ = null;
-    }
-
-    function isGuestActionSheetOpen_() {
-      return !$('guest-action-sheet').hidden;
+    // A guest card is not an attribute, but it gets the same gesture so one
+    // habit works everywhere.
+    function guestCardSheet_(summary) {
+      return {
+        title: summary.name || 'Unnamed Guest',
+        actions: [
+          { label: 'Open full profile', run: () => navigate(`#guest/${encodeURIComponent(summary.guestId)}`) },
+          { label: summary.archived ? 'Restore' : 'Archive', run: () => archiveGuestFromActionSheet_(summary) },
+          { label: 'Delete permanently', destructive: true, run: () => deleteGuestFromActionSheet_(summary) }
+        ]
+      };
     }
 
     // The Directory record doesn't carry canHardDelete — only the profile read
     // does — so this asks the backend and reports whatever it answers, rather
     // than guessing and being wrong in either direction.
-    function deleteGuestFromActionSheet_() {
-      const summary = guestActionSheetTarget_;
-      closeGuestActionSheet_();
+    function deleteGuestFromActionSheet_(summary) {
       if (!summary) return;
       if (!window.confirm(`Permanently delete ${summary.name || 'this guest'}? This cannot be undone.`)) return;
       apiCall('deleteGuest', { guestId: summary.guestId, version: summary.version })
@@ -5411,9 +5440,7 @@
         }));
     }
 
-    function archiveGuestFromActionSheet_(target) {
-      const summary = target || guestActionSheetTarget_;
-      if (!target) closeGuestActionSheet_();
+    function archiveGuestFromActionSheet_(summary) {
       if (!summary) return;
       const archiving = !summary.archived;
       apiCall(archiving ? 'archiveGuest' : 'restoreGuest', { guestId: summary.guestId, version: summary.version })
@@ -5446,7 +5473,7 @@
       // those actions were unreachable outside a hand-typed URL.
       const openProfile = () => navigate(`#guest/${encodeURIComponent(summary.guestId)}`);
       card.addEventListener('click', () => {
-        if (card.dataset.suppressClick === '1') { delete card.dataset.suppressClick; return; }
+        if (consumedLongPressClick_(card)) return;
         openProfile();
       });
       card.addEventListener('keydown', event => {
@@ -5455,7 +5482,7 @@
           openProfile();
         }
       });
-      attachGuestLongPress_(card, summary);
+      attachLongPress_(card, () => guestCardSheet_(summary));
 
       card.appendChild(createElement('div', 'guest-name', summary.name || 'Unnamed Guest'));
 
@@ -6179,72 +6206,22 @@
       });
     }
 
-    // Press-and-hold on a visit card. Touch only — on a desktop the trash
-    // icon in the editor is right there, and a mouse-down that quietly turns
-    // into a delete menu is a surprise rather than a shortcut. Cancelled if
-    // the finger travels more than a few pixels, so scrolling the list never
-    // triggers it.
-    const LONG_PRESS_MS_ = 550;
-    const LONG_PRESS_SLOP_PX_ = 10;
-
-    function attachVisitLongPress_(card, visit) {
-      let timer = null;
-      let startX = 0;
-      let startY = 0;
-
-      const clear = () => {
-        if (timer !== null) { window.clearTimeout(timer); timer = null; }
+    // Cancel and Delete stay separate here: cancelling records that the stay
+    // was called off and keeps it on the guest's record, deleting removes it.
+    // A visit already cancelled has nothing left to cancel, so that entry
+    // simply isn't offered.
+    function visitCardSheet_(visit) {
+      return {
+        title: visit.name || 'Unnamed Guest',
+        actions: [
+          { label: 'Edit Visit', run: () => openVisitEditor(visit.guestId, visit.visitId) },
+          !visit.cancelled && { label: 'Cancel Visit', destructive: true, run: () => cancelVisitFromActionSheet_(visit) },
+          { label: 'Delete permanently', destructive: true, run: () => deleteVisitFromActionSheet_(visit) }
+        ]
       };
-
-      card.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1) return;
-        startX = event.touches[0].clientX;
-        startY = event.touches[0].clientY;
-        clear();
-        timer = window.setTimeout(() => {
-          timer = null;
-          card.dataset.suppressClick = '1';
-          openVisitActionSheet_(visit);
-        }, LONG_PRESS_MS_);
-      }, { passive: true });
-
-      card.addEventListener('touchmove', event => {
-        if (timer === null || !event.touches.length) return;
-        const dx = Math.abs(event.touches[0].clientX - startX);
-        const dy = Math.abs(event.touches[0].clientY - startY);
-        if (dx > LONG_PRESS_SLOP_PX_ || dy > LONG_PRESS_SLOP_PX_) clear();
-      }, { passive: true });
-
-      card.addEventListener('touchend', clear, { passive: true });
-      card.addEventListener('touchcancel', clear, { passive: true });
-      // The browser's own press-and-hold menu would otherwise open on top.
-      card.addEventListener('contextmenu', event => {
-        if (card.dataset.suppressClick === '1') event.preventDefault();
-      });
     }
 
-    let visitActionSheetTarget_ = null;
-
-    function openVisitActionSheet_(visit) {
-      visitActionSheetTarget_ = visit;
-      $('visit-action-sheet-name').textContent = visit.name || 'Unnamed Guest';
-      // A visit that is already cancelled has nothing left to cancel.
-      $('visit-action-cancel-visit-btn').hidden = Boolean(visit.cancelled);
-      $('visit-action-sheet').hidden = false;
-    }
-
-    function closeVisitActionSheet_() {
-      $('visit-action-sheet').hidden = true;
-      visitActionSheetTarget_ = null;
-    }
-
-    function isVisitActionSheetOpen_() {
-      return !$('visit-action-sheet').hidden;
-    }
-
-    function cancelVisitFromActionSheet_() {
-      const visit = visitActionSheetTarget_;
-      closeVisitActionSheet_();
+    function cancelVisitFromActionSheet_(visit) {
       if (!visit || !visit.visitId) return;
       if (!window.confirm(`Cancel ${visit.name || 'this guest'}'s visit? It stays on the record as cancelled and can be restored.`)) return;
       apiCall('cancelVisit', { visitId: visit.visitId, version: visit.version })
@@ -6259,9 +6236,7 @@
     // Cancelling keeps the visit on the record; this removes it outright, and
     // takes its rooms and travel legs with it. Names what goes so the choice
     // between the two is made with the consequences in view.
-    function deleteVisitFromActionSheet_() {
-      const visit = visitActionSheetTarget_;
-      closeVisitActionSheet_();
+    function deleteVisitFromActionSheet_(visit) {
       if (!visit || !visit.visitId) return;
       const owned = [
         (visit.rooms || []).length && `${visit.rooms.length} room assignment${visit.rooms.length === 1 ? '' : 's'}`,
@@ -6287,9 +6262,7 @@
       card.setAttribute('role', 'button');
       card.setAttribute('aria-label', `Open ${visit.name || 'guest'}'s visit`);
       card.addEventListener('click', () => {
-        // A long press fires its own click on release; swallow that one so
-        // holding a card doesn't also open the editor behind the sheet.
-        if (card.dataset.suppressClick === '1') { delete card.dataset.suppressClick; return; }
+        if (consumedLongPressClick_(card)) return;
         openVisitEditor(visit.guestId, visit.visitId);
       });
       card.addEventListener('keydown', event => {
@@ -6298,7 +6271,7 @@
           openVisitEditor(visit.guestId, visit.visitId);
         }
       });
-      attachVisitLongPress_(card, visit);
+      attachLongPress_(card, () => visitCardSheet_(visit));
 
       card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
@@ -7185,6 +7158,18 @@
 
     function createMealsWorkspaceRow(row, date) {
       const card = createElement('article', 'card');
+      // One entry per meal that actually has an exception to clear.
+      attachLongPress_(card, () => {
+        const actions = ALLOWED_MEALS
+          .filter(meal => (row.meals[meal] || {}).overrideId)
+          .map(meal => ({
+            label: `Delete ${meal.toLowerCase()} record`,
+            destructive: true,
+            run: () => deleteMealOverrideAction_(row, meal, date)
+          }));
+        if (!actions.length) return null;      // nothing to offer; no sheet
+        return { title: `${row.name || 'Unnamed Guest'} · ${formatDateKeyDisplay(date)}`, actions };
+      });
       card.appendChild(createElement('div', 'guest-name', row.name || 'Unnamed Guest'));
       const badges = createElement('div', 'badge-row');
       badges.appendChild(createPersonTypeBadge(row.personType));
@@ -7371,8 +7356,24 @@
       emptyEl.textContent = `Nothing in ${sec.label.toLowerCase()}.`;
     }
 
+    function meetingCardSheet_(meeting, sectionKey) {
+      const live = sectionKey === 'today' || sectionKey === 'upcoming' || sectionKey === 'needsCompletion';
+      return {
+        title: `${meeting.name || 'Unnamed Guest'} · ${formatDateKeyDisplay(meeting.date)}`,
+        actions: [
+          { label: 'Reschedule', run: () => openMeetingEditor_(meeting.guestId, meeting) },
+          live && { label: 'Mark Completed', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Completed') },
+          live && { label: 'Cancel', destructive: true, run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Cancelled') },
+          sectionKey === 'cancelled' && { label: 'Restore to Scheduled', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled') },
+          sectionKey === 'completed' && { label: 'Reopen', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled') },
+          { label: 'Delete permanently', destructive: true, run: () => deleteMeetingAction_(meeting) }
+        ]
+      };
+    }
+
     function createMeetingWorkspaceCard(meeting, sectionKey) {
       const card = createElement('article', 'card');
+      attachLongPress_(card, () => meetingCardSheet_(meeting, sectionKey));
       card.appendChild(createElement('div', 'guest-name', meeting.name || 'Unnamed Guest'));
       const dateText = meeting.time ? `${formatDateKeyDisplay(meeting.date)} \u00B7 ${meeting.time}` : formatDateKeyDisplay(meeting.date);
       card.appendChild(createDetailLine('icon-calendar', dateText));
@@ -7620,13 +7621,23 @@
       card.tabIndex = 0;
       card.setAttribute('role', 'button');
       card.setAttribute('aria-label', `Open ${trip.name || 'trip'}`);
-      card.addEventListener('click', () => openTripEditor_(trip.tripId));
+      card.addEventListener('click', () => {
+        if (consumedLongPressClick_(card)) return;
+        openTripEditor_(trip.tripId);
+      });
       card.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openTripEditor_(trip.tripId);
         }
       });
+      attachLongPress_(card, () => ({
+        title: trip.name || 'Unnamed Trip',
+        actions: [
+          { label: 'Edit Trip', run: () => openTripEditor_(trip.tripId) },
+          { label: 'Delete permanently', destructive: true, run: () => deleteTripAction_(trip) }
+        ]
+      }));
 
       card.appendChild(createElement('div', 'guest-name', trip.name || 'Unnamed Trip'));
       const badges = createElement('div', 'badge-row');
