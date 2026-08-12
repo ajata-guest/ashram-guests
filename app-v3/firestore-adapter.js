@@ -757,7 +757,6 @@ export function createFirestoreBridge(firebaseApp) {
       upcoming: meetings.filter(item => item.status === "Scheduled" && item.date > today),
       needsCompletion: meetings.filter(item => item.status === "Scheduled" && item.date && item.date < today),
       completed: meetings.filter(item => item.status === "Completed"),
-      cancelled: meetings.filter(item => item.status === "Cancelled"),
       generatedAt: Date.now()
     };
   }
@@ -1528,13 +1527,6 @@ export function createFirestoreBridge(firebaseApp) {
 }
 
 
-  async function setVisitCancelled(visitId, suppliedVersion, cancelled) {
-    const result = await simpleTransaction("visits", clean(visitId, 100), suppliedVersion, () => ({
-      isCancelled: cancelled,
-      cancelledAt: cancelled ? serverTimestamp() : null
-    }), cancelled ? "cancel" : "restore", ["isCancelled", "cancelledAt"]);
-    return { visitId: result.id, cancelled, version: result.version };
-  }
 
   async function upsertMealOverride(payload) {
     const actor = ensureApproved();
@@ -1590,8 +1582,10 @@ export function createFirestoreBridge(firebaseApp) {
     return { meetingId: id, version: await committedVersion("meetings", id) };
   }
 
+  // Cancelled is gone: a meeting that was called off is deleted, not parked in
+  // a status nobody revisits. Scheduled and Completed are the only outcomes.
   async function setMeetingStatus(meetingId, status, suppliedVersion) {
-    if (!["Scheduled", "Completed", "Cancelled"].includes(status)) throw new Error("Invalid meeting status.");
+    if (!["Scheduled", "Completed"].includes(status)) throw new Error("Invalid meeting status.");
     const result = await simpleTransaction("meetings", clean(meetingId, 100), suppliedVersion, () => ({ status }), "set-status", ["status"]);
     return { meetingId: result.id, status, version: result.version };
   }
@@ -1726,13 +1720,15 @@ export function createFirestoreBridge(firebaseApp) {
       const snapshot = await transaction.get(reference);
       if (snapshot.exists()) assertVersion(snapshot.data(), payload.version);
       const existing = snapshot.exists() ? snapshot.data() : null;
-      const cancelled = Boolean(payload.cancelled);
       const startAt = timestampFromInput(startDateKey, "", false), endAt = timestampFromInput(endDateKey, "", true);
       transaction.set(reference, {
         name, purpose: clean(payload.purpose), startAt, startDateKey, endAt, endDateKey,
         calendarStartAt: startAt, calendarEndAt: endAt,
-        isCancelled: cancelled,
-        cancelledAt: cancelled ? (existing?.isCancelled ? existing.cancelledAt : serverTimestamp()) : null,
+        // Carried forward untouched rather than written: a trip is deleted when
+        // it's called off, so nothing sets this any more, but an existing
+        // cancelled row keeps its flag and stays out of the live lists.
+        isCancelled: Boolean(existing?.isCancelled),
+        cancelledAt: existing?.cancelledAt || null,
         notes: clean(payload.notes),
         createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
         updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
@@ -1806,16 +1802,15 @@ export function createFirestoreBridge(firebaseApp) {
   }
 
   // ---- Permanent deletes -------------------------------------------------
-  // These remove the record outright, unlike cancelVisit / setMeetingStatus /
-  // the trip cancelled flag, which keep it visible as cancelled. Both exist on
-  // purpose: cancelling records that something was called off, deleting is for
-  // a row that should never have been there.
+  // Deleting is now the only way to remove any of these. The soft-delete that
+  // sat alongside it — cancelVisit, a Cancelled meeting status, a trip
+  // cancelled flag — went unused in practice while costing a filter in every
+  // read path, so it was taken out.
   //
-  // A visit and a trip each own child collections. Deleting the parent without
-  // its children would leave rooms and travel legs pointing at an id that no
-  // longer resolves — invisible in the app, but still counted by every read
-  // that groups by that id. Children go in the same batch, so it is one atomic
-  // commit or nothing.
+  // A visit and a trip each own child collections. Firestore has no cascade
+  // delete, so removing the parent alone would leave rooms and travel legs
+  // holding a visitId that no longer resolves. Children go in the same batch:
+  // one atomic commit or nothing.
 
   async function deleteChildDocs_(batch, collectionName, field, parentId) {
     const snapshot = await getDocs(query(collection(db, collectionName), where(field, "==", parentId)));
@@ -1929,8 +1924,6 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "restoreGuest") return setGuestArchived(extra.guestId, extra.version, false);
       if (action === "deleteGuest") return deleteGuestRecord(extra.guestId, extra.version);
       if (action === "saveVisitPlan") return saveVisitPlan(extra.payload || {});
-      if (action === "cancelVisit") return setVisitCancelled(extra.visitId, extra.version, true);
-      if (action === "restoreVisit") return setVisitCancelled(extra.visitId, extra.version, false);
       if (action === "deleteVisit") return deleteVisit(extra.visitId);
       if (action === "deleteTrip") return deleteTrip(extra.tripId);
       if (action === "deleteMeeting") return deleteMeeting(extra.meetingId);
