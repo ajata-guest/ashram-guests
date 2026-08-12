@@ -947,146 +947,586 @@ export function createFirestoreBridge(firebaseApp) {
   }
 
   async function saveVisitPlan(payload) {
-    const actor = ensureApproved();
-    const canonical = await loadCanonical(true);
-    const guestId = clean(payload?.guestId, 100);
-    const guest = canonical.guests.find(item => item.id === guestId && !item.archived);
-    if (!guest) throw new Error("This guest no longer exists.");
-    const visitId = clean(payload.visitId, 100) || uuid();
-    const existing = canonical.visits.find(item => item.id === visitId) || null;
-    if (existing) assertVersion(existing, payload.version);
+  const actor = ensureApproved();
+  const canonical = await loadCanonical(true);
+  const guestId = clean(payload?.guestId, 100);
 
-    const arrivalAt = timestampFromInput(clean(payload.arrivalDate, 20), clean(payload.arrivalTime, 20), false);
-    const departureAt = timestampFromInput(clean(payload.departureDate, 20), clean(payload.departureTime, 20), true);
-    if (millis(arrivalAt) !== null && millis(departureAt) !== null && millis(departureAt) < millis(arrivalAt)) {
-      throw new Error("Departure cannot be earlier than arrival.");
+  const newGuestPayload =
+    payload?.newGuest && typeof payload.newGuest === "object"
+      ? payload.newGuest
+      : null;
+
+  const storedGuest =
+    canonical.guests.find(item => item.id === guestId) || null;
+
+  const newGuestData = newGuestPayload
+    ? guestWriteData(newGuestPayload, actor)
+    : null;
+
+  if (newGuestData) {
+    if (!guestId) {
+      throw new Error(
+        "A Guest ID is required for a new guest and visit."
+      );
     }
-    const accommodation = clean(payload.accommodation, 100) || "TBD";
-    const pickupAt = payload.pickupRequired ? timestampFromInput(clean(payload.pickupDate, 20), clean(payload.pickupTime, 20), false) : null;
-    const dropoffAt = payload.dropoffRequired ? timestampFromInput(clean(payload.dropoffDate, 20), clean(payload.dropoffTime, 20), false) : null;
-    if (payload.pickupRequired && cabScheduleInvalid("pickup", pickupAt, arrivalAt)) throw new Error("Pickup cannot be later than arrival.");
-    if (payload.dropoffRequired && cabScheduleInvalid("dropoff", dropoffAt, departureAt)) throw new Error("Drop-off cannot be earlier than departure.");
-    if (guest.personType === "Visitor" && (payload.pickupRequired || payload.dropoffRequired || (payload.travelLegs || []).length)) {
-      throw new Error("Visitors do not use personal cab or travel planning. Add them to a shared Trip instead.");
+
+    if (storedGuest) {
+      throw new Error("A guest with this ID already exists.");
     }
 
-    const requestedRooms = [...new Set((Array.isArray(payload.rooms) ? payload.rooms : []).map(item => clean(item?.room || item, 300)).filter(Boolean))];
-    if (accommodation !== "Ashram" && requestedRooms.length) throw new Error("Rooms can only be assigned to an Ashram stay.");
-    const inventory = roomInventory(canonical);
-    const inventoryByLabel = Object.fromEntries(inventory.map(item => [item.value, item]));
-    requestedRooms.forEach(label => { if (!inventoryByLabel[label]) throw new Error(`Unknown room: ${label}`); });
+    const sameName = canonical.guests.find(
+      item =>
+        (
+          item.nameNormalized ||
+          clean(item.name).toLowerCase()
+        ) === newGuestData.nameNormalized
+    );
 
-    const existingRoomRows = canonical.visitRooms.filter(item => item.visitId === visitId);
-    const existingLabels = new Set(existingRoomRows.map(item => item.roomLabelSnapshot));
-    const shareAcks = new Set(Array.isArray(payload.sharedRoomAcks) ? payload.sharedRoomAcks : []);
-    requestedRooms.forEach(label => {
-      if (millis(arrivalAt) === null) return;
-      const allocationRows = canonical.visitRooms.filter(item => item.visitId !== visitId && item.roomLabelSnapshot === label);
-      const occupants = allocationRows.filter(allocation => {
-        const other = canonical.visits.find(item => item.id === allocation.visitId && !item.isCancelled);
-        return other && overlap(millis(arrivalAt), millis(departureAt), millis(other.arrivalAt), millis(other.departureAt));
-      });
-      const capacity = inventoryByLabel[label].capacity || 1;
-      if (occupants.length >= capacity) throw new Error(`${label} is already at capacity for these dates.`);
-      if (occupants.length && !existingLabels.has(label) && !shareAcks.has(label)) throw new Error(`Confirm sharing ${label} before saving.`);
-    });
-
-    const pickupConfirm = confirmationData("pickup", payload, existing, arrivalAt, pickupAt);
-    const dropoffConfirm = confirmationData("dropoff", payload, existing, departureAt, dropoffAt);
-    const visitData = {
-      guestId,
-      arrivalAt,
-      arrivalDateKey: clean(payload.arrivalDate, 20),
-      arrivalTimeConfirmed: Boolean(payload.arrivalTime),
-      departureAt,
-      departureDateKey: clean(payload.departureDate, 20),
-      departureTimeConfirmed: Boolean(payload.departureTime),
-      accommodation,
-      outsideAccommodationDetails: clean(payload.outsideAccommodationDetails),
-      outsideAccommodationConfirmed: Boolean(payload.outsideAccommodationConfirmed),
-      stayingAt: clean(payload.selfArrangedStayingAt),
-      cFormComplete: Boolean(payload.isCformComplete),
-      pickupRequired: Boolean(payload.pickupRequired),
-      pickupAt,
-      pickupDateKey: payload.pickupRequired ? clean(payload.pickupDate, 20) : "",
-      pickupTimeConfirmed: Boolean(payload.pickupRequired && payload.pickupTime),
-      pickupFrom: payload.pickupRequired ? clean(payload.pickupFrom) : "",
-      pickupDetails: payload.pickupRequired ? clean(payload.pickupDetails) : "",
-      ...pickupConfirm,
-      dropoffRequired: Boolean(payload.dropoffRequired),
-      dropoffAt,
-      dropoffDateKey: payload.dropoffRequired ? clean(payload.dropoffDate, 20) : "",
-      dropoffTimeConfirmed: Boolean(payload.dropoffRequired && payload.dropoffTime),
-      dropoffTo: payload.dropoffRequired ? clean(payload.dropoffTo) : "",
-      dropoffDetails: payload.dropoffRequired ? clean(payload.dropoffDetails) : "",
-      ...dropoffConfirm,
-      isCancelled: Boolean(existing?.isCancelled),
-      cancelledAt: existing?.cancelledAt || null,
-      hasArrivalDate: Boolean(arrivalAt),
-      calendarStartAt: arrivalAt,
-      calendarEndAt: arrivalAt ? (departureAt || Timestamp.fromDate(new Date("2099-12-31T18:29:59.999Z"))) : null,
-      schemaVersion: 1,
-      updatedAt: serverTimestamp(),
-      updatedBy: actor,
-      createdAt: existing?.createdAt || serverTimestamp(),
-      createdBy: existing?.createdBy || actor
-    };
-
-    const travelPayloads = Array.isArray(payload.travelLegs) ? payload.travelLegs : [];
-    let previousTravelMs = null;
-    travelPayloads.forEach((leg, index) => {
-      const at = timestampFromInput(clean(leg.travelDate, 20), clean(leg.travelTime, 20), false);
-      if (at && previousTravelMs !== null && millis(at) <= previousTravelMs) throw new Error(`Travel leg ${index + 1} must be later than the preceding dated leg.`);
-      if (at) previousTravelMs = millis(at);
-    });
-
-    const visitRef = doc(db, "visits", visitId);
-    const oldLegs = canonical.visitTravelLegs.filter(item => item.visitId === visitId);
-    await runTransaction(db, async transaction => {
-      const current = await transaction.get(visitRef);
-      if (current.exists()) assertVersion(current.data(), payload.version);
-      else if (existing) throw new Error("This visit no longer exists.");
-      transaction.set(visitRef, visitData);
-
-      const newRoomIds = new Set();
-      requestedRooms.forEach((label, index) => {
-        const inventoryItem = inventoryByLabel[label];
-        const prior = existingRoomRows.find(item => item.roomLabelSnapshot === label);
-        const allocationId = prior?.id || `${visitId}--${inventoryItem.roomId}`;
-        newRoomIds.add(allocationId);
-        transaction.set(doc(db, "visitRooms", allocationId), {
-          visitId, roomId: inventoryItem.roomId, roomLabelSnapshot: label, order: index + 1,
-          sharedOk: existingLabels.has(label) ? Boolean(prior?.sharedOk) : shareAcks.has(label),
-          createdAt: prior?.createdAt || serverTimestamp(), createdBy: prior?.createdBy || actor,
-          updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
-        });
-      });
-      existingRoomRows.filter(item => !newRoomIds.has(item.id)).forEach(item => transaction.delete(doc(db, "visitRooms", item.id)));
-
-      const newLegIds = new Set();
-      travelPayloads.forEach((leg, index) => {
-        const legId = clean(leg.travelId, 100) || uuid();
-        newLegIds.add(legId);
-        const old = oldLegs.find(item => item.id === legId);
-        transaction.set(doc(db, "visitTravelLegs", legId), {
-          visitId,
-          direction: clean(leg.direction, 100) || "Inbound",
-          transportType: clean(leg.transportType, 100) || "Other",
-          from: clean(leg.from), to: clean(leg.to),
-          travelAt: timestampFromInput(clean(leg.travelDate, 20), clean(leg.travelTime, 20), false),
-          travelDateKey: clean(leg.travelDate, 20), timeConfirmed: Boolean(leg.travelTime),
-          status: clean(leg.status, 100) || "Required", serviceNumber: clean(leg.serviceNumber),
-          bookingReference: clean(leg.bookingReference), notes: clean(leg.notes), order: index + 1,
-          createdAt: old?.createdAt || serverTimestamp(), createdBy: old?.createdBy || actor,
-          updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
-        });
-      });
-      oldLegs.filter(item => !newLegIds.has(item.id)).forEach(item => transaction.delete(doc(db, "visitTravelLegs", item.id)));
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "visit", visitId, existing ? "update" : "create", ["stay", "accommodation", "rooms", "cabs", "travelLegs"]));
-    });
-    invalidate();
-    return { visitId, guestId, version: await committedVersion("visits", visitId) };
+    if (sameName) {
+      throw new Error(
+        "A guest with this name already exists. Choose the existing guest instead."
+      );
+    }
   }
+
+  const guest = newGuestData
+    ? { id: guestId, ...newGuestData }
+    : storedGuest;
+
+  if (!guest || guest.archived) {
+    throw new Error("This guest no longer exists.");
+  }
+
+  const visitId = clean(payload.visitId, 100) || uuid();
+  const existing =
+    canonical.visits.find(item => item.id === visitId) || null;
+
+  if (existing) {
+    assertVersion(existing, payload.version);
+  }
+
+  const arrivalAt = timestampFromInput(
+    clean(payload.arrivalDate, 20),
+    clean(payload.arrivalTime, 20),
+    false
+  );
+
+  const departureAt = timestampFromInput(
+    clean(payload.departureDate, 20),
+    clean(payload.departureTime, 20),
+    true
+  );
+
+  if (
+    millis(arrivalAt) !== null &&
+    millis(departureAt) !== null &&
+    millis(departureAt) < millis(arrivalAt)
+  ) {
+    throw new Error(
+      "Departure cannot be earlier than arrival."
+    );
+  }
+
+  const accommodation =
+    clean(payload.accommodation, 100) || "TBD";
+
+  const pickupAt = payload.pickupRequired
+    ? timestampFromInput(
+        clean(payload.pickupDate, 20),
+        clean(payload.pickupTime, 20),
+        false
+      )
+    : null;
+
+  const dropoffAt = payload.dropoffRequired
+    ? timestampFromInput(
+        clean(payload.dropoffDate, 20),
+        clean(payload.dropoffTime, 20),
+        false
+      )
+    : null;
+
+  if (
+    payload.pickupRequired &&
+    cabScheduleInvalid("pickup", pickupAt, arrivalAt)
+  ) {
+    throw new Error("Pickup cannot be later than arrival.");
+  }
+
+  if (
+    payload.dropoffRequired &&
+    cabScheduleInvalid("dropoff", dropoffAt, departureAt)
+  ) {
+    throw new Error(
+      "Drop-off cannot be earlier than departure."
+    );
+  }
+
+  if (
+    guest.personType === "Visitor" &&
+    (
+      payload.pickupRequired ||
+      payload.dropoffRequired ||
+      (payload.travelLegs || []).length
+    )
+  ) {
+    throw new Error(
+      "Visitors do not use personal cab or travel planning. Add them to a shared Trip instead."
+    );
+  }
+
+  const requestedRooms = [
+    ...new Set(
+      (
+        Array.isArray(payload.rooms)
+          ? payload.rooms
+          : []
+      )
+        .map(item => clean(item?.room || item, 300))
+        .filter(Boolean)
+    )
+  ];
+
+  if (
+    accommodation !== "Ashram" &&
+    requestedRooms.length
+  ) {
+    throw new Error(
+      "Rooms can only be assigned to an Ashram stay."
+    );
+  }
+
+  const inventory = roomInventory(canonical);
+
+  const inventoryByLabel = Object.fromEntries(
+    inventory.map(item => [item.value, item])
+  );
+
+  requestedRooms.forEach(label => {
+    if (!inventoryByLabel[label]) {
+      throw new Error(`Unknown room: ${label}`);
+    }
+  });
+
+  const existingRoomRows = canonical.visitRooms.filter(
+    item => item.visitId === visitId
+  );
+
+  const existingLabels = new Set(
+    existingRoomRows.map(item => item.roomLabelSnapshot)
+  );
+
+  const shareAcks = new Set(
+    Array.isArray(payload.sharedRoomAcks)
+      ? payload.sharedRoomAcks
+      : []
+  );
+
+  requestedRooms.forEach(label => {
+    if (millis(arrivalAt) === null) return;
+
+    const allocationRows = canonical.visitRooms.filter(
+      item =>
+        item.visitId !== visitId &&
+        item.roomLabelSnapshot === label
+    );
+
+    const occupants = allocationRows.filter(allocation => {
+      const other = canonical.visits.find(
+        item =>
+          item.id === allocation.visitId &&
+          !item.isCancelled
+      );
+
+      return (
+        other &&
+        overlap(
+          millis(arrivalAt),
+          millis(departureAt),
+          millis(other.arrivalAt),
+          millis(other.departureAt)
+        )
+      );
+    });
+
+    const capacity =
+      inventoryByLabel[label].capacity || 1;
+
+    if (occupants.length >= capacity) {
+      throw new Error(
+        `${label} is already at capacity for these dates.`
+      );
+    }
+
+    if (
+      occupants.length &&
+      !existingLabels.has(label) &&
+      !shareAcks.has(label)
+    ) {
+      throw new Error(
+        `Confirm sharing ${label} before saving.`
+      );
+    }
+  });
+
+  const pickupConfirm = confirmationData(
+    "pickup",
+    payload,
+    existing,
+    arrivalAt,
+    pickupAt
+  );
+
+  const dropoffConfirm = confirmationData(
+    "dropoff",
+    payload,
+    existing,
+    departureAt,
+    dropoffAt
+  );
+
+  const visitData = {
+    guestId,
+
+    arrivalAt,
+    arrivalDateKey: clean(payload.arrivalDate, 20),
+    arrivalTimeConfirmed: Boolean(payload.arrivalTime),
+
+    departureAt,
+    departureDateKey: clean(payload.departureDate, 20),
+    departureTimeConfirmed: Boolean(
+      payload.departureTime
+    ),
+
+    accommodation,
+
+    outsideAccommodationDetails: clean(
+      payload.outsideAccommodationDetails
+    ),
+
+    outsideAccommodationConfirmed: Boolean(
+      payload.outsideAccommodationConfirmed
+    ),
+
+    stayingAt: clean(payload.selfArrangedStayingAt),
+    cFormComplete: Boolean(payload.isCformComplete),
+
+    pickupRequired: Boolean(payload.pickupRequired),
+    pickupAt,
+
+    pickupDateKey: payload.pickupRequired
+      ? clean(payload.pickupDate, 20)
+      : "",
+
+    pickupTimeConfirmed: Boolean(
+      payload.pickupRequired && payload.pickupTime
+    ),
+
+    pickupFrom: payload.pickupRequired
+      ? clean(payload.pickupFrom)
+      : "",
+
+    pickupDetails: payload.pickupRequired
+      ? clean(payload.pickupDetails)
+      : "",
+
+    ...pickupConfirm,
+
+    dropoffRequired: Boolean(payload.dropoffRequired),
+    dropoffAt,
+
+    dropoffDateKey: payload.dropoffRequired
+      ? clean(payload.dropoffDate, 20)
+      : "",
+
+    dropoffTimeConfirmed: Boolean(
+      payload.dropoffRequired && payload.dropoffTime
+    ),
+
+    dropoffTo: payload.dropoffRequired
+      ? clean(payload.dropoffTo)
+      : "",
+
+    dropoffDetails: payload.dropoffRequired
+      ? clean(payload.dropoffDetails)
+      : "",
+
+    ...dropoffConfirm,
+
+    isCancelled: Boolean(existing?.isCancelled),
+    cancelledAt: existing?.cancelledAt || null,
+
+    hasArrivalDate: Boolean(arrivalAt),
+    calendarStartAt: arrivalAt,
+
+    calendarEndAt: arrivalAt
+      ? (
+          departureAt ||
+          Timestamp.fromDate(
+            new Date("2099-12-31T18:29:59.999Z")
+          )
+        )
+      : null,
+
+    schemaVersion: 1,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+
+    createdAt:
+      existing?.createdAt || serverTimestamp(),
+
+    createdBy:
+      existing?.createdBy || actor
+  };
+
+  const travelPayloads = Array.isArray(
+    payload.travelLegs
+  )
+    ? payload.travelLegs
+    : [];
+
+  let previousTravelMs = null;
+
+  travelPayloads.forEach((leg, index) => {
+    const at = timestampFromInput(
+      clean(leg.travelDate, 20),
+      clean(leg.travelTime, 20),
+      false
+    );
+
+    if (
+      at &&
+      previousTravelMs !== null &&
+      millis(at) <= previousTravelMs
+    ) {
+      throw new Error(
+        `Travel leg ${index + 1} must be later than the preceding dated leg.`
+      );
+    }
+
+    if (at) {
+      previousTravelMs = millis(at);
+    }
+  });
+
+  const guestRef = doc(db, "guests", guestId);
+  const visitRef = doc(db, "visits", visitId);
+
+  const oldLegs = canonical.visitTravelLegs.filter(
+    item => item.visitId === visitId
+  );
+
+  await runTransaction(db, async transaction => {
+    /*
+     * Firestore requires all transaction reads to occur
+     * before the first write.
+     *
+     * Reading both parent records here also guarantees that
+     * the new guest and first visit are committed together.
+     */
+
+    const currentGuest =
+      await transaction.get(guestRef);
+
+    const current =
+      await transaction.get(visitRef);
+
+    if (newGuestData) {
+      if (currentGuest.exists()) {
+        throw new Error(
+          "This guest was added by someone else. Choose the existing guest instead."
+        );
+      }
+    } else if (
+      !currentGuest.exists() ||
+      currentGuest.data().archived
+    ) {
+      throw new Error("This guest no longer exists.");
+    }
+
+    if (current.exists()) {
+      assertVersion(current.data(), payload.version);
+    } else if (existing) {
+      throw new Error("This visit no longer exists.");
+    }
+
+    if (newGuestData) {
+      transaction.set(guestRef, {
+        ...newGuestData,
+        createdAt: serverTimestamp(),
+        createdBy: actor
+      });
+
+      transaction.set(
+        doc(collection(db, "auditLogs")),
+        auditEntry(
+          actor,
+          "guest",
+          guestId,
+          "create",
+          ["name", "personType"]
+        )
+      );
+    }
+
+    transaction.set(visitRef, visitData);
+
+    const newRoomIds = new Set();
+
+    requestedRooms.forEach((label, index) => {
+      const inventoryItem =
+        inventoryByLabel[label];
+
+      const prior = existingRoomRows.find(
+        item => item.roomLabelSnapshot === label
+      );
+
+      const allocationId =
+        prior?.id ||
+        `${visitId}--${inventoryItem.roomId}`;
+
+      newRoomIds.add(allocationId);
+
+      transaction.set(
+        doc(db, "visitRooms", allocationId),
+        {
+          visitId,
+          roomId: inventoryItem.roomId,
+          roomLabelSnapshot: label,
+          order: index + 1,
+
+          sharedOk: existingLabels.has(label)
+            ? Boolean(prior?.sharedOk)
+            : shareAcks.has(label),
+
+          createdAt:
+            prior?.createdAt || serverTimestamp(),
+
+          createdBy:
+            prior?.createdBy || actor,
+
+          updatedAt: serverTimestamp(),
+          updatedBy: actor,
+          schemaVersion: 1
+        }
+      );
+    });
+
+    existingRoomRows
+      .filter(item => !newRoomIds.has(item.id))
+      .forEach(item =>
+        transaction.delete(
+          doc(db, "visitRooms", item.id)
+        )
+      );
+
+    const newLegIds = new Set();
+
+    travelPayloads.forEach((leg, index) => {
+      const legId =
+        clean(leg.travelId, 100) || uuid();
+
+      newLegIds.add(legId);
+
+      const old = oldLegs.find(
+        item => item.id === legId
+      );
+
+      transaction.set(
+        doc(db, "visitTravelLegs", legId),
+        {
+          visitId,
+
+          direction:
+            clean(leg.direction, 100) || "Inbound",
+
+          transportType:
+            clean(leg.transportType, 100) || "Other",
+
+          from: clean(leg.from),
+          to: clean(leg.to),
+
+          travelAt: timestampFromInput(
+            clean(leg.travelDate, 20),
+            clean(leg.travelTime, 20),
+            false
+          ),
+
+          travelDateKey: clean(
+            leg.travelDate,
+            20
+          ),
+
+          timeConfirmed: Boolean(
+            leg.travelTime
+          ),
+
+          status:
+            clean(leg.status, 100) || "Required",
+
+          serviceNumber: clean(
+            leg.serviceNumber
+          ),
+
+          bookingReference: clean(
+            leg.bookingReference
+          ),
+
+          notes: clean(leg.notes),
+          order: index + 1,
+
+          createdAt:
+            old?.createdAt || serverTimestamp(),
+
+          createdBy:
+            old?.createdBy || actor,
+
+          updatedAt: serverTimestamp(),
+          updatedBy: actor,
+          schemaVersion: 1
+        }
+      );
+    });
+
+    oldLegs
+      .filter(item => !newLegIds.has(item.id))
+      .forEach(item =>
+        transaction.delete(
+          doc(db, "visitTravelLegs", item.id)
+        )
+      );
+
+    transaction.set(
+      doc(collection(db, "auditLogs")),
+      auditEntry(
+        actor,
+        "visit",
+        visitId,
+        existing ? "update" : "create",
+        [
+          "stay",
+          "accommodation",
+          "rooms",
+          "cabs",
+          "travelLegs"
+        ]
+      )
+    );
+  });
+
+  invalidate();
+
+  return {
+    visitId,
+    guestId,
+    guestCreated: Boolean(newGuestData),
+    version: await committedVersion(
+      "visits",
+      visitId
+    )
+  };
+}
+
 
   async function setVisitCancelled(visitId, suppliedVersion, cancelled) {
     const result = await simpleTransaction("visits", clean(visitId, 100), suppliedVersion, () => ({

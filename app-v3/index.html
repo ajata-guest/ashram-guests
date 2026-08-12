@@ -867,6 +867,94 @@
       font-weight: 600;
     }
 
+    /* Add Visit starts as a guest-aware manager, then reveals the existing
+       full Visit form in the same dialog. Keeping the lookup, upcoming stays
+       and draft together prevents the stacked-modal flow this replaces. */
+    .add-visit-manager { display: flex; gap: 18px; flex-direction: column; }
+
+    .add-visit-manager-section {
+      padding: 16px;
+      border: 1px solid #373737;
+      border-radius: 9px;
+      background: #202020;
+    }
+
+    .add-visit-manager-section .form-section-title { margin-bottom: 13px; }
+
+    .add-visit-selection-notice {
+      display: flex;
+      margin: 10px 0 0;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      color: #8fc8ef;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .add-visit-selection-notice .row-btn { flex: 0 0 auto; }
+
+    .add-visit-new-option { color: #8fc8ef; }
+    .add-visit-new-option .guest-name-suggestion-meta { color: #719ab6; }
+
+    .upcoming-visit-list { display: flex; gap: 9px; flex-direction: column; }
+
+    .upcoming-visit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 12px;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      background: #252525;
+    }
+
+    .upcoming-visit-dates { min-width: 0; color: var(--text); font-size: 0.86rem; font-weight: 600; }
+    .upcoming-visit-meta { display: block; margin-top: 3px; color: var(--subtle); font-size: 0.74rem; font-weight: 400; }
+
+    .upcoming-visit-empty {
+      padding: 13px;
+      border: 1px dashed #3b3b3b;
+      border-radius: 8px;
+      color: var(--subtle);
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    .add-visit-full-btn {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid rgba(111, 186, 240, 0.45);
+      border-radius: 7px;
+      background: rgba(111, 186, 240, 0.1);
+      color: #8fc8ef;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .add-visit-full-btn:hover { background: rgba(111, 186, 240, 0.18); }
+
+    .visit-plan-divider {
+      margin: 24px 0 18px;
+      border: 0;
+      border-top: 1px solid #3c3c3c;
+    }
+
+    #add-visit-manager-view[hidden] + #visit-plan-view .visit-plan-divider { display: none; }
+
+    .visit-dialog-footer {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(90px, 1fr);
+      align-items: stretch;
+    }
+
+    .visit-dialog-footer > * { width: 100%; }
+    .visit-dialog-footer .dialog-secondary-btn { margin: 0; }
+
+    .visit-restore-actions { margin-top: 10px; text-align: right; }
+
     .input-label {
       display: block;
       margin-bottom: 6px;
@@ -2372,6 +2460,12 @@
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
       .modal-content { padding: 20px 16px; }
+      .add-visit-manager-section { padding: 14px; }
+      .upcoming-visit-row { gap: 8px; padding: 10px; }
+      .upcoming-visit-row .row-btn { padding: 7px 9px; white-space: nowrap; }
+      .visit-dialog-footer { grid-template-columns: minmax(0, 3fr) minmax(82px, 1fr); gap: 8px; }
+      .visit-dialog-footer .dialog-primary-btn,
+      .visit-dialog-footer .dialog-secondary-btn { padding: 11px 10px; font-size: 0.88rem; }
       .travel-leg-grid { grid-template-columns: 1fr; }
       .travel-leg-grid .span-two { grid-column: auto; }
       /* Date and time stay side by side rather than stacking — stacking cost
@@ -2650,6 +2744,83 @@
         </div>
       </div>
 
+      <div id="add-visit-manager-view" class="add-visit-manager" hidden>
+        <section class="add-visit-manager-section" aria-labelledby="add-visit-guest-heading">
+          <h3 id="add-visit-guest-heading" class="form-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+            Guest
+          </h3>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label" for="add-visit-guest-name">Guest Name</label>
+            <div class="guest-name-lookup">
+              <input type="text" id="add-visit-guest-name" class="edit-input" maxlength="500" autocomplete="off"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="add-visit-guest-suggestions"
+                placeholder="Start typing a guest name...">
+              <div id="add-visit-guest-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Guest suggestions" hidden></div>
+            </div>
+            <div id="add-visit-selection-notice" class="add-visit-selection-notice" role="status" hidden></div>
+          </div>
+        </section>
+
+        <section id="add-visit-basic-details" class="add-visit-manager-section" aria-labelledby="add-visit-basic-heading" hidden>
+          <h3 id="add-visit-basic-heading" class="form-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+            Basic Guest Details
+          </h3>
+          <div class="input-group">
+            <label class="input-label" for="add-visit-person-type">Person Type</label>
+            <select id="add-visit-person-type" class="edit-input">
+              <option value="Invited Guest">Invited Guest</option>
+              <option value="Friend">Friend</option>
+              <option value="Visitor">Visitor</option>
+              <option value="Event Staff">Event Staff</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="checkbox-row">
+            <label class="checkbox-label" for="add-visit-foreign">
+              <input type="checkbox" id="add-visit-foreign" class="checkbox-input">
+              Foreign National
+            </label>
+          </div>
+          <div id="add-visit-purpose-group" class="input-group">
+            <label class="input-label" for="add-visit-purpose">Purpose</label>
+            <select id="add-visit-purpose" class="edit-input">
+              <option value="">-- Not specified --</option>
+              <option value="Discourse">Discourse</option>
+              <option value="Kirtan/Music">Kirtan/Music</option>
+              <option value="Interreligious Presence">Interreligious Presence</option>
+              <option value="Official/Diplomatic">Official/Diplomatic</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" id="add-visit-purpose-other-text" class="edit-input" maxlength="500" placeholder="Describe the purpose" aria-label="Other purpose description" autocomplete="off" hidden>
+          </div>
+          <div id="add-visit-staff-assignment-group" class="input-group" hidden>
+            <label class="input-label" for="add-visit-staff-assignment">Assignment</label>
+            <input type="text" id="add-visit-staff-assignment" class="edit-input" maxlength="500" placeholder="Cook, Sound Technician, Driver, etc." autocomplete="off">
+          </div>
+        </section>
+
+        <section id="add-visit-upcoming-section" class="add-visit-manager-section" aria-labelledby="add-visit-upcoming-heading" hidden>
+          <h3 id="add-visit-upcoming-heading" class="form-section-title">
+            <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+            Upcoming Visits
+          </h3>
+          <div id="add-visit-upcoming-list" class="upcoming-visit-list"></div>
+          <div id="add-visit-upcoming-empty" class="upcoming-visit-empty" hidden>No upcoming visits</div>
+        </section>
+
+        <button id="add-visit-new-visit-btn" class="add-visit-full-btn" type="button" hidden>+ Add New Visit</button>
+
+        <div id="add-visit-manager-actions" class="dialog-actions visit-dialog-footer">
+          <button id="add-visit-manager-save-btn" class="dialog-primary-btn" type="button" disabled title="Choose a guest and add a visit first">Save Changes</button>
+          <button id="add-visit-manager-discard-btn" class="dialog-secondary-btn" type="button">Discard</button>
+        </div>
+      </div>
+
+      <div id="visit-plan-view">
+      <hr class="visit-plan-divider">
+
       <div id="visit-editor-guest-name" class="app-subtitle dialog-subtitle"></div>
 
       <!-- Cabs and Travel are hidden for a Visitor, so their chips hide with
@@ -2835,9 +3006,13 @@
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
       </section>
 
-      <div class="dialog-actions dialog-actions--stacked">
-        <button id="visit-editor-save-btn" class="dialog-primary-btn" type="button">Save Visit</button>
+      <div class="dialog-actions visit-dialog-footer">
+        <button id="visit-editor-save-btn" class="dialog-primary-btn" type="button">Save Changes</button>
+        <button id="visit-editor-discard-btn" class="dialog-secondary-btn" type="button">Discard</button>
+      </div>
+      <div class="visit-restore-actions">
         <button id="visit-editor-restore-visit-btn" type="button" class="dialog-secondary-btn" hidden>Restore Visit</button>
+      </div>
       </div>
     </div>
   </div>
@@ -3468,6 +3643,7 @@
       document.addEventListener('click', event => {
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
         if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
+        if (!event.target.closest('#add-visit-manager-view .guest-name-lookup')) hideAddVisitGuestSuggestions_();
       });
       // The sheet's own buttons are built per card, so only the two fixed
       // ways out need binding here.
@@ -3524,8 +3700,17 @@
         if (event.target === $('visit-editor-modal')) requestCloseVisitEditor_();
       });
       $('visit-editor-save-btn').addEventListener('click', saveVisitFromEditor);
+      $('visit-editor-discard-btn').addEventListener('click', requestCloseVisitEditor_);
       $('visit-editor-cancel-visit-btn').addEventListener('click', cancelCurrentVisit_);
       $('visit-editor-restore-visit-btn').addEventListener('click', restoreCurrentVisit_);
+      $('add-visit-guest-name').addEventListener('input', handleAddVisitGuestNameInput_);
+      $('add-visit-guest-name').addEventListener('focus', renderAddVisitGuestSuggestions_);
+      $('add-visit-guest-name').addEventListener('keydown', handleAddVisitGuestNameKeydown_);
+      $('add-visit-new-visit-btn').addEventListener('click', openBlankVisitForSelectedGuest_);
+      $('add-visit-manager-discard-btn').addEventListener('click', requestCloseVisitEditor_);
+      $('add-visit-person-type').addEventListener('change', handleAddVisitBasicTypeChange_);
+      $('add-visit-foreign').addEventListener('change', syncNewGuestBasicsToVisitEditor_);
+      $('add-visit-purpose').addEventListener('change', updateAddVisitPurposeOtherVisibility_);
 
       $('meals-workspace-date').addEventListener('change', () => {
         navigate(`#meals/${$('meals-workspace-date').value}`);
@@ -6612,7 +6797,399 @@
     }
 
     function handleAddVisitClick_() {
-      openGuestPicker_(guestId => openVisitEditor(guestId, ''));
+      openAddVisitManager_();
+    }
+
+    let addVisitManagerOpen_ = false;
+    let addVisitSelectedGuest_ = null;
+    let addVisitSelectedProfile_ = null;
+    let addVisitNewGuestDraft_ = false;
+    let addVisitSuggestionIndex_ = -1;
+    let addVisitProfileRequest_ = 0;
+
+    function openVisitEditorShell_() {
+      visitEditorOpen_ = true;
+      $('visit-editor-modal').style.display = 'flex';
+      $('visit-editor-modal').setAttribute('aria-hidden', 'false');
+      $('visit-editor-modal').querySelector('.modal-content').scrollTop = 0;
+    }
+
+    function resetAddVisitManager_() {
+      addVisitManagerOpen_ = false;
+      addVisitSelectedGuest_ = null;
+      addVisitSelectedProfile_ = null;
+      addVisitNewGuestDraft_ = false;
+      addVisitSuggestionIndex_ = -1;
+      addVisitProfileRequest_ += 1;
+      const nameInput = $('add-visit-guest-name');
+      nameInput.disabled = false;
+      nameInput.value = '';
+      nameInput.setAttribute('aria-expanded', 'false');
+      $('add-visit-selection-notice').replaceChildren();
+      $('add-visit-selection-notice').hidden = true;
+      $('add-visit-basic-details').hidden = true;
+      $('add-visit-upcoming-section').hidden = true;
+      $('add-visit-upcoming-list').replaceChildren();
+      $('add-visit-upcoming-empty').hidden = true;
+      $('add-visit-new-visit-btn').hidden = true;
+      $('add-visit-manager-actions').hidden = false;
+      $('add-visit-manager-save-btn').disabled = true;
+      $('visit-plan-view').hidden = true;
+      hideAddVisitGuestSuggestions_();
+    }
+
+    function openAddVisitManager_() {
+      resetAddVisitManager_();
+      addVisitManagerOpen_ = true;
+      $('add-visit-manager-view').hidden = false;
+      $('visit-plan-view').hidden = true;
+      $('visit-editor-modal-title').textContent = 'Add Visit';
+      $('visit-editor-cancel-visit-btn').hidden = true;
+      $('visit-editor-restore-visit-btn').hidden = true;
+      modalDirty = false;
+      openVisitEditorShell_();
+      ensureExistingGuestLookupRecords_().then(() => {
+        if (addVisitManagerOpen_ && document.activeElement === $('add-visit-guest-name')) {
+          renderAddVisitGuestSuggestions_();
+        }
+      });
+      window.setTimeout(() => $('add-visit-guest-name').focus(), 0);
+    }
+
+    function hideAddVisitGuestSuggestions_() {
+      const list = $('add-visit-guest-suggestions');
+      if (!list) return;
+      list.hidden = true;
+      $('add-visit-guest-name').setAttribute('aria-expanded', 'false');
+      $('add-visit-guest-name').removeAttribute('aria-activedescendant');
+      addVisitSuggestionIndex_ = -1;
+    }
+
+    function addVisitNameMatchesExisting_(name) {
+      const normalized = normalizeSearchText(name);
+      return existingGuestLookupRecords_.some(row => normalizeSearchText(row.name || '') === normalized);
+    }
+
+    function renderAddVisitGuestSuggestions_() {
+      if (!addVisitManagerOpen_ || addVisitSelectedGuest_) {
+        hideAddVisitGuestSuggestions_();
+        return;
+      }
+      const query = $('add-visit-guest-name').value.trim();
+      if (!query) {
+        hideAddVisitGuestSuggestions_();
+        return;
+      }
+
+      const list = $('add-visit-guest-suggestions');
+      const matches = matchingExistingGuests_(query);
+      list.replaceChildren();
+      addVisitSuggestionIndex_ = -1;
+
+      matches.forEach((guest, index) => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.id = `add-visit-guest-option-${index}`;
+        option.dataset.guestId = guest.guestId;
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', guest.name || 'Unnamed Guest'));
+        const meta = [guest.personType || 'Needs Review', guest.archived ? 'Archived' : 'Existing guest'].filter(Boolean).join(' \u00B7 ');
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta', meta));
+        option.addEventListener('click', () => selectExistingGuestForVisit_(guest));
+        list.appendChild(option);
+      });
+
+      if (!addVisitNameMatchesExisting_(query)) {
+        const option = createElement('button', 'guest-name-suggestion add-visit-new-option');
+        option.type = 'button';
+        option.id = 'add-visit-new-guest-option';
+        option.dataset.newGuest = 'true';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add “${query}” as a new guest`));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Continue with basic details and this visit'));
+        option.addEventListener('click', () => selectNewGuestForVisit_(query));
+        list.appendChild(option);
+      }
+
+      if (!list.children.length) {
+        list.appendChild(createElement('div', 'guest-name-suggestions-empty', 'No guest matches this name.'));
+      }
+      list.hidden = false;
+      $('add-visit-guest-name').setAttribute('aria-expanded', 'true');
+    }
+
+    function setActiveAddVisitSuggestion_(index) {
+      const options = [...$('add-visit-guest-suggestions').querySelectorAll('.guest-name-suggestion')];
+      if (!options.length) return;
+      addVisitSuggestionIndex_ = (index + options.length) % options.length;
+      options.forEach((option, optionIndex) => {
+        const active = optionIndex === addVisitSuggestionIndex_;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-selected', String(active));
+      });
+      const active = options[addVisitSuggestionIndex_];
+      $('add-visit-guest-name').setAttribute('aria-activedescendant', active.id);
+      active.scrollIntoView({ block: 'nearest' });
+    }
+
+    function handleAddVisitGuestNameInput_() {
+      if (!addVisitManagerOpen_ || addVisitSelectedGuest_) return;
+      renderAddVisitGuestSuggestions_();
+    }
+
+    function handleAddVisitGuestNameKeydown_(event) {
+      if (!addVisitManagerOpen_ || addVisitSelectedGuest_) return;
+      const list = $('add-visit-guest-suggestions');
+      if (event.key === 'Escape' && !list.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        hideAddVisitGuestSuggestions_();
+        return;
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+      if (list.hidden) renderAddVisitGuestSuggestions_();
+      const options = [...list.querySelectorAll('.guest-name-suggestion')];
+      if (!options.length) return;
+      if (event.key === 'Enter') {
+        if (addVisitSuggestionIndex_ < 0) return;
+        event.preventDefault();
+        options[addVisitSuggestionIndex_].click();
+        return;
+      }
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const next = addVisitSuggestionIndex_ < 0
+        ? (direction > 0 ? 0 : options.length - 1)
+        : addVisitSuggestionIndex_ + direction;
+      setActiveAddVisitSuggestion_(next);
+    }
+
+    function renderAddVisitSelectionNotice_(message) {
+      const notice = $('add-visit-selection-notice');
+      notice.replaceChildren();
+      notice.appendChild(createElement('span', '', message));
+      const change = createElement('button', 'row-btn quiet', 'Change guest');
+      change.type = 'button';
+      change.addEventListener('click', () => {
+        if (modalDirty && !window.confirm('Change guest and discard the unsaved visit details?')) return;
+        resetAddVisitGuestSelection_();
+      });
+      notice.appendChild(change);
+      notice.hidden = false;
+    }
+
+    function resetAddVisitGuestSelection_() {
+      addVisitSelectedGuest_ = null;
+      addVisitSelectedProfile_ = null;
+      addVisitNewGuestDraft_ = false;
+      addVisitProfileRequest_ += 1;
+      $('add-visit-guest-name').disabled = false;
+      $('add-visit-guest-name').value = '';
+      $('add-visit-selection-notice').replaceChildren();
+      $('add-visit-selection-notice').hidden = true;
+      $('add-visit-basic-details').hidden = true;
+      $('add-visit-upcoming-section').hidden = true;
+      $('add-visit-upcoming-list').replaceChildren();
+      $('add-visit-upcoming-empty').hidden = true;
+      $('add-visit-new-visit-btn').hidden = true;
+      $('add-visit-manager-actions').hidden = false;
+      $('add-visit-manager-save-btn').disabled = true;
+      $('visit-plan-view').hidden = true;
+      $('visit-editor-cancel-visit-btn').hidden = true;
+      $('visit-editor-restore-visit-btn').hidden = true;
+      $('visit-editor-modal-title').textContent = 'Add Visit';
+      modalDirty = false;
+      $('add-visit-guest-name').focus();
+    }
+
+    function selectExistingGuestForVisit_(guest) {
+      if (!guest || !guest.guestId) return;
+      hideAddVisitGuestSuggestions_();
+      addVisitSelectedGuest_ = guest;
+      addVisitNewGuestDraft_ = false;
+      $('add-visit-guest-name').value = guest.name || '';
+      $('add-visit-guest-name').disabled = true;
+      $('add-visit-basic-details').hidden = true;
+      $('visit-plan-view').hidden = true;
+      $('add-visit-manager-actions').hidden = false;
+      renderAddVisitSelectionNotice_(guest.archived ? 'Guest already added · Archived' : 'Guest already added');
+
+      const requestId = ++addVisitProfileRequest_;
+      apiCall('getGuestProfile', { guestId: guest.guestId })
+        .then(profile => {
+          if (!addVisitManagerOpen_ || requestId !== addVisitProfileRequest_) return;
+          addVisitSelectedProfile_ = profile;
+          renderUpcomingVisitsForAdd_(profile);
+          $('add-visit-new-visit-btn').hidden = Boolean(profile.archived);
+          if (profile.archived) {
+            renderAddVisitSelectionNotice_('Guest already added · Archived. Restore this guest in the Directory before adding a visit.');
+          }
+          modalDirty = false;
+        })
+        .catch(error => handleApiError(error, err => {
+          resetAddVisitGuestSelection_();
+          showToast(`Couldn't load guest visits: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
+    function upcomingVisitsForAdd_(profile) {
+      const today = todayDateKey_();
+      return (Array.isArray(profile?.visits) ? profile.visits : [])
+        .filter(visit => !visit.cancelled && (!visit.departureDate || visit.departureDate >= today))
+        .sort((a, b) => {
+          const aKey = a.arrivalDate || '9999-12-31';
+          const bKey = b.arrivalDate || '9999-12-31';
+          return aKey.localeCompare(bKey) || String(a.visitId || '').localeCompare(String(b.visitId || ''));
+        });
+    }
+
+    function addVisitDateSummary_(visit) {
+      const arrival = visit.arrivalDate ? formatDateKeyDisplay(visit.arrivalDate) : '';
+      const departure = visit.departureDate ? formatDateKeyDisplay(visit.departureDate) : '';
+      if (arrival && departure) return `${arrival} – ${departure}`;
+      if (arrival) return `From ${arrival}`;
+      if (departure) return `Until ${departure}`;
+      return 'Dates not set';
+    }
+
+    function renderUpcomingVisitsForAdd_(profile) {
+      const list = $('add-visit-upcoming-list');
+      const empty = $('add-visit-upcoming-empty');
+      const visits = upcomingVisitsForAdd_(profile);
+      list.replaceChildren();
+      visits.forEach(visit => {
+        const row = createElement('div', 'upcoming-visit-row');
+        const dates = createElement('div', 'upcoming-visit-dates', addVisitDateSummary_(visit));
+        dates.appendChild(createElement('span', 'upcoming-visit-meta', visit.accommodation || 'Accommodation TBD'));
+        const edit = createElement('button', 'row-btn', 'Edit Visit');
+        edit.type = 'button';
+        edit.addEventListener('click', () => revealVisitPlanInManager_(profile, visit));
+        row.append(dates, edit);
+        list.appendChild(row);
+      });
+      empty.hidden = visits.length > 0;
+      $('add-visit-upcoming-section').hidden = false;
+    }
+
+    function selectNewGuestForVisit_(name) {
+      const cleanedName = String(name || '').trim();
+      if (!cleanedName) return;
+      if (addVisitNameMatchesExisting_(cleanedName)) {
+        showToast('That guest already exists. Choose the matching guest from the list.', 'error');
+        renderAddVisitGuestSuggestions_();
+        return;
+      }
+      hideAddVisitGuestSuggestions_();
+      const profile = {
+        guestId: crypto.randomUUID(),
+        name: cleanedName,
+        personType: 'Invited Guest',
+        isForeign: false,
+        visits: [],
+        engagementsOutsideStay: []
+      };
+      addVisitSelectedGuest_ = profile;
+      addVisitSelectedProfile_ = profile;
+      addVisitNewGuestDraft_ = true;
+      $('add-visit-guest-name').value = cleanedName;
+      $('add-visit-guest-name').disabled = true;
+      $('add-visit-person-type').value = 'Invited Guest';
+      $('add-visit-foreign').checked = false;
+      $('add-visit-purpose').value = '';
+      $('add-visit-purpose-other-text').value = '';
+      $('add-visit-staff-assignment').value = '';
+      $('add-visit-basic-details').hidden = false;
+      renderAddVisitSelectionNotice_('New guest · Basic details and the first visit will be saved together');
+      updateAddVisitBasicConditionalFields_();
+      renderUpcomingVisitsForAdd_(profile);
+      $('add-visit-new-visit-btn').hidden = true;
+      revealVisitPlanInManager_(profile, null);
+      modalDirty = false;
+    }
+
+    function updateAddVisitPurposeOtherVisibility_() {
+      $('add-visit-purpose-other-text').hidden = $('add-visit-purpose').value !== 'Other';
+    }
+
+    function updateAddVisitBasicConditionalFields_() {
+      const personType = $('add-visit-person-type').value;
+      $('add-visit-purpose-group').hidden = personType !== 'Invited Guest';
+      $('add-visit-staff-assignment-group').hidden = personType !== 'Event Staff';
+      updateAddVisitPurposeOtherVisibility_();
+    }
+
+    function handleAddVisitBasicTypeChange_() {
+      updateAddVisitBasicConditionalFields_();
+      syncNewGuestBasicsToVisitEditor_();
+    }
+
+    function syncNewGuestBasicsToVisitEditor_() {
+      if (!addVisitNewGuestDraft_ || !addVisitSelectedProfile_) return;
+      addVisitSelectedProfile_.personType = $('add-visit-person-type').value;
+      addVisitSelectedProfile_.isForeign = $('add-visit-foreign').checked;
+      visitEditorGuestPersonType_ = addVisitSelectedProfile_.personType;
+      visitEditorGuestIsForeign_ = addVisitSelectedProfile_.isForeign;
+      if (!isCabTravelEligible(visitEditorGuestPersonType_)) {
+        const hadPersonalTravel = $('edit-pickup-required').checked
+          || $('edit-dropoff-required').checked
+          || $('travel-leg-list').children.length > 0;
+        $('edit-pickup-required').checked = false;
+        $('edit-dropoff-required').checked = false;
+        handleTransportRequirementChange('pickup');
+        handleTransportRequirementChange('dropoff');
+        renderTravelLegEditors([]);
+        if (hadPersonalTravel) {
+          showToast('Personal cabs and travel were cleared because Visitors can only join shared Trips.', 'info');
+        }
+      }
+      toggleVisitCabTravelSections_();
+      toggleVisitCForm_();
+    }
+
+    function collectAddVisitNewGuestBasics_() {
+      if (!addVisitNewGuestDraft_) return null;
+      const name = $('add-visit-guest-name').value.trim();
+      if (!name) {
+        showToast('Guest name is required.', 'error');
+        return false;
+      }
+      if (addVisitNameMatchesExisting_(name)) {
+        showToast('That guest already exists. Discard this draft and choose the existing guest.', 'error');
+        return false;
+      }
+      const personType = $('add-visit-person-type').value;
+      const purpose = personType === 'Invited Guest' ? $('add-visit-purpose').value : '';
+      return {
+        name,
+        personType,
+        isForeign: $('add-visit-foreign').checked,
+        invitedPurpose: purpose ? [purpose] : [],
+        invitedPurposeOther: purpose === 'Other' ? $('add-visit-purpose-other-text').value.trim() : '',
+        staffAssignment: personType === 'Event Staff' ? $('add-visit-staff-assignment').value.trim() : ''
+      };
+    }
+
+    function revealVisitPlanInManager_(profile, visit) {
+      if (!profile) return;
+      if (!$('visit-plan-view').hidden && modalDirty
+          && !window.confirm('Open this visit and discard the unsaved visit details?')) return;
+      addVisitSelectedProfile_ = profile;
+      populateVisitEditor_(profile, visit);
+      renderVisitWarnings_(profile);
+      $('visit-plan-view').hidden = false;
+      $('add-visit-manager-actions').hidden = true;
+      $('add-visit-new-visit-btn').hidden = true;
+      $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'Add Visit';
+      modalDirty = false;
+      syncVisitSectionNav_();
+      window.setTimeout(() => $('visit-plan-view').scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    }
+
+    function openBlankVisitForSelectedGuest_() {
+      if (!addVisitSelectedProfile_ || addVisitSelectedProfile_.archived) return;
+      revealVisitPlanInManager_(addVisitSelectedProfile_, null);
     }
 
 
@@ -6644,15 +7221,13 @@
         .then(profile => {
           const visit = visitId ? (profile.visits || []).find(v => v.visitId === visitId) : null;
           if (visitId && !visit) throw new Error('That visit no longer exists.');
+          resetAddVisitManager_();
+          $('add-visit-manager-view').hidden = true;
+          $('visit-plan-view').hidden = false;
           populateVisitEditor_(profile, visit);
           renderVisitWarnings_(profile);
           modalDirty = false;
-          visitEditorOpen_ = true;
-          $('visit-editor-modal').style.display = 'flex';
-          $('visit-editor-modal').setAttribute('aria-hidden', 'false');
-          // Always open at the top with Stay selected, however far the
-          // previous visit happened to be scrolled.
-          $('visit-editor-modal').querySelector('.modal-content').scrollTop = 0;
+          openVisitEditorShell_();
           syncVisitSectionNav_();
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't open visit: ${getErrorMessage(err)}`, 'error')));
@@ -6663,6 +7238,8 @@
       modalDirty = false;
       $('visit-editor-modal').style.display = 'none';
       $('visit-editor-modal').setAttribute('aria-hidden', 'true');
+      resetAddVisitManager_();
+      $('add-visit-manager-view').hidden = true;
     }
 
     // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
@@ -6834,7 +7411,7 @@
       $('visit-editor-restore-visit-btn').hidden = !visit || !visitEditorIsCancelled_;
     }
 
-    function collectVisitPayload(sharedRoomAcks) {
+    function collectVisitPayload(sharedRoomAcks, newGuestBasics = null) {
       return {
         guestId: $('visit-editor-guest-id').value,
         visitId: $('visit-editor-visit-id').value,
@@ -6864,11 +7441,13 @@
         dropoffDetails: $('edit-dropoff-details').value.trim(),
         dropoffBookingConfirmed: $('edit-dropoff-booking-confirmed').checked,
         dropoffConfirmationIntent: $('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none',
-        travelLegs: collectTravelLegPayloads()
+        travelLegs: collectTravelLegPayloads(),
+        newGuest: addVisitNewGuestDraft_ ? newGuestBasics : null
       };
     }
 
     function saveVisitFromEditor() {
+      if (addVisitNewGuestDraft_ && collectAddVisitNewGuestBasics_() === false) return;
       const arrivalMs = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
       const arrivalLockMs = getArrivalLockTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value);
       const departureMs = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
@@ -6983,17 +7562,22 @@
     }
 
     function proceedWithVisitSave_(sharedRoomAcks) {
-      const payload = collectVisitPayload(sharedRoomAcks);
+      const createdGuest = addVisitNewGuestDraft_;
+      const newGuestBasics = createdGuest ? collectAddVisitNewGuestBasics_() : null;
+      if (newGuestBasics === false) return;
+      const payload = collectVisitPayload(sharedRoomAcks, newGuestBasics);
+      $('visit-editor-save-btn').disabled = true;
       apiCall('saveVisitPlan', { payload })
         .then(() => {
           closeVisitEditor();
-          showToast('Visit saved.', 'success');
+          showToast(createdGuest ? 'Guest and visit saved.' : 'Visit saved.', 'success');
           loadAccommodationPage_();
           loadHomeSummary_().then(renderHome_);
         })
         .catch(error => handleApiError(error, err => {
           showToast(`Save failed: ${getErrorMessage(err)}`, 'error');
-        }));
+        }))
+        .finally(() => { $('visit-editor-save-btn').disabled = false; });
     }
 
     function cancelCurrentVisit_() {
