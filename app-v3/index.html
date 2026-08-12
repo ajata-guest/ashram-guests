@@ -3863,8 +3863,21 @@
       const handle = $('workspace-dock-handle');
       const toggle = $('workspace-dock-toggle');
       const home = $('workspace-dock-home');
+      const destinations = [...dock.querySelectorAll('.workspace-dock-destination')];
+      const TAP_SLOP = 12;
       let drag = null;
       let dragReleaseClick_ = null;
+      let touchActivation_ = null;
+
+      function activateDockTarget_(target) {
+        if (!target) return;
+        if (target === toggle) {
+          setWorkspaceDockOpen_(!workspaceDockOpen_);
+          return;
+        }
+        setWorkspaceDockOpen_(false);
+        navigate(target === home ? '#home' : target.dataset.nav);
+      }
 
       function panelWidth() {
         return Math.max(1, Math.round(items.getBoundingClientRect().width));
@@ -3879,8 +3892,8 @@
       function finishDrag(event, cancelled) {
         if (!drag) return;
         const dx = event.clientX - drag.startX;
-        const moved = drag.isHorizontal && Math.abs(dx) > 5;
-        const threshold = Math.min(18, drag.width * 0.24);
+        const moved = drag.isHorizontal && Math.abs(dx) > TAP_SLOP;
+        const threshold = Math.min(14, drag.width * 0.2);
         const shouldOpen = cancelled
           ? drag.startedOpen
           : (drag.startedOpen ? dx < threshold : -dx > threshold);
@@ -3917,6 +3930,7 @@
           startedOpen: workspaceDockOpen_,
           isHorizontal: null,
           captured: false,
+          tapTarget: event.target.closest('.workspace-dock-destination, #workspace-dock-home, #workspace-dock-toggle'),
           width: panelWidth(),
           closedInset: closedInsetPercent()
         };
@@ -3926,14 +3940,14 @@
         if (!drag || event.pointerId !== drag.pointerId) return;
         const dx = event.clientX - drag.startX;
         const dy = event.clientY - drag.startY;
-        if (drag.isHorizontal === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-          drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.05;
+        if (drag.isHorizontal === null && (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP)) {
+          drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.15;
         }
         if (!drag.isHorizontal) return;
         // Capture only after this has become an intentional swipe. Immediate
         // capture retargets an ordinary desktop click to the nav container,
         // preventing the icon button underneath from receiving it.
-        if (!drag.captured && Math.abs(dx) > 6 && dock.setPointerCapture) {
+        if (!drag.captured && Math.abs(dx) > TAP_SLOP && dock.setPointerCapture) {
           try {
             dock.setPointerCapture(event.pointerId);
             drag.captured = true;
@@ -3949,13 +3963,44 @@
         dock.style.setProperty('--dock-drag-opacity', String(0.24 + progress * 0.76));
       });
 
-      dock.addEventListener('pointerup', event => finishDrag(event, false));
+      dock.addEventListener('pointerup', event => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const dx = event.clientX - drag.startX;
+        const dy = event.clientY - drag.startY;
+        const touchTap = event.pointerType !== 'mouse'
+          && Math.hypot(dx, dy) <= TAP_SLOP
+          && drag.tapTarget;
+        const tapTarget = drag.tapTarget;
+        finishDrag(event, false);
+        if (!touchTap) return;
+
+        // Touch navigation happens on pointer-up, not on the later synthetic
+        // click. This makes a genuine tap respond immediately and uniformly
+        // across mobile browsers. The matching click is then discarded only
+        // to prevent the same destination being activated twice.
+        touchActivation_ = {
+          target: tapTarget,
+          expiresAt: event.timeStamp + 500
+        };
+        if (event.cancelable) event.preventDefault();
+        activateDockTarget_(tapTarget);
+      });
       dock.addEventListener('pointercancel', event => finishDrag(event, true));
 
       // Suppress only the compatibility click emitted immediately at the
       // drag-release coordinates. Any later tap — even the user's very first
       // tap after opening the rail — goes straight to its destination.
       dock.addEventListener('click', event => {
+        if (touchActivation_) {
+          const activation = touchActivation_;
+          touchActivation_ = null;
+          const sameTarget = event.target.closest('.workspace-dock-destination, #workspace-dock-home, #workspace-dock-toggle') === activation.target;
+          if (sameTarget && event.timeStamp <= activation.expiresAt) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
         if (!dragReleaseClick_) return;
         const release = dragReleaseClick_;
         dragReleaseClick_ = null;
@@ -3966,20 +4011,18 @@
         event.stopImmediatePropagation();
       }, true);
 
-      toggle.addEventListener('click', () => setWorkspaceDockOpen_(!workspaceDockOpen_));
+      toggle.addEventListener('click', () => activateDockTarget_(toggle));
       // Keep Home independent of delegated navigation. Besides making keyboard
       // activation explicit, this prevents the dock's pointer-capture gesture
       // layer from ever leaving the desktop Home control inert.
       home.addEventListener('click', event => {
         event.stopPropagation();
-        setWorkspaceDockOpen_(false);
-        navigate('#home');
+        activateDockTarget_(home);
       });
-      dock.querySelectorAll('.workspace-dock-destination').forEach(destination => {
+      destinations.forEach(destination => {
         destination.addEventListener('click', event => {
           event.stopPropagation();
-          setWorkspaceDockOpen_(false);
-          navigate(destination.dataset.nav);
+          activateDockTarget_(destination);
         });
       });
       document.addEventListener('click', event => {
