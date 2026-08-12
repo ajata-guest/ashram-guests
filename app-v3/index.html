@@ -6327,7 +6327,7 @@
       const emptyEl = $('accommodation-workspace-empty');
       listEl.replaceChildren();
 
-      const query = $('accommodation-search').value.trim();
+      const query = normalizeSearchText($('accommodation-search').value.trim());
       const searchable = visit => normalizeSearchText([
         visit.name, visit.personType, visit.accommodation, visit.arrivalDate, visit.departureDate,
         (visit.rooms || []).join(' '), visit.pickupFrom, visit.dropoffTo
@@ -6339,7 +6339,7 @@
         }
         if (!query) return true;
         const text = searchable(visit);
-        return normalizeSearchText(query).split(/\s+/).every(term => text.includes(term));
+        return query.split(/\s+/).every(term => text.includes(term));
       });
 
       renderSectionTabs_($('accommodation-tabs'), ACCOMMODATION_SECTIONS_, accommodationSection_, filtered, today, key => {
@@ -6348,13 +6348,15 @@
       });
 
       const def = ACCOMMODATION_SECTIONS_.find(s => s.key === accommodationSection_) || ACCOMMODATION_SECTIONS_[0];
-      const rows = filtered
-        .filter(visit => def.test(visit, today))
+      // Search is workspace-wide: while a query is present, show every
+      // matching visit regardless of the currently selected status. Clearing
+      // the query restores the previously selected status without moving it.
+      const rows = (query ? filtered : filtered.filter(visit => def.test(visit, today)))
         .sort((a, b) => (a.arrivalMs === null ? Infinity : a.arrivalMs) - (b.arrivalMs === null ? Infinity : b.arrivalMs));
 
       rows.forEach(visit => listEl.appendChild(createAccommodationVisitCard(visit)));
       emptyEl.hidden = rows.length > 0;
-      emptyEl.textContent = `Nothing in ${def.label.toLowerCase()}.`;
+      emptyEl.textContent = query ? 'No visits match your search.' : `Nothing in ${def.label.toLowerCase()}.`;
     }
 
     // Shared by every workspace page, so the tabs behave and count the same
@@ -7972,14 +7974,20 @@
       });
 
       const sec = MEETING_SECTIONS_.find(s => s.key === meetingsSection_) || MEETING_SECTIONS_[0];
-      const items = filterRows(meetingsData_[sec.key]);
+      // A search spans every meeting status. Keep the active status as the
+      // view to return to as soon as the query is cleared.
+      const items = (query
+        ? MEETING_SECTIONS_.flatMap(section => filterRows(meetingsData_[section.key])
+          .map(meeting => ({ meeting, sectionKey: section.key })))
+        : filterRows(meetingsData_[sec.key]).map(meeting => ({ meeting, sectionKey: sec.key })))
+        .sort((a, b) => `${a.meeting.date || ''} ${a.meeting.time || ''}`.localeCompare(`${b.meeting.date || ''} ${b.meeting.time || ''}`));
       if (items.length) {
         const grid = createElement('div', 'card-grid');
-        items.forEach(meeting => grid.appendChild(createMeetingWorkspaceCard(meeting, sec.key)));
+        items.forEach(item => grid.appendChild(createMeetingWorkspaceCard(item.meeting, item.sectionKey)));
         container.appendChild(grid);
       }
       emptyEl.hidden = items.length > 0;
-      emptyEl.textContent = `Nothing in ${sec.label.toLowerCase()}.`;
+      emptyEl.textContent = query ? 'No meetings match your search.' : `Nothing in ${sec.label.toLowerCase()}.`;
     }
 
     function meetingCardSheet_(meeting, sectionKey) {
@@ -8222,10 +8230,12 @@
       ]);
 
       const def = TRIP_SECTIONS_.find(s => s.key === tripsSection_) || TRIP_SECTIONS_[0];
-      const rows = trips.filter(def.test);
+      // Search is not constrained by the active trip status. The selected
+      // status remains in place and applies again when the query is cleared.
+      const rows = query ? trips : trips.filter(def.test);
       rows.forEach(trip => listEl.appendChild(createTripCard_(trip)));
       emptyEl.hidden = rows.length > 0;
-      emptyEl.textContent = `No ${def.label.toLowerCase()} trips.`;
+      emptyEl.textContent = query ? 'No trips match your search.' : `No ${def.label.toLowerCase()} trips.`;
     }
 
 
