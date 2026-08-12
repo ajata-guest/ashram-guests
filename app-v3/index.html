@@ -887,12 +887,15 @@
       gap: 10px;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       color: #8fc8ef;
       font-size: 0.8rem;
       line-height: 1.45;
     }
 
-    .add-visit-selection-notice .row-btn { flex: 0 0 auto; }
+    .add-visit-selection-notice > span:first-child { flex: 1 1 170px; }
+    .add-visit-selection-actions { display: flex; gap: 8px; flex: 0 0 auto; align-items: center; }
+    .add-visit-selection-actions .row-btn { flex: 0 0 auto; white-space: nowrap; }
 
     .add-visit-new-option { color: #8fc8ef; }
     .add-visit-new-option .guest-name-suggestion-meta { color: #719ab6; }
@@ -6951,13 +6954,31 @@
       const notice = $('add-visit-selection-notice');
       notice.replaceChildren();
       notice.appendChild(createElement('span', '', message));
+      const actions = createElement('div', 'add-visit-selection-actions');
+
+      // A saved guest already has a complete profile. Offer the direct route
+      // beside Change guest; a brand-new draft has no profile to open yet.
+      if (addVisitSelectedGuest_ && !addVisitNewGuestDraft_) {
+        const viewProfile = createElement('button', 'row-btn primary', 'View profile');
+        viewProfile.type = 'button';
+        viewProfile.addEventListener('click', () => {
+          const guestId = addVisitSelectedGuest_ && addVisitSelectedGuest_.guestId;
+          if (!guestId) return;
+          if (modalDirty && !window.confirm('Open this guest profile and discard the unsaved visit details?')) return;
+          closeVisitEditor();
+          navigate(`#guest/${encodeURIComponent(guestId)}`);
+        });
+        actions.appendChild(viewProfile);
+      }
+
       const change = createElement('button', 'row-btn quiet', 'Change guest');
       change.type = 'button';
       change.addEventListener('click', () => {
         if (modalDirty && !window.confirm('Change guest and discard the unsaved visit details?')) return;
         resetAddVisitGuestSelection_();
       });
-      notice.appendChild(change);
+      actions.appendChild(change);
+      notice.appendChild(actions);
       notice.hidden = false;
     }
 
