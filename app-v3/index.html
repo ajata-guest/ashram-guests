@@ -4687,9 +4687,9 @@
         route: '#accommodation', accent: '#6fbaf0', icon: 'icon-bed', title: 'Accommodation & Travel',
         description: 'Rooms, stays, travel legs and cabs',
         stats: s => [
-          { value: s.accommodation.arrivingToday, label: 'arriving' },
-          { value: s.accommodation.departingToday, label: 'departing' },
-          { value: s.accommodation.currentlyResiding, label: 'residing' }
+          { value: s.accommodation.today || 0, label: 'today' },
+          { value: s.accommodation.currentlyResiding, label: 'residing' },
+          { value: s.accommodation.upcoming || 0, label: 'upcoming' }
         ],
         attention: s => s.accommodation.attentionNeeded,
         attentionLabel: n => `${n} need attention`
@@ -5755,9 +5755,9 @@
         title: 'Accommodation & Travel',
         icon: 'icon-bed',
         lines: summary => [
-          `${summary.accommodation.arrivingToday} arriving today`,
-          `${summary.accommodation.departingToday} departing today`,
+          `${summary.accommodation.today || 0} today`,
           `${summary.accommodation.currentlyResiding} currently residing`,
+          `${summary.accommodation.upcoming || 0} upcoming`,
           summary.accommodation.attentionNeeded ? `${summary.accommodation.attentionNeeded} need attention` : ''
         ]
       },
@@ -6959,7 +6959,7 @@
       // A saved guest already has a complete profile. Offer the direct route
       // beside Change guest; a brand-new draft has no profile to open yet.
       if (addVisitSelectedGuest_ && !addVisitNewGuestDraft_) {
-        const viewProfile = createElement('button', 'row-btn primary', 'View profile');
+        const viewProfile = createElement('button', 'row-btn quiet', 'View profile');
         viewProfile.type = 'button';
         viewProfile.addEventListener('click', () => {
           const guestId = addVisitSelectedGuest_ && addVisitSelectedGuest_.guestId;
