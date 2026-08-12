@@ -7197,7 +7197,11 @@
       $('visit-plan-view').hidden = false;
       $('visit-section-nav').hidden = false;
       $('add-visit-manager-actions').hidden = true;
-      $('add-visit-new-visit-btn').hidden = true;
+      // Existing guests may have several visits. Keep the entry point for a
+      // second visit beside their upcoming list even while another visit is
+      // open below; a brand-new guest draft already owns its first blank
+      // Visit, so offering another one there would only duplicate it.
+      $('add-visit-new-visit-btn').hidden = addVisitNewGuestDraft_ || Boolean(profile.archived);
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'Add Visit';
       modalDirty = false;
       syncVisitSectionNav_();
@@ -9036,6 +9040,19 @@
         });
     }
 
+    function existingGuestNameMatchesExactly_(query) {
+      mergeExistingGuestLookupRecords_(directoryRecords_);
+      const normalizedQuery = normalizeSearchText(query);
+      const rawQuery = String(query || '').trim().toLocaleLowerCase();
+      if (!rawQuery) return false;
+      return existingGuestLookupRecords_.some(row => {
+        const name = String(row.name || '');
+        return normalizedQuery
+          ? normalizeSearchText(name) === normalizedQuery
+          : name.toLocaleLowerCase() === rawQuery;
+      });
+    }
+
     function renderExistingGuestSuggestions_() {
       if (!modalUsesSmartLookup_ || selectedExistingGuestId_) {
         hideExistingGuestSuggestions_();
@@ -9053,26 +9070,31 @@
       list.replaceChildren();
       existingGuestSuggestionIndex_ = -1;
 
-      if (!matches.length) {
-        list.appendChild(createElement(
-          'div',
-          'guest-name-suggestions-empty',
-          'No existing guest matches this name. You can continue adding a new guest.'
-        ));
-      } else {
-        matches.forEach((guest, index) => {
-          const option = createElement('button', 'guest-name-suggestion');
-          option.type = 'button';
-          option.id = `existing-guest-option-${index}`;
-          option.dataset.guestId = guest.guestId;
-          option.setAttribute('role', 'option');
-          option.setAttribute('aria-selected', 'false');
-          option.appendChild(createElement('span', 'guest-name-suggestion-name', guest.name || 'Unnamed Guest'));
-          const meta = [guest.personType || 'Needs Review', guest.archived ? 'Archived' : ''].filter(Boolean).join(' \u00B7 ');
-          option.appendChild(createElement('span', 'guest-name-suggestion-meta', meta));
-          option.addEventListener('click', () => selectExistingGuest_(guest));
-          list.appendChild(option);
-        });
+      matches.forEach((guest, index) => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.id = `existing-guest-option-${index}`;
+        option.dataset.guestId = guest.guestId;
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', guest.name || 'Unnamed Guest'));
+        const meta = [guest.personType || 'Needs Review', guest.archived ? 'Archived' : ''].filter(Boolean).join(' \u00B7 ');
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta', meta));
+        option.addEventListener('click', () => selectExistingGuest_(guest));
+        list.appendChild(option);
+      });
+
+      if (!existingGuestNameMatchesExactly_(query)) {
+        const option = createElement('button', 'guest-name-suggestion add-visit-new-option');
+        option.type = 'button';
+        option.id = 'existing-guest-new-option';
+        option.dataset.newGuest = 'true';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add “${query}” as a new guest`));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Continue with basic guest details'));
+        option.addEventListener('click', () => selectNewGuestFromGlobalLookup_(query));
+        list.appendChild(option);
       }
 
       list.hidden = false;
@@ -9117,9 +9139,12 @@
       if (event.key === 'Enter') {
         if (existingGuestSuggestionIndex_ < 0) return;
         event.preventDefault();
-        selectExistingGuest_(existingGuestLookupRecords_.find(row =>
-          row.guestId === options[existingGuestSuggestionIndex_].dataset.guestId
-        ));
+        const option = options[existingGuestSuggestionIndex_];
+        if (option.dataset.newGuest === 'true') {
+          selectNewGuestFromGlobalLookup_($('edit-name').value);
+        } else {
+          selectExistingGuest_(existingGuestLookupRecords_.find(row => row.guestId === option.dataset.guestId));
+        }
         return;
       }
 
@@ -9129,6 +9154,15 @@
         ? (direction > 0 ? 0 : options.length - 1)
         : existingGuestSuggestionIndex_ + direction;
       setActiveExistingGuestSuggestion_(nextIndex);
+    }
+
+    function selectNewGuestFromGlobalLookup_(name) {
+      const cleanedName = String(name || '').trim();
+      if (!cleanedName || existingGuestNameMatchesExactly_(cleanedName)) return;
+      resetExistingGuestSelection_();
+      $('edit-name').value = cleanedName;
+      hideExistingGuestSuggestions_();
+      $('edit-person-type').focus();
     }
 
     function selectExistingGuest_(guest) {
