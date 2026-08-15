@@ -869,6 +869,14 @@
       line-height: 1.4;
     }
 
+    /* The Invite Guest picker lives inside the dialog's own scroll area.
+       Keep its suggestions in the document flow so the list enlarges the
+       scrollable content instead of being clipped by the modal boundary. */
+    #meal-editor-modal .guest-name-suggestions {
+      position: static;
+      margin-top: 5px;
+    }
+
     .existing-guest-notice {
       display: flex;
       margin: -3px 0 15px;
@@ -1634,7 +1642,10 @@
     #visit-sec-stay,
     #visit-sec-accommodation,
     #visit-sec-cabs,
-    #visit-sec-travel { scroll-margin-top: 76px; }
+    #visit-sec-travel,
+    #meal-basic-section,
+    #meal-schedule-section,
+    #meal-seating-section { scroll-margin-top: 76px; }
     /* The row of actions that closes a dialog. Separated from the content
        above by a rule and real space — previously the buttons sat flush
        against whatever the last field happened to be. */
@@ -1921,6 +1932,21 @@
 
     .primary-btn:hover { filter: brightness(0.92); }
     .primary-btn .icon { width: 17px; height: 17px; margin: 0; flex: none; }
+
+    /* The Meals headline action needs the same calm green identity as the
+       workspace, but at a depth that keeps its white label comfortably
+       legible. The lighter workspace accent remains unchanged elsewhere. */
+    #meals-workspace-add-btn {
+      background: #2d7d52;
+      color: #fff;
+    }
+
+    #meals-workspace-add-btn:hover { background: #348e5f; filter: none; }
+
+    #meals-workspace-add-btn:focus-visible {
+      outline: 2px solid rgba(113, 217, 157, 0.5);
+      outline-offset: 2px;
+    }
 
     .workspace-action-btn {
       border-color: transparent;
@@ -3911,8 +3937,8 @@
       $('meal-section-nav').addEventListener('click', event => {
         const button = event.target.closest('[data-meal-target]');
         if (!button) return;
-        $(button.dataset.mealTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         $('meal-section-nav').querySelectorAll('.section-nav-pill').forEach(item => item.classList.toggle('active', item === button));
+        scrollMealSectionIntoView_(button.dataset.mealTarget);
       });
       $('meal-resident-close').addEventListener('click', closeMealResidentEditor_);
       $('meal-resident-discard').addEventListener('click', closeMealResidentEditor_);
@@ -8303,6 +8329,7 @@
       mealEditingSchedule_ = schedule;
       mealSelectedGuest_ = null;
       mealNewGuestName_ = '';
+      resetMealGuestNotice_();
       $('meal-editor-title').textContent = schedule ? 'Edit Meal Arrangement' : (allowSourceChoice ? 'Add Meal Schedule' : 'Invite Guest');
       $('meal-source-tabs').hidden = !allowSourceChoice && !schedule;
       $('meal-editor-details').hidden = true;
@@ -8340,6 +8367,7 @@
       $('meal-editor-seva-section').hidden = sourceType !== 'individualSeva';
       if (reset) {
         mealSelectedGuest_ = null; mealNewGuestName_ = ''; mealEditingSchedule_ = null;
+        resetMealGuestNotice_();
         $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true;
       }
       refreshMealExistingArrangements_();
@@ -8357,6 +8385,7 @@
     function handleMealGuestNameInput_() {
       mealSelectedGuest_ = null;
       mealNewGuestName_ = $('meal-guest-name').value.trim();
+      resetMealGuestNotice_();
       $('meal-existing-section').hidden = true;
       $('meal-editor-details').hidden = true;
       $('meal-editor-footer').hidden = true;
@@ -8390,13 +8419,20 @@
 
     function hideMealGuestSuggestions_() { $('meal-guest-suggestions').hidden = true; $('meal-guest-name').setAttribute('aria-expanded', 'false'); }
 
+    function resetMealGuestNotice_() {
+      const notice = $('meal-guest-notice');
+      notice.replaceChildren();
+      notice.hidden = true;
+    }
+
     function selectMealGuest_(guest, markDirty = false) {
+      if (!guest?.guestId || !String(guest.name || '').trim()) return;
       mealSelectedGuest_ = guest; mealNewGuestName_ = ''; $('meal-guest-name').value = guest.name || ''; hideMealGuestSuggestions_();
       const notice = $('meal-guest-notice'); notice.replaceChildren(); notice.hidden = false;
       notice.appendChild(createElement('span', '', 'Guest already added'));
       const actions = createElement('span', 'add-visit-selection-actions');
-      const profile = createElement('button', 'row-btn', 'View profile'); profile.type = 'button'; profile.addEventListener('click', () => { closeMealEditor_(); navigate(`#guest/${encodeURIComponent(guest.guestId)}`); });
-      const change = createElement('button', 'row-btn', 'Change guest'); change.type = 'button'; change.addEventListener('click', () => { mealSelectedGuest_ = null; $('meal-guest-name').value = ''; notice.hidden = true; $('meal-existing-section').hidden = true; $('meal-guest-name').focus(); });
+      const profile = createElement('button', 'row-btn quiet', 'View profile'); profile.type = 'button'; profile.addEventListener('click', () => { closeMealEditor_(); navigate(`#guest/${encodeURIComponent(guest.guestId)}`); });
+      const change = createElement('button', 'row-btn quiet', 'Change guest'); change.type = 'button'; change.addEventListener('click', () => { mealSelectedGuest_ = null; mealNewGuestName_ = ''; $('meal-guest-name').value = ''; resetMealGuestNotice_(); $('meal-existing-section').hidden = true; $('meal-guest-name').focus(); });
       actions.append(profile, change); notice.appendChild(actions);
       refreshMealExistingArrangements_(); if (markDirty) mealEditorDirty_ = true;
     }
@@ -8468,8 +8504,22 @@
       $('meal-section-nav').querySelector('[data-meal-target="meal-basic-section"]').hidden = !isNewGuest;
       $('meal-editor-details').hidden = false; $('meal-editor-footer').hidden = false; $('meal-section-nav').hidden = false;
       updateMealRecurrenceFields_(); updateMealBasicFields_();
-      const target = isNewGuest ? $('meal-basic-section') : $('meal-schedule-section');
-      window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      const targetId = isNewGuest ? 'meal-basic-section' : 'meal-schedule-section';
+      $('meal-section-nav').querySelectorAll('[data-meal-target]').forEach(button => {
+        button.classList.toggle('active', button.dataset.mealTarget === targetId);
+      });
+      window.setTimeout(() => scrollMealSectionIntoView_(targetId), 0);
+    }
+
+    function scrollMealSectionIntoView_(targetId) {
+      const section = $(targetId);
+      const modalBody = $('meal-editor-modal').querySelector('.modal-content');
+      const nav = $('meal-section-nav');
+      if (!section || !modalBody || !nav) return;
+      const bodyTop = modalBody.getBoundingClientRect().top;
+      const sectionTop = section.getBoundingClientRect().top;
+      const top = modalBody.scrollTop + sectionTop - bodyTop - nav.offsetHeight - 10;
+      modalBody.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
 
     function updateMealRecurrenceFields_() {
@@ -8531,7 +8581,7 @@
       if (mealEditorDirty_ && !window.confirm('Discard your unsaved meal changes?')) return;
       closeMealEditor_();
     }
-    function closeMealEditor_() { mealEditorDirty_ = false; $('meal-editor-modal').style.display = 'none'; $('meal-editor-modal').setAttribute('aria-hidden', 'true'); hideMealGuestSuggestions_(); }
+    function closeMealEditor_() { mealEditorDirty_ = false; $('meal-editor-modal').style.display = 'none'; $('meal-editor-modal').setAttribute('aria-hidden', 'true'); hideMealGuestSuggestions_(); resetMealGuestNotice_(); }
 
     function openMealResidentEditor_(resident = null) {
       mealResidentEditing_ = resident;
