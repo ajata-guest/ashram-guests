@@ -6438,14 +6438,59 @@
       return `${unique.slice(0, -1).join(', ')}, and ${unique[unique.length - 1]}`;
     }
 
+    // Sharing is described from this guest's own point of view. Two guests in
+    // one room for different stretches see different things: whoever is there
+    // throughout just reads "Shared with X", while whoever has the room to
+    // themselves for part of their stay is told exactly which stretch is
+    // shared. Same underlying overlap, two honest descriptions of it.
     function roomSharingPartnersForVisit_(visit, room) {
-      return [...new Set(accommodationVisits_
+      const mine = visitRoomWindow_(visit);
+      const seen = new Set();
+      return accommodationVisits_
         .filter(other => other.visitId !== visit.visitId
           && Array.isArray(other.rooms)
           && other.rooms.includes(room)
           && accommodationVisitsOverlap_(visit, other))
-        .map(other => resolveRoomOccupantName(other.name, other.rooms, room))
-        .filter(Boolean))];
+        .map(other => {
+          const name = resolveRoomOccupantName(other.name, other.rooms, room);
+          if (!name || seen.has(name)) return null;
+          seen.add(name);
+          const theirs = visitRoomWindow_(other);
+          const from = Math.max(mine.start, theirs.start);
+          const to = Math.min(mine.end, theirs.end);
+          // Covers this guest's whole stay, so the dates would only repeat
+          // what the card already says above.
+          const wholeStay = from <= mine.start && to >= mine.end;
+          return { name, from, to, wholeStay };
+        })
+        .filter(Boolean);
+    }
+
+    // "Shared with X" when it spans the whole stay, "Shared with X from … to …"
+    // when it doesn't. Partners are grouped so two people sharing the same
+    // stretch read as one phrase rather than two.
+    function describeRoomSharing_(partners) {
+      if (!partners.length) return '';
+      const whole = partners.filter(p => p.wholeStay);
+      const partial = partners.filter(p => !p.wholeStay);
+      const phrases = [];
+      if (whole.length) phrases.push(`Shared with ${formatGuestNameList_(whole.map(p => p.name))}`);
+
+      const byWindow = new Map();
+      partial.forEach(p => {
+        const key = `${p.from}|${p.to}`;
+        if (!byWindow.has(key)) byWindow.set(key, { from: p.from, to: p.to, names: [] });
+        byWindow.get(key).names.push(p.name);
+      });
+      [...byWindow.values()]
+        .sort((a, b) => a.from - b.from)
+        .forEach(group => {
+          const range = Number.isFinite(group.to)
+            ? `from ${msToDateDisplay_(group.from)} to ${msToDateDisplay_(group.to)}`
+            : `from ${msToDateDisplay_(group.from)}`;
+          phrases.push(`Shared with ${formatGuestNameList_(group.names)} ${range}`);
+        });
+      return phrases.join(' · ');
     }
 
     function createAccommodationVisitCard(visit) {
@@ -6492,11 +6537,8 @@
       if (visit.accommodation === 'Ashram') {
         if (Array.isArray(visit.rooms) && visit.rooms.length) {
           visit.rooms.forEach(room => {
-            const sharingPartners = roomSharingPartnersForVisit_(visit, room);
-            const sharingDetail = sharingPartners.length
-              ? `${room} \u00B7 Shared with ${formatGuestNameList_(sharingPartners)}`
-              : room;
-            card.appendChild(createDetailLine('icon-bed', sharingDetail));
+            const sharing = describeRoomSharing_(roomSharingPartnersForVisit_(visit, room));
+            card.appendChild(createDetailLine('icon-bed', sharing ? `${room} \u00B7 ${sharing}` : room));
           });
         } else {
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });

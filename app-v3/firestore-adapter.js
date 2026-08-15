@@ -486,12 +486,24 @@ function homeSummary(canonical, records) {
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
-    accommodation: { arrivingToday: 0, departingToday: 0, currentlyResiding: 0, attentionNeeded: 0 },
+    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, attentionNeeded: 0 },
     meals: { counts: { Breakfast: 0, Lunch: 0, Dinner: 0 }, residentCount: 0, exceptionCount: 0 },
     meetings: { today: 0, upcoming: 0, needsCompletion: 0 },
     seva: { activeTeams: 0, activeTeamMembers: 0, activeSpecificSeva: 0, startingSoon: 0 },
     trips: { active: 0, upcoming: 0, needingTravel: 0 }
   };
+  // Counted over every live visit, not one per guest. A record exposes only
+  // its current-or-nearest visit, so counting from records undercounted any
+  // guest with more than one visit booked — and the homepage tile has to agree
+  // with the workspace, which lists them all. The two tests below are the same
+  // ones ACCOMMODATION_SECTIONS_ uses for its Today and Upcoming tabs.
+  canonical.visits.filter(visit => !visit.isCancelled).forEach(visit => {
+    const arrival = visit.arrivalDateKey || "";
+    const departure = visit.departureDateKey || "";
+    if (arrival === today || departure === today) result.accommodation.today += 1;
+    if (arrival && arrival > today) result.accommodation.upcoming += 1;
+  });
+
   const activeTeams = new Set(), futureTeams = new Set();
   records.forEach(record => {
     if (record.priorityReasons.length) result.directory.needsAttention += 1;
