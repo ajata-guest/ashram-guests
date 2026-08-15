@@ -34,6 +34,9 @@ const APPROVED_EMAILS = new Set(["atma.chetan108@gmail.com", "rajatbhatiaom@gmai
 const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff", "Other"]);
 const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
+const MEAL_SEATING = new Set(["Floor", "Table and chair"]);
+const MEAL_SOURCE_TYPES = new Set(["individualGuest", "sevaTeam", "individualSeva"]);
+const MEAL_RECURRENCES = new Set(["oneTime", "daily", "weekly"]);
 // NONE is deliberately outside the four tabs. A guest who has only just been
 // entered has no visit and no engagements — nothing today, nothing upcoming,
 // and emphatically nothing past. Sorting them into Past (which is what falling
@@ -43,6 +46,7 @@ const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5 };
 const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity" };
 const COLLECTIONS = [
   "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
+  "mealSchedules", "permanentResidents",
   "meetings", "sevaTeams", "teamMemberships", "specificSeva", "trips",
   "tripParticipants", "tripTravelLegs"
 ];
@@ -121,6 +125,242 @@ function groupBy(rows, key) {
   const grouped = {};
   rows.forEach(row => { (grouped[row[key]] = grouped[row[key]] || []).push(row); });
   return grouped;
+}
+
+function mealSeating(value, fallback = "Floor") {
+  const seating = clean(value, 40);
+  return MEAL_SEATING.has(seating) ? seating : fallback;
+}
+
+function weekdayOfDateKey(dateKey) {
+  const parsed = new Date(`${dateKey}T12:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? -1 : parsed.getUTCDay();
+}
+
+function dateInside(dateKey, startDateKey, endDateKey) {
+  return Boolean(dateKey)
+    && (!startDateKey || dateKey >= startDateKey)
+    && (!endDateKey || dateKey <= endDateKey);
+}
+
+function mealScheduleMatchesDate(schedule, dateKey) {
+  if (schedule.active === false) return false;
+  const recurrence = MEAL_RECURRENCES.has(schedule.recurrence) ? schedule.recurrence : "oneTime";
+  if (recurrence === "oneTime") return schedule.dateKey === dateKey;
+  if (!dateInside(dateKey, schedule.startDateKey || "", schedule.endDateKey || "")) return false;
+  if (recurrence === "daily") return true;
+  const weekdays = Array.isArray(schedule.weekdays) ? schedule.weekdays.map(Number) : [];
+  return weekdays.includes(weekdayOfDateKey(dateKey));
+}
+
+function mealScheduleView(schedule, canonical) {
+  const guestsById = Object.fromEntries(canonical.guests.map(item => [item.id, item]));
+  const teamsById = Object.fromEntries(canonical.sevaTeams.map(item => [item.id, item]));
+  const tasksById = Object.fromEntries(canonical.specificSeva.map(item => [item.id, item]));
+  let name = "Unknown source", guestId = "", personType = "";
+  if (schedule.sourceType === "individualGuest") {
+    const guest = guestsById[schedule.sourceId];
+    name = guest?.name || "Missing guest";
+    guestId = guest?.id || schedule.sourceId || "";
+    personType = guest?.personType || "";
+  } else if (schedule.sourceType === "sevaTeam") {
+    name = teamsById[schedule.sourceId]?.eventProgrammeName || "Missing Seva Team";
+  } else if (schedule.sourceType === "individualSeva") {
+    const task = tasksById[schedule.sourceId];
+    const guest = task ? guestsById[task.guestId] : null;
+    name = `${guest?.name || "Missing guest"} · ${task?.description || "Individual seva"}`;
+    guestId = guest?.id || "";
+    personType = guest?.personType || "";
+  }
+  return {
+    scheduleId: schedule.id,
+    sourceType: schedule.sourceType || "individualGuest",
+    sourceId: schedule.sourceId || "",
+    name,
+    guestId,
+    personType,
+    recurrence: schedule.recurrence || "oneTime",
+    date: schedule.dateKey || "",
+    weekdays: Array.isArray(schedule.weekdays) ? schedule.weekdays.map(Number) : [],
+    startDate: schedule.startDateKey || "",
+    endDate: schedule.endDateKey || "",
+    meals: Array.isArray(schedule.meals) ? schedule.meals.filter(meal => MEALS.includes(meal)) : [],
+    defaultSeating: mealSeating(schedule.defaultSeating),
+    note: schedule.note || "",
+    active: schedule.active !== false,
+    version: versionOf(schedule)
+  };
+}
+
+// Resolve, rather than materialize, a day's meal roster. Standing rules stay
+// compact in Firestore while this one function supplies both the Meals page
+// and the homepage totals, so the two views cannot drift apart.
+function resolveMealDay(canonical, dateKey) {
+  const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
+  const residentsById = Object.fromEntries(canonical.permanentResidents.map(item => [item.id, item]));
+  const teamsById = Object.fromEntries(canonical.sevaTeams.map(item => [item.id, item]));
+  const tasksById = Object.fromEntries(canonical.specificSeva.map(item => [item.id, item]));
+  const membersByTeam = groupBy(canonical.teamMemberships, "teamId");
+  const candidates = new Map();
+
+  function subjectRecord(subjectType, subjectId) {
+    if (subjectType === "permanentResident") {
+      const resident = residentsById[subjectId];
+      return resident ? { name: resident.name || "Unnamed resident", personType: "Permanent Resident", guestId: resident.guestId || "" } : null;
+    }
+    const guest = guestsById[subjectId];
+    return guest ? { name: guest.name || "Unnamed Guest", personType: guest.personType || "Needs Review", guestId: guest.id } : null;
+  }
+
+  function ensureCandidate(subjectType, subjectId) {
+    const key = `${subjectType}:${subjectId}`;
+    if (candidates.has(key)) return candidates.get(key);
+    const subject = subjectRecord(subjectType, subjectId);
+    if (!subject) return null;
+    const candidate = {
+      key, subjectType, subjectId, guestId: subject.guestId,
+      name: subject.name, personType: subject.personType,
+      resident: false, mealSources: {}, mealSeating: {}
+    };
+    MEALS.forEach(meal => { candidate.mealSources[meal] = []; });
+    candidates.set(key, candidate);
+    return candidate;
+  }
+
+  function addSource(subjectType, subjectId, meals, source, seating = "Floor", resident = false) {
+    const candidate = ensureCandidate(subjectType, subjectId);
+    if (!candidate) return;
+    candidate.resident = candidate.resident || resident;
+    meals.forEach(meal => {
+      if (!MEALS.includes(meal)) return;
+      if (!candidate.mealSources[meal].some(item => item.type === source.type && item.id === source.id)) {
+        candidate.mealSources[meal].push(source);
+      }
+      // Explicit arrangements take precedence over a resident default; an
+      // individual invitation takes precedence over team-derived seating.
+      const priority = { residence: 0, sevaTeam: 1, individualSeva: 2, individualGuest: 3 };
+      const current = candidate.mealSeating[meal];
+      if (!current || (priority[source.type] || 0) >= (priority[current.sourceType] || 0)) {
+        candidate.mealSeating[meal] = { value: mealSeating(seating), sourceType: source.type };
+      }
+    });
+  }
+
+  canonical.permanentResidents
+    .filter(item => item.active !== false && dateInside(dateKey, item.activeFromKey || "", item.activeUntilKey || ""))
+    .forEach(item => addSource(
+      "permanentResident", item.id, MEALS,
+      { type: "residence", id: item.id, label: "Permanent resident" },
+      item.defaultSeating, true
+    ));
+
+  canonical.visits
+    .filter(item => !item.isCancelled && item.accommodation === "Ashram"
+      && item.arrivalDateKey && dateInside(dateKey, item.arrivalDateKey, item.departureDateKey || ""))
+    .forEach(item => addSource(
+      "guest", item.guestId, MEALS,
+      { type: "residence", id: item.id, label: "Staying in the ashram" },
+      "Floor", true
+    ));
+
+  canonical.mealSchedules.filter(schedule => mealScheduleMatchesDate(schedule, dateKey)).forEach(schedule => {
+    const meals = Array.isArray(schedule.meals) ? schedule.meals : [];
+    const seating = mealSeating(schedule.defaultSeating);
+    if (schedule.sourceType === "individualGuest") {
+      const guest = guestsById[schedule.sourceId];
+      if (guest) addSource("guest", guest.id, meals, { type: "individualGuest", id: schedule.id, label: "Individual invitation" }, seating);
+      return;
+    }
+    if (schedule.sourceType === "sevaTeam") {
+      const team = teamsById[schedule.sourceId];
+      if (!team || !dateInside(dateKey, team.startDateKey || "", team.endDateKey || "")) return;
+      (membersByTeam[team.id] || []).forEach(member => addSource(
+        "guest", member.guestId, meals,
+        { type: "sevaTeam", id: schedule.id, label: `Seva Team: ${team.eventProgrammeName || "Unnamed team"}` },
+        seating
+      ));
+      return;
+    }
+    if (schedule.sourceType === "individualSeva") {
+      const task = tasksById[schedule.sourceId];
+      if (!task || !dateInside(dateKey, task.startDateKey || "", task.endDateKey || "")) return;
+      addSource(
+        "guest", task.guestId, meals,
+        { type: "individualSeva", id: schedule.id, label: `Individual seva: ${task.description || "Seva"}` },
+        seating
+      );
+    }
+  });
+
+  const overrides = canonical.mealOverrides.filter(item => item.dateKey === dateKey && MEALS.includes(item.meal));
+  const overrideMap = new Map();
+  overrides.forEach(item => {
+    const subjectType = item.subjectType === "permanentResident" ? "permanentResident" : "guest";
+    const subjectId = item.subjectId || item.guestId || "";
+    if (!subjectId) return;
+    const key = `${subjectType}:${subjectId}:${item.meal}`;
+    overrideMap.set(key, item);
+    if (item.included) ensureCandidate(subjectType, subjectId);
+  });
+
+  const rosters = Object.fromEntries(MEALS.map(meal => [meal, []]));
+  const notAttending = Object.fromEntries(MEALS.map(meal => [meal, []]));
+  const mealStats = Object.fromEntries(MEALS.map(meal => [meal, { total: 0, floor: 0, tableAndChair: 0, absent: 0 }]));
+  const counts = { Breakfast: 0, Lunch: 0, Dinner: 0 };
+  let exceptionCount = 0;
+
+  candidates.forEach(candidate => {
+    MEALS.forEach(meal => {
+      const sources = candidate.mealSources[meal] || [];
+      const override = overrideMap.get(`${candidate.subjectType}:${candidate.subjectId}:${meal}`);
+      const expected = sources.length > 0;
+      if (!expected && !override?.included) return;
+      const included = override ? Boolean(override.included) : expected;
+      const defaultSeating = candidate.mealSeating[meal]?.value || "Floor";
+      const seating = mealSeating(override?.seatingOverride, defaultSeating);
+      const row = {
+        subjectType: candidate.subjectType,
+        subjectId: candidate.subjectId,
+        guestId: candidate.guestId,
+        name: candidate.name,
+        personType: candidate.personType,
+        isResident: candidate.resident,
+        included,
+        seating,
+        defaultSeating,
+        note: override?.note || "",
+        sources,
+        overrideId: override?.id || null,
+        isException: Boolean(override),
+        version: override ? versionOf(override) : 0
+      };
+      if (override) exceptionCount += 1;
+      if (included) {
+        rosters[meal].push(row);
+        counts[meal] += 1;
+        mealStats[meal].total += 1;
+        if (seating === "Table and chair") mealStats[meal].tableAndChair += 1;
+        else mealStats[meal].floor += 1;
+      } else {
+        notAttending[meal].push(row);
+        mealStats[meal].absent += 1;
+      }
+    });
+  });
+
+  MEALS.forEach(meal => {
+    rosters[meal].sort((a, b) => a.name.localeCompare(b.name));
+    notAttending[meal].sort((a, b) => a.name.localeCompare(b.name));
+  });
+  return {
+    date: dateKey,
+    counts,
+    mealStats,
+    rosters,
+    notAttending,
+    residentCount: [...candidates.values()].filter(item => item.resident).length,
+    exceptionCount
+  };
 }
 
 function tripStatus(trip, now = Date.now()) {
@@ -483,11 +723,17 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
 
 function homeSummary(canonical, records) {
   const today = dateKeyOf(Date.now());
+  const todayMeals = resolveMealDay(canonical, today);
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
     accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, attentionNeeded: 0 },
-    meals: { counts: { Breakfast: 0, Lunch: 0, Dinner: 0 }, residentCount: 0, exceptionCount: 0 },
+    meals: {
+      counts: todayMeals.counts,
+      mealStats: todayMeals.mealStats,
+      residentCount: todayMeals.residentCount,
+      exceptionCount: todayMeals.exceptionCount
+    },
     meetings: { today: 0, upcoming: 0, needsCompletion: 0 },
     seva: { activeTeams: 0, activeTeamMembers: 0, activeSpecificSeva: 0, startingSoon: 0 },
     trips: { active: 0, upcoming: 0, needingTravel: 0 }
@@ -514,14 +760,6 @@ function homeSummary(canonical, records) {
       if (record.residingInAshram) result.accommodation.currentlyResiding += 1;
       if (record.priorityReasons.some(reason => /arrival|accommodation|room|c-form|pickup|drop-off|required/i.test(reason))) result.accommodation.attentionNeeded += 1;
     }
-    const defaults = Boolean(record.residingInAshram);
-    if (defaults) result.meals.residentCount += 1;
-    const overrideMap = Object.fromEntries(record.mealsToday.map(item => [item.meal, item]));
-    MEALS.forEach(meal => {
-      const override = overrideMap[meal];
-      if (override) result.meals.exceptionCount += 1;
-      if (override ? override.included : defaults) result.meals.counts[meal] += 1;
-    });
     record.upcomingMeetings.forEach(meeting => {
       if (meeting.date === today) result.meetings.today += 1;
       else if (meeting.date < today) result.meetings.needsCompletion += 1;
@@ -685,8 +923,12 @@ export function createFirestoreBridge(firebaseApp) {
     const visits = canonical.visits.filter(item => item.guestId === id).map(item => visitView(item, roomsByVisit, legsByVisit));
     const liveVisits = visits.filter(item => !item.cancelled);
     const mealOverrides = canonical.mealOverrides.filter(item => item.guestId === id).map(item => ({
-      overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included), version: versionOf(item)
+      overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included),
+      seating: item.seatingOverride || "", note: item.note || "", version: versionOf(item)
     }));
+    const mealSchedules = canonical.mealSchedules
+      .filter(item => item.sourceType === "individualGuest" && item.sourceId === id)
+      .map(item => mealScheduleView(item, canonical));
     const meetings = canonical.meetings.filter(item => item.guestId === id).map(meetingView);
     const specificSeva = canonical.specificSeva.filter(item => item.guestId === id).map(taskView);
     const teamsById = Object.fromEntries(canonical.sevaTeams.map(item => [item.id, item]));
@@ -696,7 +938,7 @@ export function createFirestoreBridge(firebaseApp) {
       const trip = tripsById[item.tripId];
       return trip ? { participantId: item.id, ...tripView(trip) } : null;
     }).filter(Boolean);
-    const hasHistory = visits.length || mealOverrides.length || meetings.length || specificSeva.length || sevaTeams.length || trips.length;
+    const hasHistory = visits.length || mealOverrides.length || mealSchedules.length || meetings.length || specificSeva.length || sevaTeams.length || trips.length;
     return {
       guestId: guest.id,
       name: guest.name || "",
@@ -712,6 +954,7 @@ export function createFirestoreBridge(firebaseApp) {
       sevaTeams,
       specificSeva,
       mealOverrides,
+      mealSchedules,
       meetings,
       trips,
       canHardDelete: !hasHistory,
@@ -741,28 +984,33 @@ export function createFirestoreBridge(firebaseApp) {
   async function mealsWorkspace(filters = {}) {
     const canonical = await loadCanonical();
     const date = clean(filters.date, 20) || dateKeyOf(Date.now());
-    const activeGuests = canonical.guests.filter(item => !item.archived);
-    const visitsByGuest = groupBy(canonical.visits.filter(item => !item.isCancelled), "guestId");
-    const overrides = canonical.mealOverrides.filter(item => item.dateKey === date);
-    const overridesByGuest = groupBy(overrides, "guestId");
-    const counts = { Breakfast: 0, Lunch: 0, Dinner: 0 };
-    let residentCount = 0, exceptionCount = 0;
-    const guests = activeGuests.map(guest => {
-      const isResident = (visitsByGuest[guest.id] || []).some(visit => visit.accommodation === "Ashram"
-        && visit.arrivalDateKey && visit.arrivalDateKey <= date && (!visit.departureDateKey || visit.departureDateKey >= date));
-      if (isResident) residentCount += 1;
-      const byMeal = Object.fromEntries((overridesByGuest[guest.id] || []).map(item => [item.meal, item]));
-      const meals = {};
-      MEALS.forEach(meal => {
-        const override = byMeal[meal];
-        const included = override ? Boolean(override.included) : isResident;
-        if (included) counts[meal] += 1;
-        if (override) exceptionCount += 1;
-        meals[meal] = { included, overrideId: override?.id || null, isException: Boolean(override) };
-      });
-      return { guestId: guest.id, name: guest.name, personType: guest.personType, isResident, meals };
-    }).filter(row => row.isResident || MEALS.some(meal => row.meals[meal].included));
-    return { date, guests, counts, residentCount, exceptionCount, generatedAt: Date.now() };
+    const resolved = resolveMealDay(canonical, date);
+    const schedules = canonical.mealSchedules.map(item => mealScheduleView(item, canonical))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const permanentResidents = canonical.permanentResidents.map(item => ({
+      residentId: item.id,
+      name: item.name || "",
+      defaultSeating: mealSeating(item.defaultSeating),
+      activeFrom: item.activeFromKey || "",
+      activeUntil: item.activeUntilKey || "",
+      active: item.active !== false,
+      note: item.note || "",
+      version: versionOf(item)
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    const teams = canonical.sevaTeams.map(item => teamView(item)).sort((a, b) => a.name.localeCompare(b.name));
+    const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
+    const individualSeva = canonical.specificSeva.map(item => {
+      const guest = guestsById[item.guestId];
+      return guest ? { guestId: guest.id, name: guest.name, personType: guest.personType, ...taskView(item) } : null;
+    }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      ...resolved,
+      schedules,
+      permanentResidents,
+      teams,
+      individualSeva,
+      generatedAt: Date.now()
+    };
   }
 
   async function meetingsWorkspace() {
@@ -917,6 +1165,7 @@ export function createFirestoreBridge(firebaseApp) {
     const canonical = await loadCanonical(true);
     const hasHistory = canonical.visits.some(item => item.guestId === id)
       || canonical.mealOverrides.some(item => item.guestId === id)
+      || canonical.mealSchedules.some(item => item.sourceType === "individualGuest" && item.sourceId === id)
       || canonical.meetings.some(item => item.guestId === id)
       || canonical.teamMemberships.some(item => item.guestId === id)
       || canonical.specificSeva.some(item => item.guestId === id)
@@ -1543,27 +1792,195 @@ export function createFirestoreBridge(firebaseApp) {
   };
 }
 
+  function validateMealSource_(canonical, sourceType, sourceId, dateKey, startDateKey, endDateKey) {
+    if (sourceType === "individualGuest") {
+      const guest = canonical.guests.find(item => item.id === sourceId && !item.archived);
+      if (!guest) throw new Error("This guest no longer exists.");
+      return;
+    }
+    if (sourceType === "sevaTeam") {
+      const team = canonical.sevaTeams.find(item => item.id === sourceId);
+      if (!team) throw new Error("This Seva Team no longer exists.");
+      const from = dateKey || startDateKey;
+      const to = dateKey || endDateKey || from;
+      if (team.startDateKey && from && from < team.startDateKey) throw new Error("The meal schedule cannot start before the Seva Team starts.");
+      if (team.endDateKey && to && to > team.endDateKey) throw new Error("The meal schedule cannot continue after the Seva Team ends.");
+      return;
+    }
+    const task = canonical.specificSeva.find(item => item.id === sourceId);
+    if (!task) throw new Error("This individual seva assignment no longer exists.");
+    const from = dateKey || startDateKey;
+    const to = dateKey || endDateKey || from;
+    if (task.startDateKey && from && from < task.startDateKey) throw new Error("The meal arrangement cannot start before this seva starts.");
+    if (task.endDateKey && to && to > task.endDateKey) throw new Error("The meal arrangement cannot continue after this seva ends.");
+  }
 
+  async function saveMealSchedule(payload) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const sourceType = clean(payload?.sourceType, 40) || "individualGuest";
+    if (!MEAL_SOURCE_TYPES.has(sourceType)) throw new Error("Choose a valid meal arrangement type.");
+
+    let sourceId = clean(payload?.sourceId || payload?.guestId, 100);
+    let newGuestData = null;
+    if (sourceType === "individualGuest" && payload?.newGuest && typeof payload.newGuest === "object") {
+      sourceId = sourceId || uuid();
+      newGuestData = guestWriteData(payload.newGuest, actor);
+      if (canonical.guests.some(item => item.id === sourceId)) throw new Error("A guest with this ID already exists.");
+      if (canonical.guests.some(item => (item.nameNormalized || clean(item.name).toLowerCase()) === newGuestData.nameNormalized)) {
+        throw new Error("A guest with this name already exists. Choose the existing guest instead.");
+      }
+    }
+    if (!sourceId) throw new Error("Choose who this meal arrangement belongs to.");
+
+    const recurrence = clean(payload?.recurrence, 40) || "oneTime";
+    if (!MEAL_RECURRENCES.has(recurrence)) throw new Error("Choose a valid schedule pattern.");
+    const dateKey = recurrence === "oneTime" ? clean(payload?.date, 20) : "";
+    const startDateKey = recurrence === "oneTime" ? "" : clean(payload?.startDate, 20);
+    const endDateKey = recurrence === "oneTime" ? "" : clean(payload?.endDate, 20);
+    if (recurrence === "oneTime" && !dateKey) throw new Error("Choose the meal date.");
+    if (recurrence !== "oneTime" && !startDateKey) throw new Error("Choose when the recurring arrangement starts.");
+    if (endDateKey && endDateKey < startDateKey) throw new Error("The end date cannot be before the start date.");
+    const weekdays = recurrence === "weekly"
+      ? [...new Set((Array.isArray(payload?.weekdays) ? payload.weekdays : []).map(Number).filter(day => day >= 0 && day <= 6))]
+      : [];
+    if (recurrence === "weekly" && !weekdays.length) throw new Error("Choose at least one weekday.");
+    const meals = [...new Set((Array.isArray(payload?.meals) ? payload.meals : []).map(item => clean(item, 30)).filter(item => MEALS.includes(item)))];
+    if (!meals.length) throw new Error("Choose at least one meal.");
+    const defaultSeating = mealSeating(payload?.defaultSeating);
+
+    if (!newGuestData) validateMealSource_(canonical, sourceType, sourceId, dateKey, startDateKey, endDateKey);
+    const scheduleId = clean(payload?.scheduleId, 100) || uuid();
+    const scheduleRef = doc(db, "mealSchedules", scheduleId);
+    const guestRef = newGuestData ? doc(db, "guests", sourceId) : null;
+    await runTransaction(db, async transaction => {
+      const scheduleSnapshot = await transaction.get(scheduleRef);
+      if (scheduleSnapshot.exists()) assertVersion(scheduleSnapshot.data(), payload?.version);
+      if (newGuestData) {
+        if ((await transaction.get(guestRef)).exists()) throw new Error("A guest with this ID already exists.");
+        transaction.set(guestRef, { ...newGuestData, createdAt: serverTimestamp(), createdBy: actor });
+        transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", sourceId, "create", ["name", "personType"]));
+      }
+      const existing = scheduleSnapshot.exists() ? scheduleSnapshot.data() : null;
+      transaction.set(scheduleRef, {
+        sourceType,
+        sourceId,
+        recurrence,
+        dateKey,
+        weekdays,
+        startDateKey,
+        endDateKey,
+        meals,
+        defaultSeating,
+        note: clean(payload?.note),
+        active: payload?.active !== false,
+        createdAt: existing?.createdAt || serverTimestamp(),
+        createdBy: existing?.createdBy || actor,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor,
+        schemaVersion: 1
+      });
+      transaction.set(doc(collection(db, "auditLogs")), auditEntry(
+        actor, "mealSchedule", scheduleId, existing ? "update" : "create",
+        ["sourceType", "sourceId", "recurrence", "dateKey", "weekdays", "startDateKey", "endDateKey", "meals", "defaultSeating", "note", "active"]
+      ));
+    });
+    invalidate();
+    return { scheduleId, guestId: sourceType === "individualGuest" ? sourceId : "", guestCreated: Boolean(newGuestData), version: await committedVersion("mealSchedules", scheduleId) };
+  }
+
+  async function deleteMealSchedule(scheduleId) {
+    const actor = ensureApproved();
+    const id = clean(scheduleId, 100);
+    const reference = doc(db, "mealSchedules", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This meal arrangement no longer exists.");
+    const batch = writeBatch(db);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "mealSchedule", id, "delete", ["document"]);
+    await batch.commit();
+    invalidate();
+    return { scheduleId: id, deleted: true };
+  }
+
+  async function savePermanentResident(payload) {
+    const actor = ensureApproved();
+    const name = clean(payload?.name);
+    if (!name) throw new Error("Resident name is required.");
+    const activeFromKey = clean(payload?.activeFrom, 20);
+    const activeUntilKey = clean(payload?.activeUntil, 20);
+    if (activeFromKey && activeUntilKey && activeUntilKey < activeFromKey) throw new Error("The end date cannot be before the start date.");
+    const id = clean(payload?.residentId, 100) || uuid();
+    const reference = doc(db, "permanentResidents", id);
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(reference);
+      if (snapshot.exists()) assertVersion(snapshot.data(), payload?.version);
+      const existing = snapshot.exists() ? snapshot.data() : null;
+      transaction.set(reference, {
+        name,
+        nameNormalized: name.toLowerCase(),
+        defaultSeating: mealSeating(payload?.defaultSeating),
+        activeFromKey,
+        activeUntilKey,
+        active: payload?.active !== false,
+        note: clean(payload?.note),
+        createdAt: existing?.createdAt || serverTimestamp(),
+        createdBy: existing?.createdBy || actor,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor,
+        schemaVersion: 1
+      });
+      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "permanentResident", id, existing ? "update" : "create", ["name", "defaultSeating", "activeFromKey", "activeUntilKey", "active", "note"]));
+    });
+    invalidate();
+    return { residentId: id, version: await committedVersion("permanentResidents", id) };
+  }
+
+  async function deletePermanentResident(residentId) {
+    const actor = ensureApproved();
+    const id = clean(residentId, 100);
+    const reference = doc(db, "permanentResidents", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This resident no longer exists.");
+    const batch = writeBatch(db);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "permanentResident", id, "delete", ["document"]);
+    await batch.commit();
+    invalidate();
+    return { residentId: id, deleted: true };
+  }
 
   async function upsertMealOverride(payload) {
     const actor = ensureApproved();
     const canonical = await loadCanonical(true);
-    const guestId = clean(payload?.guestId, 100);
+    const subjectType = payload?.subjectType === "permanentResident" ? "permanentResident" : "guest";
+    const subjectId = clean(payload?.subjectId || payload?.guestId, 100);
     const dateKey = clean(payload?.date, 20);
     const meal = clean(payload?.meal, 30);
-    if (!canonical.guests.some(item => item.id === guestId && !item.archived)) throw new Error("This guest no longer exists.");
+    const subjectExists = subjectType === "permanentResident"
+      ? canonical.permanentResidents.some(item => item.id === subjectId)
+      : canonical.guests.some(item => item.id === subjectId && !item.archived);
+    if (!subjectExists) throw new Error(subjectType === "permanentResident" ? "This resident no longer exists." : "This guest no longer exists.");
     if (!dateKey || !MEALS.includes(meal)) throw new Error("A valid date and meal are required.");
-    validateEngagementDate(canonical, guestId, dateKey, `${meal} meal`);
     const requestedId = clean(payload.overrideId, 100);
-    const naturalKeyMatch = canonical.mealOverrides.find(item => item.guestId === guestId && item.dateKey === dateKey && item.meal === meal);
-    const id = requestedId || naturalKeyMatch?.id || `${guestId}--${dateKey}--${meal.toLowerCase()}`;
+    const naturalKeyMatch = canonical.mealOverrides.find(item => {
+      const existingType = item.subjectType === "permanentResident" ? "permanentResident" : "guest";
+      const existingId = item.subjectId || item.guestId;
+      return existingType === subjectType && existingId === subjectId && item.dateKey === dateKey && item.meal === meal;
+    });
+    const id = requestedId || naturalKeyMatch?.id || `${subjectType}--${subjectId}--${dateKey}--${meal.toLowerCase().replace(/\s+/g, "-")}`;
     const existing = canonical.mealOverrides.find(item => item.id === id);
     await setDoc(doc(db, "mealOverrides", id), {
-      guestId, dateKey, meal, included: Boolean(payload.included),
+      subjectType,
+      subjectId,
+      guestId: subjectType === "guest" ? subjectId : "",
+      dateKey,
+      meal,
+      included: Boolean(payload.included),
+      seatingOverride: payload.seatingOverride ? mealSeating(payload.seatingOverride) : "",
+      note: clean(payload.note),
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
       updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
-    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "mealOverride", id, existing ? "update" : "create", ["included"]));
+    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "mealOverride", id, existing ? "update" : "create", ["included", "seatingOverride", "note"]));
     invalidate();
     return { overrideId: id, version: await committedVersion("mealOverrides", id) };
   }
@@ -1946,6 +2363,10 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "deleteMeeting") return deleteMeeting(extra.meetingId);
       if (action === "deleteMealOverride") return deleteMealOverride(extra.overrideId);
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
+      if (action === "saveMealSchedule") return saveMealSchedule(extra.payload || {});
+      if (action === "deleteMealSchedule") return deleteMealSchedule(extra.scheduleId);
+      if (action === "savePermanentResident") return savePermanentResident(extra.payload || {});
+      if (action === "deletePermanentResident") return deletePermanentResident(extra.residentId);
       if (action === "upsertMeeting") return upsertMeeting(extra.payload || {});
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);
       if (action === "saveSevaTeam") return saveSevaTeam(extra.payload || {});

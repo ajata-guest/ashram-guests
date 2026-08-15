@@ -14,7 +14,7 @@
   <link rel="manifest" href="manifest.json">
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-    import { createFirestoreBridge } from "./firestore-adapter.js?v=20260815-room-sharing-v2";
+    import { createFirestoreBridge } from "./firestore-adapter.js?v=20260816-meals-workspace-v1";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAqlPQg_8Uzk35dEeEV1EQUKtGYTuCgoZw",
@@ -667,6 +667,7 @@
        a dialog is editing one record — a guest, a visit, a trip, a meeting —
        plus the guest picker shared by the Add flows. */
     #modal, #visit-editor-modal, #trip-editor-modal, #meeting-editor-modal, #add-to-workspace-modal,
+    #meal-editor-modal, #meal-resident-modal,
     #seva-team-modal, #specific-seva-modal {
       display: none;
       position: fixed;
@@ -2511,6 +2512,59 @@
       .add-btn { width: 36px; padding: 0; flex: 0 0 36px; }
       .add-label-compact { display: none; }
     }
+    /* Meals is a working roster, not a directory clone. These styles keep
+       its three operational views and Add-Visit-inspired editor compact,
+       touch-friendly and consistent with the rest of V3. */
+    .meals-view-tabs { margin: 4px 0 18px; }
+    .meals-date-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .meals-date-nav .row-btn { min-height:38px; }
+    .meal-overview-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
+    .meal-overview-card { padding:15px; border:1px solid #373737; border-radius:10px; background:#202020; color:inherit; text-align:left; cursor:pointer; }
+    .meal-overview-card.active { border-color:rgba(113,217,157,.65); background:rgba(113,217,157,.09); box-shadow:inset 3px 0 #71d99d; }
+    .meal-overview-title { color:var(--text); font-size:.92rem; font-weight:700; }
+    .meal-overview-total { display:block; margin-top:8px; color:#71d99d; font-size:1.65rem; font-weight:800; }
+    .meal-overview-meta { display:flex; gap:12px; margin-top:4px; color:var(--subtle); font-size:.76rem; flex-wrap:wrap; }
+    .meal-roster-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:14px 15px; border:1px solid #353535; border-radius:9px; background:#222; align-items:center; }
+    .meal-roster-row + .meal-roster-row { margin-top:9px; }
+    .meal-roster-name { color:var(--text); font-weight:700; }
+    .meal-roster-meta { display:flex; gap:7px; margin-top:6px; color:var(--subtle); font-size:.76rem; flex-wrap:wrap; }
+    .meal-roster-note { margin-top:6px; color:#c8c8c8; font-size:.78rem; }
+    .meal-roster-actions { display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    .meal-source-pill { padding:3px 7px; border-radius:999px; background:rgba(113,217,157,.09); color:#8ae5af; }
+    .meal-seat-pill { padding:3px 7px; border-radius:999px; background:#303030; color:#ddd; }
+    .meal-schedule-groups { display:flex; gap:22px; flex-direction:column; }
+    .meal-management-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 14px; border:1px solid #373737; border-radius:9px; background:#222; align-items:center; }
+    .meal-management-row + .meal-management-row { margin-top:8px; }
+    .meal-management-title { color:var(--text); font-weight:700; }
+    .meal-management-meta { margin-top:5px; color:var(--subtle); font-size:.78rem; line-height:1.45; }
+    .meal-manager-source-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:16px; }
+    .meal-manager-source-tabs button { padding:9px 7px; border:1px solid #3a3a3a; border-radius:7px; background:#242424; color:var(--muted); cursor:pointer; }
+    .meal-manager-source-tabs button.active { border-color:rgba(113,217,157,.55); background:rgba(113,217,157,.12); color:#8ae5af; }
+    .meal-weekdays { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; }
+    .meal-weekday { display:flex; min-height:38px; align-items:center; justify-content:center; border:1px solid #3a3a3a; border-radius:7px; background:#242424; color:var(--muted); cursor:pointer; font-size:.76rem; }
+    .meal-weekday input { position:absolute; opacity:0; pointer-events:none; }
+    .meal-weekday:has(input:checked) { border-color:rgba(113,217,157,.6); background:rgba(113,217,157,.13); color:#8ae5af; }
+    .meal-choice-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .meal-choice-grid .checkbox-label { margin:0; padding:11px; border:1px solid #3b3b3b; border-radius:8px; background:#252525; }
+    .meal-editor-footer { display:grid; grid-template-columns:minmax(0,3fr) minmax(90px,1fr); gap:10px; }
+    .meal-editor-footer > * { width:100%; margin:0; }
+    #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
+    #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover { background:#83e3aa; }
+    .meal-editor-existing-list { display:flex; gap:8px; flex-direction:column; }
+    .meal-manager-helper { color:#8ae5af; font-size:.8rem; line-height:1.45; }
+    .meal-resident-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+
+    @media (max-width: 700px) {
+      .meal-overview-grid { grid-template-columns:1fr; gap:8px; }
+      .meal-overview-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; }
+      .meal-overview-total { margin:0; }
+      .meal-overview-meta { grid-column:1/-1; }
+      .meal-roster-row, .meal-management-row { grid-template-columns:1fr; }
+      .meal-roster-actions { justify-content:flex-start; }
+      .meal-manager-source-tabs { grid-template-columns:1fr; }
+      .meal-weekdays { grid-template-columns:repeat(4,1fr); }
+      .meal-resident-grid { grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
@@ -3098,24 +3152,136 @@
             <h2 class="page-title"><svg class="icon" aria-hidden="true"><use href="#icon-meal"></use></svg> Meals</h2>
             <span class="page-refresh-slot refresh-slot"></span>
           </div>
-          <div class="page-subtitle">Residents eat by default; anyone else can be invited</div>
+          <div class="page-subtitle">Daily attendance, seating and standing meal arrangements</div>
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="meals-search" placeholder="Search guests..." aria-label="Search guests on this date"></div>
-          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Invite Guest</span><span class="action-label-compact">Invite</span></button>
+          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span id="meals-add-label" class="action-label-full">Invite Guest</span><span class="action-label-compact">Add</span></button>
         </div>
       </div>
 
-      <div class="page-toolbar">
-        <input type="date" id="meals-workspace-date" class="edit-input" style="width:auto" aria-label="Meal date">
+      <div id="meals-view-tabs" class="tier-tabs meals-view-tabs" role="tablist" aria-label="Meals workspace views"></div>
+
+      <div id="meals-daily-view">
+        <div class="page-toolbar meals-date-nav">
+          <button id="meals-prev-date" class="row-btn" type="button" aria-label="Previous day"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
+          <input type="date" id="meals-workspace-date" class="edit-input" style="width:auto" aria-label="Meal date">
+          <button id="meals-today-date" class="row-btn" type="button">Today</button>
+          <button id="meals-next-date" class="row-btn" type="button" aria-label="Next day"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+        </div>
+        <div id="meals-overview" class="meal-overview-grid" aria-label="Meal totals"></div>
         <div id="meals-meal-tabs" class="segmented" role="tablist" aria-label="Meal"></div>
+        <div id="meals-workspace-list"></div>
+        <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
       </div>
 
-      <div id="meals-summary" class="page-summary"></div>
-      <div id="meals-workspace-list" class="card-grid"></div>
-      <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
+      <div id="meals-schedules-view" hidden>
+        <div id="meals-schedules-list" class="meal-schedule-groups"></div>
+        <div id="meals-schedules-empty" class="zone-empty" hidden>No standing meal arrangements yet.</div>
+      </div>
+
+      <div id="meals-residents-view" hidden>
+        <div id="meals-residents-list" class="meal-resident-grid"></div>
+        <div id="meals-residents-empty" class="zone-empty" hidden>No permanent residents added yet.</div>
+      </div>
     </div>
   </main>
+
+  <div id="meal-editor-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-editor-title">
+      <div class="modal-header">
+        <h2 id="meal-editor-title">Invite Guest</h2>
+        <div class="modal-header-actions">
+          <button id="meal-editor-close" class="close-btn" type="button" aria-label="Close dialog"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </div>
+      </div>
+
+      <div id="meal-source-tabs" class="meal-manager-source-tabs" aria-label="Arrangement type">
+        <button type="button" data-meal-source="individualGuest" class="active">Individual guest</button>
+        <button type="button" data-meal-source="sevaTeam">Seva Team</button>
+        <button type="button" data-meal-source="individualSeva">Individual seva</button>
+      </div>
+
+      <section id="meal-editor-guest-section" class="add-visit-manager-section">
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>Guest</h3>
+        <div class="input-group" style="margin-bottom:0">
+          <label class="input-label" for="meal-guest-name">Guest Name</label>
+          <div class="guest-name-lookup">
+            <input id="meal-guest-name" class="edit-input" type="text" autocomplete="off" maxlength="500" role="combobox" aria-autocomplete="list" aria-controls="meal-guest-suggestions" aria-expanded="false" placeholder="Start typing a guest name...">
+            <div id="meal-guest-suggestions" class="guest-name-suggestions" role="listbox" hidden></div>
+          </div>
+          <div id="meal-guest-notice" class="add-visit-selection-notice" hidden></div>
+        </div>
+      </section>
+
+      <section id="meal-editor-team-section" class="add-visit-manager-section" hidden>
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-people"></use></svg>Seva Team</h3>
+        <label class="input-label" for="meal-team-select">Choose a team</label>
+        <select id="meal-team-select" class="edit-input"></select>
+      </section>
+
+      <section id="meal-editor-seva-section" class="add-visit-manager-section" hidden>
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>Individual Seva</h3>
+        <label class="input-label" for="meal-seva-select">Choose a seva assignment</label>
+        <select id="meal-seva-select" class="edit-input"></select>
+      </section>
+
+      <section id="meal-existing-section" class="add-visit-manager-section" hidden>
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>Meal Arrangements</h3>
+        <div id="meal-existing-list" class="meal-editor-existing-list"></div>
+        <button id="meal-add-arrangement" class="add-visit-full-btn" type="button">+ Add New Meal Arrangement</button>
+      </section>
+
+      <div id="meal-section-nav" class="modal-section-nav" aria-label="Jump to meal arrangement section" hidden>
+        <button type="button" class="section-nav-pill" data-meal-target="meal-basic-section">Basic Details</button>
+        <button type="button" class="section-nav-pill active" data-meal-target="meal-schedule-section">Schedule</button>
+        <button type="button" class="section-nav-pill" data-meal-target="meal-seating-section">Meals &amp; Seating</button>
+      </div>
+
+      <div id="meal-editor-details" class="add-visit-manager" hidden>
+        <section id="meal-basic-section" class="add-visit-manager-section" hidden>
+          <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>Basic Guest Details</h3>
+          <div class="input-group"><label class="input-label" for="meal-basic-person-type">Person Type</label><select id="meal-basic-person-type" class="edit-input"><option>Invited Guest</option><option>Friend</option><option>Visitor</option><option>Event Staff</option><option>Other</option></select></div>
+          <label class="checkbox-label"><input id="meal-basic-foreign" class="checkbox-input" type="checkbox">Foreign National</label>
+          <div id="meal-basic-purpose-group" class="input-group"><label class="input-label" for="meal-basic-purpose">Purpose</label><select id="meal-basic-purpose" class="edit-input"><option value="">-- Not specified --</option><option>Discourse</option><option>Kirtan/Music</option><option>Interreligious Presence</option><option>Official/Diplomatic</option><option>Other</option></select><input id="meal-basic-purpose-other" class="edit-input" type="text" placeholder="Describe the purpose" hidden></div>
+          <div id="meal-basic-assignment-group" class="input-group" hidden><label class="input-label" for="meal-basic-assignment">Assignment</label><input id="meal-basic-assignment" class="edit-input" type="text" placeholder="Cook, driver, technician, etc."></div>
+        </section>
+
+        <section id="meal-schedule-section" class="add-visit-manager-section">
+          <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>Schedule</h3>
+          <div class="input-group"><label class="input-label" for="meal-recurrence">Pattern</label><select id="meal-recurrence" class="edit-input"><option value="oneTime">One-time invitation</option><option value="daily">Every day</option><option value="weekly">Selected weekdays</option></select></div>
+          <div id="meal-one-time-fields" class="input-group"><label class="input-label" for="meal-one-time-date">Date</label><input id="meal-one-time-date" class="edit-input" type="date"></div>
+          <div id="meal-recurring-fields" hidden>
+            <div id="meal-weekdays-wrap" class="input-group" hidden><span class="input-label">Weekdays</span><div class="meal-weekdays"><label class="meal-weekday"><input type="checkbox" value="1">Mon</label><label class="meal-weekday"><input type="checkbox" value="2">Tue</label><label class="meal-weekday"><input type="checkbox" value="3">Wed</label><label class="meal-weekday"><input type="checkbox" value="4">Thu</label><label class="meal-weekday"><input type="checkbox" value="5">Fri</label><label class="meal-weekday"><input type="checkbox" value="6">Sat</label><label class="meal-weekday"><input type="checkbox" value="0">Sun</label></div></div>
+            <div class="date-time-row"><div class="input-group"><label class="input-label" for="meal-start-date">Starts</label><input id="meal-start-date" class="edit-input" type="date"></div><div class="input-group"><label class="input-label" for="meal-end-date">Ends (optional)</label><input id="meal-end-date" class="edit-input" type="date"></div></div>
+          </div>
+        </section>
+
+        <section id="meal-seating-section" class="add-visit-manager-section">
+          <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-meal"></use></svg>Meals &amp; Seating</h3>
+          <div class="input-group"><span class="input-label">Meals</span><div class="meal-choice-grid"><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Breakfast">Breakfast</label><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Lunch">Lunch</label><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Dinner">Dinner</label></div></div>
+          <div class="input-group"><label class="input-label" for="meal-default-seating">Default seating</label><select id="meal-default-seating" class="edit-input"><option>Floor</option><option>Table and chair</option></select></div>
+          <div class="input-group"><label class="input-label" for="meal-schedule-note">Note (optional)</label><textarea id="meal-schedule-note" class="edit-input" rows="3" maxlength="500"></textarea></div>
+        </section>
+      </div>
+
+      <div id="meal-editor-footer" class="meal-editor-footer" hidden><button id="meal-editor-save" class="dialog-primary-btn" type="button">Save Changes</button><button id="meal-editor-discard" class="dialog-secondary-btn" type="button">Discard</button></div>
+    </div>
+  </div>
+
+  <div id="meal-resident-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-resident-title">
+      <div class="modal-header"><h2 id="meal-resident-title">Add Permanent Resident</h2><button id="meal-resident-close" class="close-btn" type="button" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button></div>
+      <section class="add-visit-manager-section">
+        <div class="input-group"><label class="input-label" for="meal-resident-name">Name</label><input id="meal-resident-name" class="edit-input" type="text" maxlength="500"></div>
+        <div class="input-group"><label class="input-label" for="meal-resident-seating">Default seating</label><select id="meal-resident-seating" class="edit-input"><option>Floor</option><option>Table and chair</option></select></div>
+        <div class="date-time-row"><div class="input-group"><label class="input-label" for="meal-resident-from">Active from (optional)</label><input id="meal-resident-from" class="edit-input" type="date"></div><div class="input-group"><label class="input-label" for="meal-resident-until">Active until (optional)</label><input id="meal-resident-until" class="edit-input" type="date"></div></div>
+        <label class="checkbox-label"><input id="meal-resident-active" class="checkbox-input" type="checkbox" checked>Currently active</label>
+        <div class="input-group"><label class="input-label" for="meal-resident-note">Note (optional)</label><textarea id="meal-resident-note" class="edit-input" rows="3" maxlength="500"></textarea></div>
+      </section>
+      <div class="meal-editor-footer"><button id="meal-resident-save" class="dialog-primary-btn" type="button">Save Changes</button><button id="meal-resident-discard" class="dialog-secondary-btn" type="button">Discard</button></div>
+    </div>
+  </div>
 
   <main id="page-meetings" class="page" aria-label="Meetings with Swamiji">
     <div class="page-content" style="--accent:#fa8072">
@@ -3655,6 +3821,7 @@
         if (!event.target.closest('.room-row')) closeAllRoomRowLists();
         if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
         if (!event.target.closest('#add-visit-manager-view .guest-name-lookup')) hideAddVisitGuestSuggestions_();
+        if (!event.target.closest('#meal-editor-guest-section .guest-name-lookup')) hideMealGuestSuggestions_();
       });
       // The sheet's own buttons are built per card, so only the two fixed
       // ways out need binding here.
@@ -3718,8 +3885,39 @@
       $('meals-workspace-date').addEventListener('change', () => {
         navigate(`#meals/${$('meals-workspace-date').value}`);
       });
-      $('meals-search').addEventListener('input', () => renderMealsList_());
-      $('meals-workspace-add-btn').addEventListener('click', handleAddMealGuestClick_);
+      $('meals-prev-date').addEventListener('click', () => moveMealsDate_(-1));
+      $('meals-next-date').addEventListener('click', () => moveMealsDate_(1));
+      $('meals-today-date').addEventListener('click', () => navigate(`#meals/${todayDateKey_()}`));
+      $('meals-search').addEventListener('input', () => renderMealsCurrentView_());
+      $('meals-workspace-add-btn').addEventListener('click', handleMealsPrimaryAction_);
+      $('meal-editor-close').addEventListener('click', requestCloseMealEditor_);
+      $('meal-editor-discard').addEventListener('click', requestCloseMealEditor_);
+      $('meal-editor-modal').addEventListener('click', event => { if (event.target === $('meal-editor-modal')) requestCloseMealEditor_(); });
+      $('meal-editor-modal').addEventListener('input', () => { mealEditorDirty_ = true; });
+      $('meal-editor-modal').addEventListener('change', () => { mealEditorDirty_ = true; });
+      $('meal-editor-save').addEventListener('click', saveMealArrangement_);
+      $('meal-add-arrangement').addEventListener('click', openBlankMealArrangement_);
+      $('meal-guest-name').addEventListener('input', handleMealGuestNameInput_);
+      $('meal-guest-name').addEventListener('focus', renderMealGuestSuggestions_);
+      $('meal-recurrence').addEventListener('change', updateMealRecurrenceFields_);
+      $('meal-basic-person-type').addEventListener('change', updateMealBasicFields_);
+      $('meal-basic-purpose').addEventListener('change', updateMealBasicFields_);
+      $('meal-team-select').addEventListener('change', refreshMealExistingArrangements_);
+      $('meal-seva-select').addEventListener('change', refreshMealExistingArrangements_);
+      $('meal-source-tabs').addEventListener('click', event => {
+        const button = event.target.closest('[data-meal-source]');
+        if (button) setMealEditorSource_(button.dataset.mealSource);
+      });
+      $('meal-section-nav').addEventListener('click', event => {
+        const button = event.target.closest('[data-meal-target]');
+        if (!button) return;
+        $(button.dataset.mealTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('meal-section-nav').querySelectorAll('.section-nav-pill').forEach(item => item.classList.toggle('active', item === button));
+      });
+      $('meal-resident-close').addEventListener('click', closeMealResidentEditor_);
+      $('meal-resident-discard').addEventListener('click', closeMealResidentEditor_);
+      $('meal-resident-modal').addEventListener('click', event => { if (event.target === $('meal-resident-modal')) closeMealResidentEditor_(); });
+      $('meal-resident-save').addEventListener('click', saveMealResident_);
 
       $('meetings-search').addEventListener('input', () => renderMeetingsList_());
       $('meetings-workspace-add-btn').addEventListener('click', handleAddMeetingClick_);
@@ -4466,7 +4664,7 @@
     // the first visit to a workspace after reopening the app is drawn from
     // disk instead of waiting on a request. Without this, every reopen paid
     // the cold cost once per workspace no matter how warm the server was.
-    const WORKSPACE_CACHE_KEY = 'ashram-app-v3-firestore-workspaces-v1';
+    const WORKSPACE_CACHE_KEY = 'ashram-app-v3-firestore-workspaces-v2';
 
     function readCachedWorkspaces_() {
       try {
@@ -4995,10 +5193,16 @@
         action: { label: 'Open visit', run: () => openVisitEditor(profile.guestId, visit.visitId) }
       })), 'No visits recorded.'));
 
-      body.appendChild(buildProfileSection_('icon-meal', 'Meals', (profile.mealOverrides || []).map(entry => ({
-        main: `${entry.meal} \u00B7 ${formatDateKeyDisplay(entry.date)}`,
-        meta: entry.included ? 'Included' : 'Excluded'
-      })), 'No meal exceptions or invitations.'));
+      body.appendChild(buildProfileSection_('icon-meal', 'Meals', [
+        ...(profile.mealSchedules || []).map(entry => ({
+          main: (entry.meals || []).join(', ') || 'Meal arrangement',
+          meta: mealScheduleSummary_(entry)
+        })),
+        ...(profile.mealOverrides || []).map(entry => ({
+          main: `${entry.meal} \u00B7 ${formatDateKeyDisplay(entry.date)}`,
+          meta: `${entry.included ? 'Included' : 'Excluded'}${entry.seating ? ` \u00B7 ${entry.seating}` : ''}${entry.note ? ` \u00B7 ${entry.note}` : ''}`
+        }))
+      ], 'No meal arrangements or daily changes.'));
 
       body.appendChild(buildProfileSection_('icon-lotus', 'Meetings with Swamiji', (profile.meetings || []).map(meeting => ({
         main: meeting.time ? `${formatDateKeyDisplay(meeting.date)} \u00B7 ${meeting.time}` : formatDateKeyDisplay(meeting.date),
@@ -5093,7 +5297,7 @@
       if (!profile.canHardDelete) {
         const held = [
           (profile.visits || []).length && `${profile.visits.length} visit${profile.visits.length === 1 ? '' : 's'}`,
-          (profile.mealOverrides || []).length && `${profile.mealOverrides.length} meal record${profile.mealOverrides.length === 1 ? '' : 's'}`,
+          ((profile.mealOverrides || []).length + (profile.mealSchedules || []).length) && `${(profile.mealOverrides || []).length + (profile.mealSchedules || []).length} meal record${((profile.mealOverrides || []).length + (profile.mealSchedules || []).length) === 1 ? '' : 's'}`,
           (profile.meetings || []).length && `${profile.meetings.length} meeting${profile.meetings.length === 1 ? '' : 's'}`,
           (profile.specificSeva || []).length && `${profile.specificSeva.length} seva task${profile.specificSeva.length === 1 ? '' : 's'}`,
           (profile.trips || []).length && `${profile.trips.length} trip${profile.trips.length === 1 ? '' : 's'}`
@@ -7777,11 +7981,9 @@
     }
 
     // ============================================================
-    // V3 Operational Workspaces Architecture — Phase F. Meals workspace:
-    // pick a date, see every guest's meal inclusion for that day, toggle
-    // individual meals — fully row-level via upsertMealOverride (plan §2),
-    // replacing the old bulk-replace-per-guest path whose 60-day grid cap
-    // silently dropped exclusions past day 60 on any unrelated save.
+    // Meals workspace. Standing rules (residents, visits, guest schedules,
+    // Seva Teams and individual seva) are resolved into a day/meal roster;
+    // daily changes remain small overrides. The same resolver feeds Home.
     // ============================================================
 
     function todayDateKey_() {
@@ -7790,29 +7992,81 @@
       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     }
 
-    // Date-first: the date is part of the route, so a particular day's meal
-    // list is linkable and survives a reload. The meal tabs are a view over
-    // the same day's data rather than separate fetches.
+    const MEALS_VIEWS_ = [
+      { key: 'daily', label: 'Daily Roster' },
+      { key: 'schedules', label: 'Meal Schedules' },
+      { key: 'residents', label: 'Permanent Residents' }
+    ];
+    const MEAL_WEEKDAY_LABELS_ = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     let mealsData_ = null;
+    let mealsView_ = 'daily';
     let mealsActiveMeal_ = 'Lunch';
+    let mealGuestRecords_ = [];
+    let mealEditorSource_ = 'individualGuest';
+    let mealSelectedGuest_ = null;
+    let mealNewGuestName_ = '';
+    let mealEditingSchedule_ = null;
+    let mealEditorDirty_ = false;
+    let mealResidentEditing_ = null;
 
     function loadMealsPage_(dateArg) {
       const date = /^\d{4}-\d{2}-\d{2}$/.test(String(dateArg || '')) ? dateArg : todayDateKey_();
       $('meals-workspace-date').value = date;
-
       return loadWorkspaceCached_(
         'meals',
-        // Keyed on the date, not merely on having loaded once — each day is a
-        // different answer, so yesterday's data must not be shown for today.
         () => Boolean(mealsData_ && mealsData_.date === date),
-        () => { renderMealTabs_(); renderMealsList_(); },
+        renderMealsCurrentView_,
         () => apiCall('getWorkspaceData', { workspace: 'meals', filters: { date } })
-          .then(data => { mealsData_ = data; writeCachedWorkspace_("meals", data); })
+          .then(data => { mealsData_ = data; writeCachedWorkspace_('meals', data); })
           .catch(error => {
             handleApiError(error, err => showToast(`Couldn't load meals: ${getErrorMessage(err)}`, 'error'));
             throw error;
           })
       );
+    }
+
+    function reloadMeals_() {
+      const date = $('meals-workspace-date').value || todayDateKey_();
+      mealsData_ = null;
+      return loadMealsPage_(date).then(() => loadHomeSummary_().then(renderHome_));
+    }
+
+    function moveMealsDate_(days) {
+      const value = $('meals-workspace-date').value || todayDateKey_();
+      const date = new Date(`${value}T12:00:00`);
+      date.setDate(date.getDate() + days);
+      const pad = number => String(number).padStart(2, '0');
+      navigate(`#meals/${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`);
+    }
+
+    function renderMealsViewTabs_() {
+      const container = $('meals-view-tabs');
+      container.replaceChildren();
+      MEALS_VIEWS_.forEach(view => {
+        const button = createElement('button', `tier-tab${mealsView_ === view.key ? ' active' : ''}`);
+        button.type = 'button';
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', String(mealsView_ === view.key));
+        button.appendChild(createElement('span', 'tier-tab-count', view.key === 'daily'
+          ? String((mealsData_?.counts || {})[mealsActiveMeal_] || 0)
+          : view.key === 'schedules' ? String((mealsData_?.schedules || []).length) : String((mealsData_?.permanentResidents || []).length)));
+        button.appendChild(createElement('span', 'tier-tab-label', view.label));
+        button.addEventListener('click', () => { mealsView_ = view.key; renderMealsCurrentView_(); });
+        container.appendChild(button);
+      });
+    }
+
+    function renderMealsCurrentView_() {
+      if (!mealsData_) return;
+      renderMealsViewTabs_();
+      $('meals-daily-view').hidden = mealsView_ !== 'daily';
+      $('meals-schedules-view').hidden = mealsView_ !== 'schedules';
+      $('meals-residents-view').hidden = mealsView_ !== 'residents';
+      $('meals-add-label').textContent = mealsView_ === 'daily' ? 'Invite Guest' : mealsView_ === 'schedules' ? 'Add Schedule' : 'Add Resident';
+      $('meals-search').placeholder = mealsView_ === 'daily' ? 'Search today’s roster...' : mealsView_ === 'schedules' ? 'Search meal schedules...' : 'Search residents...';
+      if (mealsView_ === 'daily') renderMealsDaily_();
+      else if (mealsView_ === 'schedules') renderMealSchedules_();
+      else renderPermanentResidents_();
     }
 
     function renderMealTabs_() {
@@ -7823,195 +8077,479 @@
         button.type = 'button';
         button.setAttribute('role', 'tab');
         button.setAttribute('aria-selected', String(mealsActiveMeal_ === meal));
-        button.addEventListener('click', () => {
-          mealsActiveMeal_ = meal;
-          renderMealTabs_();
-          renderMealsList_();
-        });
+        button.addEventListener('click', () => { mealsActiveMeal_ = meal; renderMealsCurrentView_(); });
         container.appendChild(button);
       });
     }
 
-    function renderMealsList_() {
-      const listEl = $('meals-workspace-list');
-      const emptyEl = $('meals-workspace-empty');
-      listEl.replaceChildren();
-      if (!mealsData_) return;
-
-      const date = mealsData_.date;
-      const counts = mealsData_.counts || {};
-      renderSummaryTiles_($('meals-summary'), [
-        { value: counts.Breakfast || 0, label: 'BREAKFAST' },
-        { value: counts.Lunch || 0, label: 'LUNCH' },
-        { value: counts.Dinner || 0, label: 'DINNER' },
-        { value: mealsData_.residentCount || 0, label: 'RESIDENTS TODAY' }
-      ]);
-
-      const query = normalizeSearchText($('meals-search').value.trim());
-      const rows = (mealsData_.guests || []).filter(row => {
-        if (!query) return true;
-        const text = normalizeSearchText(`${row.name} ${row.personType}`);
-        return query.split(/\s+/).every(term => text.includes(term));
+    function renderMealsDaily_() {
+      renderMealTabs_();
+      const overview = $('meals-overview');
+      overview.replaceChildren();
+      ALLOWED_MEALS.forEach(meal => {
+        const stats = (mealsData_.mealStats || {})[meal] || {};
+        const card = createElement('button', `meal-overview-card${meal === mealsActiveMeal_ ? ' active' : ''}`);
+        card.type = 'button';
+        card.appendChild(createElement('span', 'meal-overview-title', meal));
+        card.appendChild(createElement('span', 'meal-overview-total', String(stats.total || 0)));
+        const meta = createElement('span', 'meal-overview-meta');
+        meta.appendChild(createElement('span', '', `${stats.floor || 0} floor`));
+        meta.appendChild(createElement('span', '', `${stats.tableAndChair || 0} table & chair`));
+        if (stats.absent) meta.appendChild(createElement('span', '', `${stats.absent} not attending`));
+        card.appendChild(meta);
+        card.addEventListener('click', () => { mealsActiveMeal_ = meal; renderMealsCurrentView_(); });
+        overview.appendChild(card);
       });
 
-      // Grouped so the page answers the operational questions directly:
-      // who is eating by default, who has opted out, and who was invited in.
+      const query = normalizeSearchText($('meals-search').value.trim());
+      const attending = ((mealsData_.rosters || {})[mealsActiveMeal_] || []).filter(row => mealRowMatches_(row, query));
+      const absent = ((mealsData_.notAttending || {})[mealsActiveMeal_] || []).filter(row => mealRowMatches_(row, query));
       const groups = [
-        { title: 'Residents attending', className: 'zone-current', rows: rows.filter(r => r.isResident && r.meals[mealsActiveMeal_].included) },
-        { title: 'Residents not attending', className: 'zone-urgent', rows: rows.filter(r => r.isResident && !r.meals[mealsActiveMeal_].included) },
-        { title: 'Invited guests', className: 'zone-upcoming', rows: rows.filter(r => !r.isResident && r.meals[mealsActiveMeal_].included) }
+        { title: 'Floor seating', className: 'zone-current', rows: attending.filter(row => row.seating === 'Floor') },
+        { title: 'Table and chair', className: 'zone-upcoming', rows: attending.filter(row => row.seating === 'Table and chair') },
+        { title: 'Not attending', className: 'zone-urgent', rows: absent }
       ];
-
+      const list = $('meals-workspace-list');
+      list.replaceChildren();
       let shown = 0;
       groups.forEach(group => {
         if (!group.rows.length) return;
         shown += group.rows.length;
-        const zone = createElement('div', `zone ${group.className}`);
+        const zone = createElement('section', `zone ${group.className}`);
         const header = createElement('div', 'zone-header');
         header.appendChild(createElement('span', 'zone-title', group.title));
         header.appendChild(createElement('span', 'zone-count', String(group.rows.length)));
         zone.appendChild(header);
-        const grid = createElement('div', 'card-grid');
-        group.rows.forEach(row => grid.appendChild(createMealsWorkspaceRow(row, date)));
-        zone.appendChild(grid);
-        listEl.appendChild(zone);
+        group.rows.forEach(row => zone.appendChild(createMealRosterRow_(row)));
+        list.appendChild(zone);
       });
-
-      emptyEl.hidden = shown > 0;
+      $('meals-workspace-empty').hidden = shown > 0;
     }
 
-    function handleAddMealGuestClick_() {
-      const date = $('meals-workspace-date').value || todayDateKey_();
-      openGuestPicker_(guestId => {
-        // The meals date is chosen at the top of the page rather than in a
-        // field of its own, so the stay check belongs here — the moment the
-        // guest and the date are first paired. Caught locally the answer is
-        // immediate and specific; the save would refuse anyway, a round trip
-        // later and with less to say.
-        const windows = guestStayWindows_(guestId);
-        if (windows && windows.length && !isDateInsideStay_(windows, date)) {
-          showToast(
-            `${formatDateKeyDisplay(date)} falls outside this guest's stay (${describeStayWindows_(windows)}). `
-            + 'Adjust the visit dates first, or pick a date inside the stay.',
-            'error'
-          );
-          return;
-        }
-        apiCall('upsertMealOverride', { payload: { guestId, date, meal: mealsActiveMeal_, included: true } })
-          .then(() => {
-            showToast(`Invited for ${mealsActiveMeal_.toLowerCase()}.`, 'success');
-            loadMealsPage_(date);
-          })
-          .catch(error => handleApiError(error, err => showToast(getErrorMessage(err), 'error')));
-      });
+    function mealRowMatches_(row, query) {
+      if (!query) return true;
+      const sourceText = (row.sources || []).map(source => source.label).join(' ');
+      const haystack = normalizeSearchText(`${row.name} ${row.personType} ${row.seating} ${sourceText} ${row.note || ''}`);
+      return query.split(/\s+/).every(term => haystack.includes(term));
     }
 
-    function createMealsWorkspaceRow(row, date) {
-      const card = createElement('article', 'card');
-      // One entry per meal that actually has an exception to clear.
-      attachLongPress_(card, () => {
-        const actions = ALLOWED_MEALS
-          .filter(meal => (row.meals[meal] || {}).overrideId)
-          .map(meal => ({
-            label: `Delete ${meal.toLowerCase()} record`,
-            destructive: true,
-            run: () => deleteMealOverrideAction_(row, meal, date)
-          }));
-        if (!actions.length) return null;      // nothing to offer; no sheet
-        return { title: `${row.name || 'Unnamed Guest'} · ${formatDateKeyDisplay(date)}`, actions };
-      });
-      card.appendChild(createElement('div', 'guest-name', row.name || 'Unnamed Guest'));
-      const badges = createElement('div', 'badge-row');
-      badges.appendChild(createPersonTypeBadge(row.personType));
-      if (row.isResident) badges.appendChild(createBadge('Resident today', 'badge-teal'));
-      card.appendChild(badges);
+    function createMealRosterRow_(row) {
+      const wrapper = createElement('article', 'meal-roster-row');
+      const info = createElement('div');
+      info.appendChild(createElement('div', 'meal-roster-name', row.name || 'Unnamed person'));
+      const meta = createElement('div', 'meal-roster-meta');
+      meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? row.seating : 'Not attending'));
+      (row.sources || []).forEach(source => meta.appendChild(createElement('span', 'meal-source-pill', source.label)));
+      if (row.isException) meta.appendChild(createElement('span', 'meal-source-pill', 'Modified today'));
+      info.appendChild(meta);
+      if (row.note) info.appendChild(createElement('div', 'meal-roster-note', row.note));
+      wrapper.appendChild(info);
 
-      const mealsRow = createElement('div', 'checkbox-row');
-      ALLOWED_MEALS.forEach(meal => {
-        const state = row.meals[meal] || { included: false, overrideId: null, isException: false };
-        const label = createElement('label', 'checkbox-label');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'checkbox-input';
-        checkbox.checked = Boolean(state.included);
-        checkbox.addEventListener('change', () => handleMealToggle_(row.guestId, meal, date, checkbox, state.overrideId));
-        label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(state.isException ? `${meal} (modified)` : meal));
-        mealsRow.appendChild(label);
-      });
-      card.appendChild(mealsRow);
-
-      // A meal attribute is the exception itself, so deleting it doesn't remove
-      // a meal — it drops the exception and lets the guest fall back to what
-      // their residency implies for that day. Only offered where an exception
-      // actually exists; a guest sitting on their default has nothing to clear.
-      const exceptions = ALLOWED_MEALS.filter(meal => (row.meals[meal] || {}).overrideId);
-      if (exceptions.length) {
-        const actions = createElement('div', 'seva-team-row-actions');
-        exceptions.forEach(meal => {
-          const btn = createElement('button', 'row-btn danger', `Clear ${meal.toLowerCase()}`);
-          btn.type = 'button';
-          btn.addEventListener('click', () => deleteMealOverrideAction_(row, meal, date));
-          actions.appendChild(btn);
-        });
-        card.appendChild(actions);
+      const actions = createElement('div', 'meal-roster-actions');
+      const attend = createElement('button', 'row-btn', row.included ? 'Absent' : 'Include');
+      attend.type = 'button';
+      attend.addEventListener('click', () => saveMealDailyOverride_(row, { included: !row.included }));
+      actions.appendChild(attend);
+      if (row.included) {
+        const seating = createElement('button', 'row-btn', row.seating === 'Floor' ? 'Use chair' : 'Seat on floor');
+        seating.type = 'button';
+        seating.addEventListener('click', () => saveMealDailyOverride_(row, { seatingOverride: row.seating === 'Floor' ? 'Table and chair' : 'Floor' }));
+        actions.appendChild(seating);
       }
-
-      return card;
+      const note = createElement('button', 'row-btn', row.note ? 'Edit note' : 'Add note');
+      note.type = 'button';
+      note.addEventListener('click', () => {
+        const value = window.prompt(`Note for ${row.name} at ${mealsActiveMeal_.toLowerCase()}:`, row.note || '');
+        if (value !== null) saveMealDailyOverride_(row, { note: value });
+      });
+      actions.appendChild(note);
+      if (row.overrideId) {
+        const restore = createElement('button', 'row-btn', 'Restore default');
+        restore.type = 'button';
+        restore.addEventListener('click', () => restoreMealDefault_(row));
+        actions.appendChild(restore);
+      }
+      if (row.guestId) {
+        const profile = createElement('button', 'row-btn', 'View profile');
+        profile.type = 'button';
+        profile.addEventListener('click', () => navigate(`#guest/${encodeURIComponent(row.guestId)}`));
+        actions.appendChild(profile);
+      }
+      wrapper.appendChild(actions);
+      return wrapper;
     }
 
-    function deleteMealOverrideAction_(row, meal, date) {
-      const state = row.meals[meal] || {};
-      if (!state.overrideId) return;
-      if (!window.confirm(
-        `Delete the ${meal.toLowerCase()} record for ${row.name || 'this guest'} on ${formatDateKeyDisplay(date)}?\n\n`
-        + 'They go back to whatever their residency implies for that day.'
-      )) return;
-      apiCall('deleteMealOverride', { overrideId: state.overrideId })
-        .then(() => {
-          showToast(`${meal} record cleared.`, 'success');
-          loadMealsPage_(date);
-          loadHomeSummary_().then(renderHome_);
-        })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't clear that record: ${getErrorMessage(err)}`, 'error')));
-    }
-
-    // Applied locally and drawn immediately; the write goes out in the
-    // background. Waiting for the round trip and then refetching the whole
-    // day meant two server trips and a frozen checkbox for every single
-    // tick — the sheet is the record of truth, but it doesn't have to be
-    // consulted before the interface is allowed to respond. If the write
-    // fails the change is rolled back and said out loud.
-    function handleMealToggle_(guestId, meal, date, checkbox, overrideId) {
-      const included = checkbox.checked;
-      const row = (mealsData_.guests || []).find(r => r.guestId === guestId);
-      if (!row) return;
-
-      const previous = Object.assign({}, row.meals[meal]);
-      row.meals[meal] = { included, overrideId: overrideId || previous.overrideId, isException: true };
-      applyMealCountDelta_(meal, included ? 1 : -1);
-      renderMealsList_();
-
-      const payload = { guestId, date, meal, included };
-      if (overrideId) payload.overrideId = overrideId;
-
+    function saveMealDailyOverride_(row, patch) {
+      const payload = {
+        subjectType: row.subjectType,
+        subjectId: row.subjectId,
+        date: mealsData_.date,
+        meal: mealsActiveMeal_,
+        included: patch.included === undefined ? row.included : patch.included,
+        seatingOverride: patch.seatingOverride === undefined ? (row.isException ? row.seating : '') : patch.seatingOverride,
+        note: patch.note === undefined ? (row.note || '') : patch.note
+      };
+      if (row.overrideId) payload.overrideId = row.overrideId;
       apiCall('upsertMealOverride', { payload })
-        .then(result => {
-          // Keep the row's override ID in step so a second tick on the same
-          // meal updates that row instead of racing to create another.
-          if (result && result.overrideId) row.meals[meal].overrideId = result.overrideId;
-        })
-        .catch(error => handleApiError(error, err => {
-          row.meals[meal] = previous;
-          applyMealCountDelta_(meal, included ? -1 : 1);
-          renderMealsList_();
-          showToast(`Couldn't update meal: ${getErrorMessage(err)}`, 'error');
-        }));
+        .then(() => { showToast('Meal updated.', 'success'); return reloadMeals_(); })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't update meal: ${getErrorMessage(err)}`, 'error')));
     }
 
-    function applyMealCountDelta_(meal, delta) {
-      if (!mealsData_.counts) mealsData_.counts = {};
-      mealsData_.counts[meal] = Math.max(0, (mealsData_.counts[meal] || 0) + delta);
+    function restoreMealDefault_(row) {
+      if (!row.overrideId) return;
+      apiCall('deleteMealOverride', { overrideId: row.overrideId })
+        .then(() => { showToast('Default restored.', 'success'); return reloadMeals_(); })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't restore the default: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function renderMealSchedules_() {
+      const query = normalizeSearchText($('meals-search').value.trim());
+      const schedules = (mealsData_.schedules || []).filter(item => {
+        const text = normalizeSearchText(`${item.name} ${mealScheduleSummary_(item)} ${item.note || ''}`);
+        return !query || query.split(/\s+/).every(term => text.includes(term));
+      });
+      const groups = [
+        { type: 'individualGuest', title: 'Individual invitations' },
+        { type: 'sevaTeam', title: 'Seva Team schedules' },
+        { type: 'individualSeva', title: 'Individual Seva arrangements' }
+      ];
+      const list = $('meals-schedules-list');
+      list.replaceChildren();
+      groups.forEach(group => {
+        const rows = schedules.filter(item => item.sourceType === group.type);
+        if (!rows.length) return;
+        const zone = createElement('section', 'zone zone-upcoming');
+        const header = createElement('div', 'zone-header');
+        header.appendChild(createElement('span', 'zone-title', group.title));
+        header.appendChild(createElement('span', 'zone-count', String(rows.length)));
+        zone.appendChild(header);
+        rows.forEach(item => zone.appendChild(createMealScheduleRow_(item)));
+        list.appendChild(zone);
+      });
+      $('meals-schedules-empty').hidden = schedules.length > 0;
+    }
+
+    function mealScheduleSummary_(item) {
+      let timing = '';
+      if (item.recurrence === 'oneTime') timing = item.date ? formatDateKeyDisplay(item.date) : 'Date not set';
+      else if (item.recurrence === 'daily') timing = `Every day from ${formatDateKeyDisplay(item.startDate)}`;
+      else timing = `${(item.weekdays || []).map(day => MEAL_WEEKDAY_LABELS_[day]).join(', ')} from ${formatDateKeyDisplay(item.startDate)}`;
+      if (item.endDate) timing += ` to ${formatDateKeyDisplay(item.endDate)}`;
+      return `${timing} · ${(item.meals || []).join(', ')} · ${item.defaultSeating}`;
+    }
+
+    function createMealScheduleRow_(item) {
+      const row = createElement('article', 'meal-management-row');
+      const info = createElement('div');
+      info.appendChild(createElement('div', 'meal-management-title', item.name || 'Unnamed arrangement'));
+      info.appendChild(createElement('div', 'meal-management-meta', mealScheduleSummary_(item)));
+      if (item.note) info.appendChild(createElement('div', 'meal-management-meta', item.note));
+      row.appendChild(info);
+      const actions = createElement('div', 'meal-roster-actions');
+      const edit = createElement('button', 'row-btn', 'Edit');
+      edit.type = 'button'; edit.addEventListener('click', () => openMealEditor_(item.sourceType, item, false));
+      const remove = createElement('button', 'row-btn danger', 'Delete');
+      remove.type = 'button'; remove.addEventListener('click', () => deleteMealSchedule_(item));
+      actions.append(edit, remove); row.appendChild(actions);
+      return row;
+    }
+
+    function deleteMealSchedule_(item, keepEditorOpen = false) {
+      if (!window.confirm(`Delete this meal arrangement for ${item.name}?`)) return;
+      apiCall('deleteMealSchedule', { scheduleId: item.scheduleId })
+        .then(() => {
+          showToast('Meal arrangement deleted.', 'success');
+          return reloadMeals_().then(() => { if (keepEditorOpen) refreshMealExistingArrangements_(); });
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't delete the arrangement: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function renderPermanentResidents_() {
+      const query = normalizeSearchText($('meals-search').value.trim());
+      const residents = (mealsData_.permanentResidents || []).filter(item => !query || normalizeSearchText(`${item.name} ${item.defaultSeating} ${item.note || ''}`).includes(query));
+      const list = $('meals-residents-list');
+      list.replaceChildren();
+      residents.forEach(item => {
+        const row = createElement('article', 'meal-management-row');
+        const info = createElement('div');
+        info.appendChild(createElement('div', 'meal-management-title', item.name || 'Unnamed resident'));
+        const dates = [item.activeFrom && `from ${formatDateKeyDisplay(item.activeFrom)}`, item.activeUntil && `until ${formatDateKeyDisplay(item.activeUntil)}`].filter(Boolean).join(' ');
+        info.appendChild(createElement('div', 'meal-management-meta', `${item.defaultSeating} · ${item.active ? 'Active' : 'Inactive'}${dates ? ` · ${dates}` : ''}`));
+        if (item.note) info.appendChild(createElement('div', 'meal-management-meta', item.note));
+        row.appendChild(info);
+        const actions = createElement('div', 'meal-roster-actions');
+        const edit = createElement('button', 'row-btn', 'Edit'); edit.type = 'button'; edit.addEventListener('click', () => openMealResidentEditor_(item));
+        const remove = createElement('button', 'row-btn danger', 'Delete'); remove.type = 'button'; remove.addEventListener('click', () => deleteMealResident_(item));
+        actions.append(edit, remove); row.appendChild(actions); list.appendChild(row);
+      });
+      $('meals-residents-empty').hidden = residents.length > 0;
+    }
+
+    function handleMealsPrimaryAction_() {
+      if (mealsView_ === 'residents') openMealResidentEditor_();
+      else openMealEditor_('individualGuest', null, mealsView_ === 'schedules');
+    }
+
+    function ensureMealGuestRecords_() {
+      if (mealGuestRecords_.length) return Promise.resolve(mealGuestRecords_);
+      return apiCall('getDirectory', { options: { limit: 200 } }).then(result => {
+        mealGuestRecords_ = result.guests || [];
+        return mealGuestRecords_;
+      });
+    }
+
+    function openMealEditor_(sourceType = 'individualGuest', schedule = null, allowSourceChoice = false) {
+      mealEditorDirty_ = false;
+      mealEditingSchedule_ = schedule;
+      mealSelectedGuest_ = null;
+      mealNewGuestName_ = '';
+      $('meal-editor-title').textContent = schedule ? 'Edit Meal Arrangement' : (allowSourceChoice ? 'Add Meal Schedule' : 'Invite Guest');
+      $('meal-source-tabs').hidden = !allowSourceChoice && !schedule;
+      $('meal-editor-details').hidden = true;
+      $('meal-editor-footer').hidden = true;
+      $('meal-section-nav').hidden = true;
+      $('meal-existing-section').hidden = true;
+      $('meal-guest-name').value = '';
+      $('meal-basic-person-type').value = 'Invited Guest';
+      $('meal-basic-foreign').checked = false;
+      $('meal-basic-purpose').value = '';
+      $('meal-basic-purpose-other').value = '';
+      $('meal-basic-assignment').value = '';
+      setMealEditorSource_(schedule?.sourceType || sourceType, false);
+      populateMealSourceSelectors_();
+      if (schedule) {
+        if (schedule.sourceType === 'individualGuest') {
+          selectMealGuest_({ guestId: schedule.sourceId, name: schedule.name, personType: schedule.personType || 'Invited Guest' }, false);
+        } else if (schedule.sourceType === 'sevaTeam') $('meal-team-select').value = schedule.sourceId;
+        else $('meal-seva-select').value = schedule.sourceId;
+        editMealArrangement_(schedule);
+      } else if (sourceType !== 'individualGuest') {
+        refreshMealExistingArrangements_();
+      }
+      $('meal-editor-modal').style.display = 'flex';
+      $('meal-editor-modal').setAttribute('aria-hidden', 'false');
+      if (mealEditorSource_ === 'individualGuest') ensureMealGuestRecords_().then(renderMealGuestSuggestions_);
+    }
+
+    function setMealEditorSource_(sourceType, reset = true) {
+      if (!['individualGuest', 'sevaTeam', 'individualSeva'].includes(sourceType)) return;
+      mealEditorSource_ = sourceType;
+      $('meal-source-tabs').querySelectorAll('[data-meal-source]').forEach(button => button.classList.toggle('active', button.dataset.mealSource === sourceType));
+      $('meal-editor-guest-section').hidden = sourceType !== 'individualGuest';
+      $('meal-editor-team-section').hidden = sourceType !== 'sevaTeam';
+      $('meal-editor-seva-section').hidden = sourceType !== 'individualSeva';
+      if (reset) {
+        mealSelectedGuest_ = null; mealNewGuestName_ = ''; mealEditingSchedule_ = null;
+        $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true;
+      }
+      refreshMealExistingArrangements_();
+    }
+
+    function populateMealSourceSelectors_() {
+      const team = $('meal-team-select');
+      team.replaceChildren(new Option('-- Choose Seva Team --', ''));
+      (mealsData_?.teams || []).forEach(item => team.appendChild(new Option(`${item.name} · ${item.startDate || 'date TBD'} – ${item.endDate || 'date TBD'}`, item.teamId)));
+      const seva = $('meal-seva-select');
+      seva.replaceChildren(new Option('-- Choose individual seva --', ''));
+      (mealsData_?.individualSeva || []).forEach(item => seva.appendChild(new Option(`${item.name} · ${item.description || 'Seva'} · ${item.startDate || 'date TBD'} – ${item.endDate || 'date TBD'}`, item.sevaId)));
+    }
+
+    function handleMealGuestNameInput_() {
+      mealSelectedGuest_ = null;
+      mealNewGuestName_ = $('meal-guest-name').value.trim();
+      $('meal-existing-section').hidden = true;
+      $('meal-editor-details').hidden = true;
+      $('meal-editor-footer').hidden = true;
+      $('meal-section-nav').hidden = true;
+      renderMealGuestSuggestions_();
+    }
+
+    function renderMealGuestSuggestions_() {
+      const list = $('meal-guest-suggestions');
+      const input = $('meal-guest-name');
+      if (mealEditorSource_ !== 'individualGuest' || mealSelectedGuest_) { hideMealGuestSuggestions_(); return; }
+      const query = normalizeSearchText(input.value.trim());
+      list.replaceChildren();
+      if (!query) { list.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+      const matches = mealGuestRecords_.filter(item => normalizeSearchText(`${item.name} ${item.personType}`).includes(query)).slice(0, 10);
+      matches.forEach(item => {
+        const button = createElement('button', 'guest-name-suggestion'); button.type = 'button';
+        button.appendChild(createElement('span', 'guest-name-suggestion-name', item.name));
+        button.appendChild(createElement('span', 'guest-name-suggestion-meta', item.personType || 'Guest'));
+        button.addEventListener('click', () => selectMealGuest_(item)); list.appendChild(button);
+      });
+      const exact = mealGuestRecords_.some(item => normalizeSearchText(item.name) === normalizeSearchText(input.value.trim()));
+      if (!exact && input.value.trim()) {
+        const add = createElement('button', 'guest-name-suggestion add-visit-new-option'); add.type = 'button';
+        add.appendChild(createElement('span', 'guest-name-suggestion-name', `Add new guest “${input.value.trim()}”`));
+        add.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Basic details and the first meal arrangement will be saved together'));
+        add.addEventListener('click', () => selectNewMealGuest_(input.value.trim())); list.appendChild(add);
+      }
+      list.hidden = !list.children.length; input.setAttribute('aria-expanded', String(!list.hidden));
+    }
+
+    function hideMealGuestSuggestions_() { $('meal-guest-suggestions').hidden = true; $('meal-guest-name').setAttribute('aria-expanded', 'false'); }
+
+    function selectMealGuest_(guest, markDirty = false) {
+      mealSelectedGuest_ = guest; mealNewGuestName_ = ''; $('meal-guest-name').value = guest.name || ''; hideMealGuestSuggestions_();
+      const notice = $('meal-guest-notice'); notice.replaceChildren(); notice.hidden = false;
+      notice.appendChild(createElement('span', '', 'Guest already added'));
+      const actions = createElement('span', 'add-visit-selection-actions');
+      const profile = createElement('button', 'row-btn', 'View profile'); profile.type = 'button'; profile.addEventListener('click', () => { closeMealEditor_(); navigate(`#guest/${encodeURIComponent(guest.guestId)}`); });
+      const change = createElement('button', 'row-btn', 'Change guest'); change.type = 'button'; change.addEventListener('click', () => { mealSelectedGuest_ = null; $('meal-guest-name').value = ''; notice.hidden = true; $('meal-existing-section').hidden = true; $('meal-guest-name').focus(); });
+      actions.append(profile, change); notice.appendChild(actions);
+      refreshMealExistingArrangements_(); if (markDirty) mealEditorDirty_ = true;
+    }
+
+    function selectNewMealGuest_(name) {
+      mealSelectedGuest_ = null; mealNewGuestName_ = name; $('meal-guest-name').value = name; hideMealGuestSuggestions_();
+      const notice = $('meal-guest-notice'); notice.replaceChildren(createElement('span', 'meal-manager-helper', 'New guest · Basic details and the first meal arrangement will be saved together')); notice.hidden = false;
+      $('meal-existing-section').hidden = true;
+      openBlankMealArrangement_();
+    }
+
+    function currentMealSourceId_() {
+      if (mealEditorSource_ === 'individualGuest') return mealSelectedGuest_?.guestId || '';
+      if (mealEditorSource_ === 'sevaTeam') return $('meal-team-select').value;
+      return $('meal-seva-select').value;
+    }
+
+    function refreshMealExistingArrangements_() {
+      const sourceId = currentMealSourceId_();
+      const section = $('meal-existing-section');
+      if (!sourceId) { section.hidden = true; return; }
+      const schedules = (mealsData_?.schedules || []).filter(item => item.sourceType === mealEditorSource_ && item.sourceId === sourceId);
+      const list = $('meal-existing-list'); list.replaceChildren();
+      if (!schedules.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No meal arrangements'));
+      schedules.forEach(item => {
+        const row = createElement('div', 'upcoming-visit-row');
+        const info = createElement('div', 'upcoming-visit-dates', mealScheduleSummary_(item));
+        const actions = createElement('div', 'upcoming-visit-actions');
+        const edit = createElement('button', 'row-btn', 'Edit'); edit.type = 'button'; edit.addEventListener('click', () => editMealArrangement_(item));
+        const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn'); remove.type = 'button'; remove.setAttribute('aria-label', 'Delete arrangement'); remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>'; remove.addEventListener('click', () => deleteMealSchedule_(item, true));
+        actions.append(edit, remove); row.append(info, actions); list.appendChild(row);
+      });
+      section.hidden = false;
+    }
+
+    function openBlankMealArrangement_() {
+      if (mealEditorSource_ === 'individualGuest' && !mealSelectedGuest_ && !mealNewGuestName_) { showToast('Choose or add a guest first.', 'error'); return; }
+      if (mealEditorSource_ !== 'individualGuest' && !currentMealSourceId_()) { showToast('Choose the Seva source first.', 'error'); return; }
+      mealEditingSchedule_ = null;
+      $('meal-recurrence').value = 'oneTime';
+      $('meal-one-time-date').value = mealsData_?.date || todayDateKey_();
+      $('meal-start-date').value = mealsData_?.date || todayDateKey_(); $('meal-end-date').value = '';
+      $('meal-weekdays-wrap').querySelectorAll('input').forEach(input => { input.checked = false; });
+      document.querySelectorAll('.meal-choice').forEach(input => { input.checked = input.value === mealsActiveMeal_; });
+      $('meal-default-seating').value = 'Floor'; $('meal-schedule-note').value = '';
+      if (mealEditorSource_ === 'sevaTeam') {
+        const team = (mealsData_.teams || []).find(item => item.teamId === currentMealSourceId_());
+        if (team) { $('meal-start-date').value = team.startDate || $('meal-start-date').value; $('meal-end-date').value = team.endDate || ''; }
+      } else if (mealEditorSource_ === 'individualSeva') {
+        const task = (mealsData_.individualSeva || []).find(item => item.sevaId === currentMealSourceId_());
+        if (task) { $('meal-start-date').value = task.startDate || $('meal-start-date').value; $('meal-end-date').value = task.endDate || ''; }
+      }
+      showMealArrangementForm_();
+    }
+
+    function editMealArrangement_(item) {
+      mealEditingSchedule_ = item;
+      $('meal-recurrence').value = item.recurrence || 'oneTime'; $('meal-one-time-date').value = item.date || '';
+      $('meal-start-date').value = item.startDate || ''; $('meal-end-date').value = item.endDate || '';
+      $('meal-weekdays-wrap').querySelectorAll('input').forEach(input => { input.checked = (item.weekdays || []).includes(Number(input.value)); });
+      document.querySelectorAll('.meal-choice').forEach(input => { input.checked = (item.meals || []).includes(input.value); });
+      $('meal-default-seating').value = item.defaultSeating || 'Floor'; $('meal-schedule-note').value = item.note || '';
+      showMealArrangementForm_();
+    }
+
+    function showMealArrangementForm_() {
+      const isNewGuest = Boolean(mealNewGuestName_);
+      $('meal-basic-section').hidden = !isNewGuest;
+      $('meal-section-nav').querySelector('[data-meal-target="meal-basic-section"]').hidden = !isNewGuest;
+      $('meal-editor-details').hidden = false; $('meal-editor-footer').hidden = false; $('meal-section-nav').hidden = false;
+      updateMealRecurrenceFields_(); updateMealBasicFields_();
+      const target = isNewGuest ? $('meal-basic-section') : $('meal-schedule-section');
+      window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    }
+
+    function updateMealRecurrenceFields_() {
+      const recurrence = $('meal-recurrence').value;
+      $('meal-one-time-fields').hidden = recurrence !== 'oneTime';
+      $('meal-recurring-fields').hidden = recurrence === 'oneTime';
+      $('meal-weekdays-wrap').hidden = recurrence !== 'weekly';
+    }
+
+    function updateMealBasicFields_() {
+      const type = $('meal-basic-person-type').value;
+      $('meal-basic-purpose-group').hidden = type !== 'Invited Guest';
+      $('meal-basic-assignment-group').hidden = type !== 'Event Staff';
+      $('meal-basic-purpose-other').hidden = !($('meal-basic-purpose').value === 'Other' && type === 'Invited Guest');
+    }
+
+    function collectMealSchedulePayload_() {
+      const recurrence = $('meal-recurrence').value;
+      const sourceId = currentMealSourceId_() || (mealNewGuestName_ ? `guest-${Date.now()}-${Math.random().toString(16).slice(2)}` : '');
+      const payload = {
+        scheduleId: mealEditingSchedule_?.scheduleId || '', version: mealEditingSchedule_?.version || '',
+        sourceType: mealEditorSource_, sourceId, recurrence,
+        date: recurrence === 'oneTime' ? $('meal-one-time-date').value : '',
+        startDate: recurrence === 'oneTime' ? '' : $('meal-start-date').value,
+        endDate: recurrence === 'oneTime' ? '' : $('meal-end-date').value,
+        weekdays: recurrence === 'weekly' ? [...$('meal-weekdays-wrap').querySelectorAll('input:checked')].map(input => Number(input.value)) : [],
+        meals: [...document.querySelectorAll('.meal-choice:checked')].map(input => input.value),
+        defaultSeating: $('meal-default-seating').value, note: $('meal-schedule-note').value.trim(), active: true
+      };
+      if (mealNewGuestName_) {
+        const type = $('meal-basic-person-type').value;
+        payload.newGuest = {
+          name: mealNewGuestName_, personType: type, isForeign: $('meal-basic-foreign').checked,
+          invitedPurpose: type === 'Invited Guest' && $('meal-basic-purpose').value ? [$('meal-basic-purpose').value] : [],
+          invitedPurposeOther: $('meal-basic-purpose-other').value.trim(),
+          staffAssignment: $('meal-basic-assignment').value.trim()
+        };
+      }
+      return payload;
+    }
+
+    function saveMealArrangement_() {
+      const payload = collectMealSchedulePayload_();
+      $('meal-editor-save').disabled = true;
+      apiCall('saveMealSchedule', { payload })
+        .then(result => {
+          mealEditorDirty_ = false;
+          showToast('Meal arrangement saved.', 'success');
+          return reloadMeals_().then(() => {
+            if (result.guestCreated) closeMealEditor_();
+            else { mealEditingSchedule_ = null; $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true; refreshMealExistingArrangements_(); }
+          });
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't save the arrangement: ${getErrorMessage(err)}`, 'error')))
+        .finally(() => { $('meal-editor-save').disabled = false; });
+    }
+
+    function requestCloseMealEditor_() {
+      if (mealEditorDirty_ && !window.confirm('Discard your unsaved meal changes?')) return;
+      closeMealEditor_();
+    }
+    function closeMealEditor_() { mealEditorDirty_ = false; $('meal-editor-modal').style.display = 'none'; $('meal-editor-modal').setAttribute('aria-hidden', 'true'); hideMealGuestSuggestions_(); }
+
+    function openMealResidentEditor_(resident = null) {
+      mealResidentEditing_ = resident;
+      $('meal-resident-title').textContent = resident ? 'Edit Permanent Resident' : 'Add Permanent Resident';
+      $('meal-resident-name').value = resident?.name || ''; $('meal-resident-seating').value = resident?.defaultSeating || 'Floor';
+      $('meal-resident-from').value = resident?.activeFrom || ''; $('meal-resident-until').value = resident?.activeUntil || '';
+      $('meal-resident-active').checked = resident ? resident.active : true; $('meal-resident-note').value = resident?.note || '';
+      $('meal-resident-modal').style.display = 'flex'; $('meal-resident-modal').setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => $('meal-resident-name').focus(), 0);
+    }
+    function closeMealResidentEditor_() { $('meal-resident-modal').style.display = 'none'; $('meal-resident-modal').setAttribute('aria-hidden', 'true'); mealResidentEditing_ = null; }
+    function saveMealResident_() {
+      const payload = { residentId: mealResidentEditing_?.residentId || '', version: mealResidentEditing_?.version || '', name: $('meal-resident-name').value.trim(), defaultSeating: $('meal-resident-seating').value, activeFrom: $('meal-resident-from').value, activeUntil: $('meal-resident-until').value, active: $('meal-resident-active').checked, note: $('meal-resident-note').value.trim() };
+      apiCall('savePermanentResident', { payload }).then(() => { showToast('Permanent resident saved.', 'success'); closeMealResidentEditor_(); return reloadMeals_(); }).catch(error => handleApiError(error, err => showToast(`Couldn't save the resident: ${getErrorMessage(err)}`, 'error')));
+    }
+    function deleteMealResident_(resident) {
+      if (!window.confirm(`Delete ${resident.name} from the permanent resident meal list?`)) return;
+      apiCall('deletePermanentResident', { residentId: resident.residentId }).then(() => { showToast('Permanent resident deleted.', 'success'); return reloadMeals_(); }).catch(error => handleApiError(error, err => showToast(`Couldn't delete the resident: ${getErrorMessage(err)}`, 'error')));
     }
 
     // ============================================================
