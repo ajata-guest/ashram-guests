@@ -35,7 +35,7 @@ const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff
 const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
 // NONE is deliberately outside the four tabs. A guest who has only just been
-// entered has no visit and no engagements â€” nothing today, nothing upcoming,
+// entered has no visit and no engagements — nothing today, nothing upcoming,
 // and emphatically nothing past. Sorting them into Past (which is what falling
 // through to it did) told the office a brand-new record was finished business.
 // They belong under All Guests until something is actually scheduled for them.
@@ -186,7 +186,6 @@ function visitView(visit, roomsByVisit, legsByVisit) {
   const departure = serializeDate(visit.departureAt, visit.departureTimeConfirmed);
   const pickup = serializeDate(visit.pickupAt, visit.pickupTimeConfirmed);
   const dropoff = serializeDate(visit.dropoffAt, visit.dropoffTimeConfirmed);
-  const roomRows = (roomsByVisit[visit.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0));
   return {
     visitId: visit.id,
     guestId: visit.guestId,
@@ -227,11 +226,7 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     createdBy: visit.createdBy || null,
     updatedBy: visit.updatedBy || null,
     version: versionOf(visit),
-    rooms: roomRows.map(row => row.roomLabelSnapshot),
-    roomAllocations: roomRows.map(row => ({
-      room: row.roomLabelSnapshot,
-      sharedOk: Boolean(row.sharedOk)
-    })),
+    rooms: (roomsByVisit[visit.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(row => row.roomLabelSnapshot),
     travelLegs: (legsByVisit[visit.id] || []).map(travelView).sort((a, b) => a.order - b.order)
   };
 }
@@ -350,7 +345,7 @@ function priorityReasons(record, now, todayKey) {
   if (visit.accommodation === "Ashram" && !visit.rooms.length) reasons.push("Room missing");
   // The C-form registers a foreign national staying on the premises, so it
   // only applies once they are actually here and only when the ashram itself
-  // is housing them â€” not for a guest the ashram booked into a hotel.
+  // is housing them — not for a guest the ashram booked into a hotel.
   if (record.isForeign && !visit.cformComplete && visit.accommodation === "Ashram"
       && visit.arrivalMs !== null && visit.arrivalMs <= now) reasons.push("C-form pending");
   if (cabEligible) {
@@ -369,7 +364,7 @@ function priorityReasons(record, now, todayKey) {
 // Note: priorityReasons are deliberately NOT consulted here any more. They
 // used to short-circuit to a Priority tier, which meant a guest arriving today
 // with an unassigned room vanished from Today. Reasons still drive the card
-// badges, the search index and the homepage attention counts â€” they just no
+// badges, the search index and the homepage attention counts — they just no
 // longer decide which tab a guest appears under.
 function directoryTier(record, reasons, todayKey) {
   const visit = record.visit;
@@ -417,6 +412,7 @@ function roomInventory(canonical) {
     category: room.category || "Normal",
     permanent: Boolean(room.permanent),
     occupant: room.occupant || "",
+    capacity: Number(room.capacity) || 1,
     value: room.displayName || `${room.building} - ${room.room}`
   })).sort((a, b) => a.value.localeCompare(b.value));
 }
@@ -457,7 +453,7 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       // Every dated stay, not just the current one, so the client can warn
       // about a date landing outside them while it is being picked. A guest
       // with two visits has two windows and a gap between them that no single
-      // min/max range could express â€” hence a list, matching the same shape
+      // min/max range could express — hence a list, matching the same shape
       // validateEngagementDate enforces on save.
       stayWindows: stayWindows(allVisits),
       sevaTeams: teams,
@@ -598,8 +594,8 @@ export function createFirestoreBridge(firebaseApp) {
   function refreshCanonical_(force = false) {
     // A forced read must not settle for one that was already in flight before
     // it was asked for. Every write path calls loadCanonical(true) to validate
-    // against current server state â€” room conflicts, engagement windows,
-    // "this guest has history" â€” so piggybacking on an older request would let
+    // against current server state — room conflicts, engagement windows,
+    // "this guest has history" — so piggybacking on an older request would let
     // a save be checked against data from before that save was attempted.
     if (canonicalPromise && !force) return canonicalPromise;
     const generation = cacheGeneration;
@@ -1078,19 +1074,17 @@ export function createFirestoreBridge(firebaseApp) {
     );
   }
 
-  const requestedRoomList = (
-    Array.isArray(payload.rooms)
-      ? payload.rooms
-      : []
-  )
-    .map(item => clean(item?.room || item, 300))
-    .filter(Boolean);
-
-  if (new Set(requestedRoomList).size !== requestedRoomList.length) {
-    throw new Error("The same room cannot be assigned twice within one visit.");
-  }
-
-  const requestedRooms = [...new Set(requestedRoomList)];
+  const requestedRooms = [
+    ...new Set(
+      (
+        Array.isArray(payload.rooms)
+          ? payload.rooms
+          : []
+      )
+        .map(item => clean(item?.room || item, 300))
+        .filter(Boolean)
+    )
+  ];
 
   if (
     accommodation !== "Ashram" &&
@@ -1117,10 +1111,8 @@ export function createFirestoreBridge(firebaseApp) {
     item => item.visitId === visitId
   );
 
-  const acknowledgedSharedLabels = new Set(
-    existingRoomRows
-      .filter(item => item.sharedOk)
-      .map(item => item.roomLabelSnapshot)
+  const existingLabels = new Set(
+    existingRoomRows.map(item => item.roomLabelSnapshot)
   );
 
   const shareAcks = new Set(
@@ -1156,12 +1148,18 @@ export function createFirestoreBridge(firebaseApp) {
       );
     });
 
-    // Room sleeping capacity is intentionally not a fixed database limit.
-    // Any number of overlapping allocations may be made when the operator
-    // explicitly acknowledges that this is a shared-room assignment.
+    const capacity =
+      inventoryByLabel[label].capacity || 1;
+
+    if (occupants.length >= capacity) {
+      throw new Error(
+        `${label} is already at capacity for these dates.`
+      );
+    }
+
     if (
       occupants.length &&
-      !acknowledgedSharedLabels.has(label) &&
+      !existingLabels.has(label) &&
       !shareAcks.has(label)
     ) {
       throw new Error(
@@ -1396,7 +1394,9 @@ export function createFirestoreBridge(firebaseApp) {
           roomLabelSnapshot: label,
           order: index + 1,
 
-          sharedOk: Boolean(prior?.sharedOk) || shareAcks.has(label),
+          sharedOk: existingLabels.has(label)
+            ? Boolean(prior?.sharedOk)
+            : shareAcks.has(label),
 
           createdAt:
             prior?.createdAt || serverTimestamp(),
@@ -1803,8 +1803,8 @@ export function createFirestoreBridge(firebaseApp) {
 
   // ---- Permanent deletes -------------------------------------------------
   // Deleting is now the only way to remove any of these. The soft-delete that
-  // sat alongside it â€” cancelVisit, a Cancelled meeting status, a trip
-  // cancelled flag â€” went unused in practice while costing a filter in every
+  // sat alongside it — cancelVisit, a Cancelled meeting status, a trip
+  // cancelled flag — went unused in practice while costing a filter in every
   // read path, so it was taken out.
   //
   // A visit and a trip each own child collections. Firestore has no cascade
@@ -1861,7 +1861,7 @@ export function createFirestoreBridge(firebaseApp) {
     return { meetingId: id, deleted: true };
   }
 
-  // Deleting a meal override doesn't remove a meal â€” it drops the exception,
+  // Deleting a meal override doesn't remove a meal — it drops the exception,
   // so the guest reverts to whatever their residency implies for that day.
   async function deleteMealOverride(overrideId) {
     const actor = ensureApproved();
