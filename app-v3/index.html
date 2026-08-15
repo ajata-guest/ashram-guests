@@ -649,6 +649,20 @@
       fill: currentColor;
     }
 
+    /* A note about the line above it rather than a fact of its own. Indented
+       past that line's icon (16px + the 8px gap) so it hangs under the text it
+       qualifies, and set quieter and smaller so the room name stays the thing
+       you actually scan for. Room name and sharing period on one wrapped line
+       read as a single long sentence and neither could be picked out. */
+    .detail-subline {
+      margin-top: -5px;
+      padding-left: 24px;
+      color: var(--subtle);
+      font-size: 0.8rem;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
     /* Every dialog in the app. The five workspaces became pages; what stays
        a dialog is editing one record — a guest, a visit, a trip, a meeting —
        plus the guest picker shared by the Add flows. */
@@ -6524,21 +6538,39 @@
       // becomes a badge — the distinction V2 drew. Those badges have nothing
       // further to say, so they share one row instead of taking a line each.
       const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const dayMonth = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
       const outstanding = [];
 
-      if (visit.arrivalMs) card.appendChild(createDetailLine('icon-calendar', `Arrives ${dateFormat(visit.arrivalMs)}`));
-      else outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
+      // Arrival and departure are one fact — the stay window — so they read as
+      // one line. Two icon rows labelled "Arrives" and "Departs" spent half the
+      // card's height on a range you take in at a glance, and the year only
+      // needs saying twice when the stay actually crosses into the next one.
+      if (visit.arrivalMs && visit.departureMs) {
+        const sameYear = new Date(visit.arrivalMs).getFullYear() === new Date(visit.departureMs).getFullYear();
+        const from = sameYear ? dayMonth(visit.arrivalMs) : dateFormat(visit.arrivalMs);
+        card.appendChild(createDetailLine('icon-calendar', `${from} – ${dateFormat(visit.departureMs)}`));
+      } else if (visit.arrivalMs) {
+        card.appendChild(createDetailLine('icon-calendar', `Arrives ${dateFormat(visit.arrivalMs)}`));
+      } else if (visit.departureMs) {
+        card.appendChild(createDetailLine('icon-calendar', `Departs ${dateFormat(visit.departureMs)}`));
+      }
 
-      if (visit.departureMs) card.appendChild(createDetailLine('icon-calendar', `Departs ${dateFormat(visit.departureMs)}`));
-      else if (visit.accommodation && visit.accommodation !== 'No overnight stay') {
+      if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
+      if (!visit.departureMs && visit.accommodation && visit.accommodation !== 'No overnight stay') {
         outstanding.push({ label: 'Departure date not set', badgeClass: 'badge-action' });
       }
 
       if (visit.accommodation === 'Ashram') {
         if (Array.isArray(visit.rooms) && visit.rooms.length) {
           visit.rooms.forEach(room => {
+            card.appendChild(createDetailLine('icon-bed', room));
+            // The sharing note hangs beneath the room instead of trailing it
+            // after a separator. Room names here run long enough that the
+            // combined string wrapped, and once it wrapped the room name \u2014 the
+            // thing you scan the card for \u2014 was buried mid-sentence inside a
+            // statement about somebody else's dates.
             const sharing = describeRoomSharing_(roomSharingPartnersForVisit_(visit, room));
-            card.appendChild(createDetailLine('icon-bed', sharing ? `${room} \u00B7 ${sharing}` : room));
+            if (sharing) card.appendChild(createElement('div', 'detail-subline', sharing));
           });
         } else {
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
