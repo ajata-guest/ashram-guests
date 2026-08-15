@@ -186,6 +186,7 @@ function visitView(visit, roomsByVisit, legsByVisit) {
   const departure = serializeDate(visit.departureAt, visit.departureTimeConfirmed);
   const pickup = serializeDate(visit.pickupAt, visit.pickupTimeConfirmed);
   const dropoff = serializeDate(visit.dropoffAt, visit.dropoffTimeConfirmed);
+  const roomRows = (roomsByVisit[visit.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0));
   return {
     visitId: visit.id,
     guestId: visit.guestId,
@@ -226,7 +227,11 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     createdBy: visit.createdBy || null,
     updatedBy: visit.updatedBy || null,
     version: versionOf(visit),
-    rooms: (roomsByVisit[visit.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map(row => row.roomLabelSnapshot),
+    rooms: roomRows.map(row => row.roomLabelSnapshot),
+    roomAllocations: roomRows.map(row => ({
+      room: row.roomLabelSnapshot,
+      sharedOk: Boolean(row.sharedOk)
+    })),
     travelLegs: (legsByVisit[visit.id] || []).map(travelView).sort((a, b) => a.order - b.order)
   };
 }
@@ -405,14 +410,18 @@ function tierCounts(records) {
 }
 
 function roomInventory(canonical) {
-  return canonical.rooms.filter(room => room.active !== false).map(room => ({
+  // Permanent resident rooms are not operational guest inventory. Excluding
+  // them here keeps them out of every picker and also makes the save path
+  // reject a forged/manual attempt to assign one to a visit.
+  return canonical.rooms.filter(room => room.active !== false
+    && !room.permanent
+    && clean(room.category, 100).toLowerCase() !== "permanent").map(room => ({
     roomId: room.id,
     building: room.building,
     room: room.room,
     category: room.category || "Normal",
     permanent: Boolean(room.permanent),
     occupant: room.occupant || "",
-    capacity: Number(room.capacity) || 1,
     value: room.displayName || `${room.building} - ${room.room}`
   })).sort((a, b) => a.value.localeCompare(b.value));
 }
@@ -1074,17 +1083,19 @@ export function createFirestoreBridge(firebaseApp) {
     );
   }
 
-  const requestedRooms = [
-    ...new Set(
-      (
-        Array.isArray(payload.rooms)
-          ? payload.rooms
-          : []
-      )
-        .map(item => clean(item?.room || item, 300))
-        .filter(Boolean)
-    )
-  ];
+  const requestedRoomList = (
+    Array.isArray(payload.rooms)
+      ? payload.rooms
+      : []
+  )
+    .map(item => clean(item?.room || item, 300))
+    .filter(Boolean);
+
+  if (new Set(requestedRoomList).size !== requestedRoomList.length) {
+    throw new Error("The same room cannot be assigned twice within one visit.");
+  }
+
+  const requestedRooms = [...new Set(requestedRoomList)];
 
   if (
     accommodation !== "Ashram" &&
@@ -1111,8 +1122,10 @@ export function createFirestoreBridge(firebaseApp) {
     item => item.visitId === visitId
   );
 
-  const existingLabels = new Set(
-    existingRoomRows.map(item => item.roomLabelSnapshot)
+  const acknowledgedSharedLabels = new Set(
+    existingRoomRows
+      .filter(item => item.sharedOk)
+      .map(item => item.roomLabelSnapshot)
   );
 
   const shareAcks = new Set(
@@ -1148,18 +1161,12 @@ export function createFirestoreBridge(firebaseApp) {
       );
     });
 
-    const capacity =
-      inventoryByLabel[label].capacity || 1;
-
-    if (occupants.length >= capacity) {
-      throw new Error(
-        `${label} is already at capacity for these dates.`
-      );
-    }
-
+    // Room sleeping capacity is intentionally not a fixed database limit.
+    // Any number of overlapping allocations may be made when the operator
+    // explicitly acknowledges that this is a shared-room assignment.
     if (
       occupants.length &&
-      !existingLabels.has(label) &&
+      !acknowledgedSharedLabels.has(label) &&
       !shareAcks.has(label)
     ) {
       throw new Error(
@@ -1394,9 +1401,7 @@ export function createFirestoreBridge(firebaseApp) {
           roomLabelSnapshot: label,
           order: index + 1,
 
-          sharedOk: existingLabels.has(label)
-            ? Boolean(prior?.sharedOk)
-            : shareAcks.has(label),
+          sharedOk: Boolean(prior?.sharedOk) || shareAcks.has(label),
 
           createdAt:
             prior?.createdAt || serverTimestamp(),

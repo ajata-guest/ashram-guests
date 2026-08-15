@@ -14,7 +14,7 @@
   <link rel="manifest" href="manifest.json">
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-    import { createFirestoreBridge } from "./firestore-adapter.js";
+    import { createFirestoreBridge } from "./firestore-adapter.js?v=20260815-room-sharing-v2";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAqlPQg_8Uzk35dEeEV1EQUKtGYTuCgoZw",
@@ -1218,11 +1218,27 @@
     .custom-select-option.occupied:hover { background: transparent; }
     .custom-select-option.occupied .custom-select-option-label { text-decoration: line-through; }
 
-    /* A room under capacity stays pickable — struck-through/dimmed like
-       .occupied would wrongly read as "you can't have this," when tapping it
-       is exactly how you deliberately share it. Blue rather than red for the
-       same reason: informational, not a blocker. */
+    /* An occupied room stays pickable because sleeping capacity is decided
+       operationally, not by a fixed numeric ceiling. Blue reads as a
+       deliberate sharing action rather than an error or unavailable state. */
     .custom-select-occupied-note.shareable-note { color: #6fbaf0; }
+
+    .custom-select-share-action {
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border: 1px solid rgba(111, 186, 240, 0.45);
+      border-radius: 5px;
+      background: rgba(52, 152, 219, 0.14);
+      color: #8fc8ef;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .custom-select-option.shareable:hover .custom-select-share-action,
+    .custom-select-option.shareable.selected .custom-select-share-action {
+      background: rgba(52, 152, 219, 0.24);
+    }
 
     /* Label takes whatever's left and truncates rather than squeezing the
        badge — badges use width:max-content (see .badge), which without a
@@ -1725,17 +1741,6 @@
     }
 
     .card-action-sheet-btn.destructive:hover { background: rgba(231, 76, 60, 0.2); }
-
-    .room-share-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 4px;
-      padding: 2px 6px 10px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text);
-      font-size: 0.86rem;
-    }
 
     .quick-filters {
       display: flex;
@@ -3421,16 +3426,6 @@
     </div>
   </div>
 
-  <div id="room-share-sheet" class="card-action-sheet" hidden>
-    <div class="card-action-sheet-backdrop"></div>
-    <div class="card-action-sheet-panel" role="dialog" aria-label="Confirm room sharing">
-      <div class="card-action-sheet-name" id="room-share-sheet-title">Share this room?</div>
-      <div class="room-share-list" id="room-share-sheet-list"></div>
-      <button type="button" class="card-action-sheet-btn" id="room-share-confirm-btn">Confirm Sharing</button>
-      <button type="button" class="card-action-sheet-btn" id="room-share-cancel-btn">Cancel</button>
-    </div>
-  </div>
-
   <svg style="display:none" aria-hidden="true">
     <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></symbol>
     <symbol id="icon-car" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></symbol>
@@ -3651,13 +3646,6 @@
       // ways out need binding here.
       $('attribute-action-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeActionSheet_);
       $('attribute-action-dismiss-btn').addEventListener('click', closeActionSheet_);
-      $('room-share-sheet').querySelector('.card-action-sheet-backdrop').addEventListener('click', closeRoomShareSheet_);
-      $('room-share-cancel-btn').addEventListener('click', closeRoomShareSheet_);
-      $('room-share-confirm-btn').addEventListener('click', () => {
-        const acks = pendingRoomShareAcks_;
-        closeRoomShareSheet_();
-        proceedWithVisitSave_(acks);
-      });
       $('add-btn').addEventListener('click', () => openModal('add', '', { smartLookup: true }));
       $('close-btn').addEventListener('click', handleCloseButtonClick);
       $('modal').addEventListener('input', markModalDirty);
@@ -3779,10 +3767,6 @@
         if (event.key !== 'Escape') return;
         if (isActionSheetOpen_()) {
           closeActionSheet_();
-          return;
-        }
-        if (!$('room-share-sheet').hidden) {
-          closeRoomShareSheet_();
           return;
         }
         if ($('room-list').querySelector('.room-custom-list:not([hidden])')) {
@@ -4409,7 +4393,12 @@
       // Rooms first: the search index below looks up each room's building and
       // category through roomMetadataMap, so indexing before it is populated
       // would silently drop those terms from every guest's search text.
-      roomInventory = Array.isArray(data.rooms) ? data.rooms : [];
+      // Defensive mirror of the adapter rule: permanent resident rooms must
+      // never enter operational guest pickers, even if an older cached
+      // adapter payload still happens to contain them.
+      roomInventory = (Array.isArray(data.rooms) ? data.rooms : [])
+        .filter(room => !room.permanent
+          && String(room.category || '').trim().toLowerCase() !== 'permanent');
       roomMetadataMap = new Map(roomInventory.map(room => [room.value, room]));
       appTimezone = String(data.timezone || '');
       buildRoomOptions();
@@ -6422,6 +6411,43 @@
         .catch(error => handleApiError(error, err => showToast(`Couldn't delete visit: ${getErrorMessage(err)}`, 'error')));
     }
 
+    function visitRoomWindow_(visit) {
+      const start = visit && visit.arrivalMs !== null && visit.arrivalMs !== undefined
+        ? Number(visit.arrivalMs)
+        : null;
+      const end = visit && visit.departureMs !== null && visit.departureMs !== undefined
+        ? Number(visit.departureMs)
+        : Number.POSITIVE_INFINITY;
+      return {
+        start: Number.isFinite(start) ? start : null,
+        end: Number.isFinite(end) ? end : Number.POSITIVE_INFINITY
+      };
+    }
+
+    function accommodationVisitsOverlap_(left, right) {
+      const leftWindow = visitRoomWindow_(left);
+      const rightWindow = visitRoomWindow_(right);
+      if (leftWindow.start === null || rightWindow.start === null) return false;
+      return leftWindow.start < rightWindow.end && leftWindow.end > rightWindow.start;
+    }
+
+    function formatGuestNameList_(names) {
+      const unique = [...new Set((names || []).filter(Boolean))];
+      if (unique.length < 2) return unique[0] || '';
+      if (unique.length === 2) return `${unique[0]} and ${unique[1]}`;
+      return `${unique.slice(0, -1).join(', ')}, and ${unique[unique.length - 1]}`;
+    }
+
+    function roomSharingPartnersForVisit_(visit, room) {
+      return [...new Set(accommodationVisits_
+        .filter(other => other.visitId !== visit.visitId
+          && Array.isArray(other.rooms)
+          && other.rooms.includes(room)
+          && accommodationVisitsOverlap_(visit, other))
+        .map(other => resolveRoomOccupantName(other.name, other.rooms, room))
+        .filter(Boolean))];
+    }
+
     function createAccommodationVisitCard(visit) {
       const card = createElement('article', 'card');
       card.tabIndex = 0;
@@ -6465,7 +6491,13 @@
 
       if (visit.accommodation === 'Ashram') {
         if (Array.isArray(visit.rooms) && visit.rooms.length) {
-          card.appendChild(createDetailLine('icon-bed', visit.rooms.join(' & ')));
+          visit.rooms.forEach(room => {
+            const sharingPartners = roomSharingPartnersForVisit_(visit, room);
+            const sharingDetail = sharingPartners.length
+              ? `${room} \u00B7 Shared with ${formatGuestNameList_(sharingPartners)}`
+              : room;
+            card.appendChild(createDetailLine('icon-bed', sharingDetail));
+          });
         } else {
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
         }
@@ -7463,7 +7495,9 @@
       $('room-warning').textContent = '';
       const roomValues = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
       setRoomRows(roomValues);
-      roomsOriginalForShareCheck = roomValues.slice();
+      roomsOriginalForShareCheck = visit && Array.isArray(visit.roomAllocations)
+        ? visit.roomAllocations.filter(allocation => allocation.sharedOk).map(allocation => allocation.room)
+        : [];
 
       renderTravelLegEditors((visit && Array.isArray(visit.travelLegs) ? visit.travelLegs : []).map(leg => ({
         ...leg,
@@ -7581,24 +7615,23 @@
         return selected && selected.value && selected.disabled;
       });
       if (hasUnavailableRoomSelection) {
-        showToast('One of the selected rooms is occupied during those dates.', 'error');
+        showToast('The same room cannot be assigned twice within one visit.', 'error');
         return;
       }
 
       const pendingShares = getRoomsNeedingShareConfirmation();
       if (pendingShares.length) {
-        showRoomShareConfirmation_(pendingShares);
+        const rooms = pendingShares.map(entry => entry.room).join(', ');
+        showToast(`Choose Share room for ${rooms} before saving.`, 'error');
         return;
       }
 
-      proceedWithVisitSave_([]);
+      proceedWithVisitSave_(getAcknowledgedSharedRooms_());
     }
 
-    // Rooms this card has picked that would create or extend a deliberate
-    // overlap with someone else — excluding any room that was ALREADY on
-    // the card when it was opened, since that share was already agreed and
-    // the backend carries it forward on its own (see getExistingSharedOkVisitRooms_
-    // in Code-V3.gs). Only a room picked or changed just now needs asking about.
+    // A newly overlapping room is saved only after the user deliberately
+    // chooses its visible Share room action. A room already assigned when
+    // the editor opened carries its prior sharing decision forward.
     function getRoomsNeedingShareConfirmation() {
       const originalRooms = new Set(roomsOriginalForShareCheck);
       const rows = [...$('room-list').querySelectorAll('.room-row')];
@@ -7607,27 +7640,20 @@
         const selected = row.querySelector('.room-select').selectedOptions[0];
         if (!selected || !selected.value || !selected.dataset.shareWith) return;
         if (originalRooms.has(selected.value)) return;
+        if (row.dataset.sharedRoomAck === selected.value) return;
         pending.push({ room: selected.value, shareWith: selected.dataset.shareWith });
       });
       return pending;
     }
 
-    let pendingRoomShareAcks_ = [];
-
-    function showRoomShareConfirmation_(pending) {
-      pendingRoomShareAcks_ = pending.map(entry => entry.room);
-      const list = $('room-share-sheet-list');
-      list.replaceChildren();
-      pending.forEach(entry => {
-        list.appendChild(createElement('div', 'room-share-item', `${entry.room} — share with ${entry.shareWith}`));
-      });
-      $('room-share-sheet-title').textContent = pending.length === 1 ? 'Share this room?' : 'Share these rooms?';
-      $('room-share-sheet').hidden = false;
-    }
-
-    function closeRoomShareSheet_() {
-      $('room-share-sheet').hidden = true;
-      pendingRoomShareAcks_ = [];
+    function getAcknowledgedSharedRooms_() {
+      return [...$('room-list').querySelectorAll('.room-row')]
+        .filter(row => {
+          const selected = row.querySelector('.room-select').selectedOptions[0];
+          return selected && selected.value && selected.dataset.shareWith
+            && row.dataset.sharedRoomAck === selected.value;
+        })
+        .map(row => row.querySelector('.room-select').value);
     }
 
     function proceedWithVisitSave_(sharedRoomAcks) {
@@ -8626,10 +8652,9 @@
     // (re)build its own options from it without re-reducing roomInventory
     // every time.
     let roomOptionsGrouped = {};
-    let roomCapacityMap = new Map();
-    // The room list as it was when the modal was opened — a shareable room
-    // already in this list needs no fresh confirmation on save (it was
-    // agreed before, and the backend carries that forward on its own).
+    // Rooms whose assignment already carries an explicit sharing
+    // acknowledgement. They need no fresh action when the editor reopens;
+    // an original room that becomes shared only after its dates change does.
     let roomsOriginalForShareCheck = [];
 
     function buildRoomOptions() {
@@ -8638,7 +8663,6 @@
         groups[room.building].push(room);
         return groups;
       }, {});
-      roomCapacityMap = new Map(roomInventory.map(room => [room.value, room.capacity || 1]));
 
       // Refreshes any rows already in the editor (e.g. inventory reloaded
       // while the modal happens to be open), preserving each row's current
@@ -8711,6 +8735,8 @@
       const select = row.querySelector('.room-select');
       const option = [...select.options].find(opt => opt.value === value);
       if (option && option.disabled) return;
+      if (option && option.dataset.shareWith) row.dataset.sharedRoomAck = value;
+      else delete row.dataset.sharedRoomAck;
       select.value = value;
       select.dispatchEvent(new Event('change', { bubbles: true }));
       updateRoomRowTriggerLabel(row);
@@ -8726,11 +8752,11 @@
         return;
       }
       const base = selected.dataset.baseLabel || selected.textContent;
-      // A room you've deliberately chosen to share stays flagged in the
-      // trigger itself, not just in the dropdown list — otherwise re-opening
-      // this card later gives no hint the room isn't yours alone.
+      const sharingAcknowledged = selected.dataset.shareWith
+        && (row.dataset.sharedRoomAck === selected.value
+          || roomsOriginalForShareCheck.includes(selected.value));
       row.querySelector('.room-trigger-label').textContent = selected.dataset.shareWith
-        ? `${base} \u00B7 Sharing`
+        ? `${base} \u00B7 ${sharingAcknowledged ? 'Sharing' : 'Share required'}`
         : base;
     }
 
@@ -8769,6 +8795,19 @@
           note.textContent = `Share with ${realOption.dataset.shareWith}`;
         } else if (note) {
           note.remove();
+        }
+
+        let shareAction = optionEl.querySelector('.custom-select-share-action');
+        if (shareable) {
+          if (!shareAction) {
+            shareAction = createElement('span', 'custom-select-share-action');
+          }
+          optionEl.insertBefore(shareAction, note || null);
+          const acknowledged = value === selectedValue
+            && (row.dataset.sharedRoomAck === value || roomsOriginalForShareCheck.includes(value));
+          shareAction.textContent = acknowledged ? 'Sharing' : 'Share room';
+        } else if (shareAction) {
+          shareAction.remove();
         }
       });
     }
@@ -9651,7 +9690,7 @@
 
     // Only Ashram room assignment is force-cleared when hidden — it's a
     // shared physical resource, so an assigned-but-hidden room would
-    // silently hold a bed hostage from conflict/capacity checks. The
+    // silently remain allocated and distort overlap/share information. The
     // outside-arranged and self-arranged fields below are preserved even
     // while hidden, same as everything else V3 hides without clearing.
     function toggleAccommodationFields() {
@@ -10083,32 +10122,37 @@
 
       const newArrival = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
       const newDeparture = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
-      const currentGuestId = $('edit-guest-id').value;
+      const currentVisitId = $('visit-editor-visit-id').value;
       // room value -> every other overlapping occupant's name — a list, not
-      // a single entry, since a room under capacity can already hold more
-      // than one guest before this save even happens.
+      // a single entry, because room sharing has no fixed capacity ceiling.
       const occupiedRooms = new Map();
 
       // Advisory only — saveVisitPlan runs the authoritative conflict check
-      // server-side. This reads the directory snapshot, whose per-guest visit
-      // carries that guest's current rooms and dates, so a clash shows while
-      // picking rather than only on save.
+      // in Firestore. Prefer the workspace's complete visit list so multiple
+      // upcoming visits for one guest are all considered; the Directory's
+      // current/nearest visit is only a fallback if the workspace has not yet
+      // been loaded.
       if (newArrival) {
         const newEnd = newDeparture || Number.POSITIVE_INFINITY;
-        directoryRecords_.forEach(record => {
-          if (record.guestId === currentGuestId) return;
-          const visit = record.visit;
-          if (!visit || !visit.arrivalMs) return;
+        const knownVisits = accommodationVisits_.length
+          ? accommodationVisits_
+          : directoryRecords_.map(record => record.visit ? { ...record.visit, name: record.name } : null).filter(Boolean);
+        knownVisits.forEach(visit => {
+          if (visit.visitId === currentVisitId || !visit.arrivalMs) return;
           const guestRooms = Array.isArray(visit.rooms) ? visit.rooms : [];
           if (!guestRooms.length) return;
           const otherEnd = visit.departureMs || Number.POSITIVE_INFINITY;
           if (newArrival < otherEnd && newEnd > visit.arrivalMs) {
             guestRooms.forEach(room => {
               if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
-              occupiedRooms.get(room).push({
-                name: resolveRoomOccupantName(record.name, guestRooms, room),
-                openEnded: !visit.departureMs
-              });
+              const occupants = occupiedRooms.get(room);
+              if (!occupants.some(item => item.visitId === visit.visitId)) {
+                occupants.push({
+                  visitId: visit.visitId,
+                  name: resolveRoomOccupantName(visit.name, guestRooms, room),
+                  openEnded: !visit.departureMs
+                });
+              }
             });
           }
         });
@@ -10118,7 +10162,6 @@
 
       rows.forEach(row => {
         const select = row.querySelector('.room-select');
-        const ownValue = select.value;
         // A room already picked by a sibling row on this same card can't be
         // picked again — mirrors Code.gs's own-card duplicate rejection.
         // Always a hard block, unrelated to capacity.
@@ -10130,7 +10173,7 @@
 
         [...select.options].forEach(option => {
           if (!option.value) return;
-          if (siblingValues.has(option.value) && option.value !== ownValue) {
+          if (siblingValues.has(option.value)) {
             option.disabled = true;
             option.textContent = `${option.dataset.baseLabel} — already assigned to this guest above`;
             return;
@@ -10139,34 +10182,27 @@
           const occupants = occupiedRooms.get(option.value);
           if (!occupants || !occupants.length) return;
 
-          const capacity = roomCapacityMap.get(option.value) || 1;
           const names = occupants
             .map(o => `${o.name}${o.openEnded ? ' (departure TBD)' : ''}`)
             .join(' and ');
 
-          if (occupants.length >= capacity) {
-            // At capacity — a hard block same as before, no override
-            // possible from here (matches Code.gs's ceiling).
-            // "Shared by" only when there genuinely is more than one person in
-            // there. A single-capacity room with one guest is occupied, not
-            // shared, and calling it shared implied an arrangement that
-            // doesn't exist — which is the commonest case of all.
-            option.disabled = true;
-            option.textContent = occupants.length > 1
-              ? `${option.dataset.baseLabel} — Full, shared by ${names}`
-              : `${option.dataset.baseLabel} — Occupied by ${names}`;
-          } else {
-            // Under capacity: stays pickable. Selecting it is the
-            // deliberate-share gesture; the actual confirmation happens at
-            // Save (see confirmPendingRoomShares_).
-            option.dataset.shareWith = names;
-            option.textContent = `${option.dataset.baseLabel} — Share with ${names}`;
-          }
+          // An overlapping allocation never becomes "full" automatically.
+          // The visible Share room action is the deliberate override, while
+          // inactive rooms remain absent from the inventory altogether.
+          option.dataset.shareWith = names;
+          option.textContent = `${option.dataset.baseLabel} — Share with ${names}`;
         });
 
         const selected = select.selectedOptions[0];
         if (selected && selected.value && selected.disabled) {
-          warningMessages.push(`${selected.value} is occupied during the selected stay.`);
+          warningMessages.push(`${selected.value} is selected more than once for this visit.`);
+        } else if (selected && selected.value && selected.dataset.shareWith) {
+          const alreadyShared = roomsOriginalForShareCheck.includes(selected.value);
+          if (!alreadyShared && row.dataset.sharedRoomAck !== selected.value) {
+            warningMessages.push(`Choose Share room to allocate ${selected.value} with ${selected.dataset.shareWith}.`);
+          }
+        } else {
+          delete row.dataset.sharedRoomAck;
         }
         updateRoomRowTriggerLabel(row);
         syncRoomRowList(row);
@@ -10230,8 +10266,8 @@
     // the Visit Editor now (see openVisitEditor/saveVisitFromEditor below) —
     // this modal only ever collects/validates guest basics plus the
     // still-embedded Seva/Meals/Meetings sections (Phases F–H's job to move
-    // out). The former room-share-confirmation flow moved with the rooms —
-    // see confirmPendingVisitRoomShares_.
+    // out). Room sharing is handled directly by the Visit Editor's explicit
+    // Share room action.
     function saveGuestFromModal() {
       if (selectedExistingGuestId_) return;
       const name = $('edit-name');
