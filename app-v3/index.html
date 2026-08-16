@@ -2531,7 +2531,17 @@
     .meal-roster-note { margin-top:6px; color:#c8c8c8; font-size:.78rem; }
     .meal-roster-actions { display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
     .meal-source-pill { padding:3px 7px; border-radius:999px; background:rgba(113,217,157,.09); color:#8ae5af; }
+    /* Permanent residence is a standing fact about the person, not one of the
+       day's green meal arrangements, so it carries the salmon identity colour
+       used for person-level facts elsewhere. Every other source pill —
+       individual invitations, Seva-derived arrangements — stays green. */
+    .meal-source-pill.is-resident { background:rgba(250,128,114,.13); color:var(--salmon); }
     .meal-seat-pill { padding:3px 7px; border-radius:999px; background:#303030; color:#ddd; }
+    /* Visual distinction only; nothing about Swamiji's meal or resident logic
+       branches on the name. */
+    .meal-roster-name.is-swamiji { color:var(--salmon); }
+    /* The meal selector was sitting flush against the first seating zone. */
+    #meals-meal-tabs { margin-bottom:24px; }
     .meal-schedule-groups { display:flex; gap:22px; flex-direction:column; }
     .meal-management-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 14px; border:1px solid #373737; border-radius:9px; background:#222; align-items:center; }
     .meal-management-row + .meal-management-row { margin-top:8px; }
@@ -2561,6 +2571,7 @@
       .meal-overview-meta { grid-column:1/-1; }
       .meal-roster-row, .meal-management-row { grid-template-columns:1fr; }
       .meal-roster-actions { justify-content:flex-start; }
+      #meals-meal-tabs { margin-bottom:20px; }
       .meal-manager-source-tabs { grid-template-columns:1fr; }
       .meal-weekdays { grid-template-columns:repeat(4,1fr); }
       .meal-resident-grid { grid-template-columns:1fr; }
@@ -3156,7 +3167,7 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="meals-search" placeholder="Search guests..." aria-label="Search guests on this date"></div>
-          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span id="meals-add-label" class="action-label-full">Invite Guest</span><span class="action-label-compact">Add</span></button>
+          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span id="meals-add-label" class="action-label-full">Add Meal Arrangement</span><span class="action-label-compact">Add</span></button>
         </div>
       </div>
 
@@ -3190,7 +3201,7 @@
   <div id="meal-editor-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-editor-title">
       <div class="modal-header">
-        <h2 id="meal-editor-title">Invite Guest</h2>
+        <h2 id="meal-editor-title">Add Meal Arrangement</h2>
         <div class="modal-header-actions">
           <button id="meal-editor-close" class="close-btn" type="button" aria-label="Close dialog"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
         </div>
@@ -8062,7 +8073,7 @@
       $('meals-daily-view').hidden = mealsView_ !== 'daily';
       $('meals-schedules-view').hidden = mealsView_ !== 'schedules';
       $('meals-residents-view').hidden = mealsView_ !== 'residents';
-      $('meals-add-label').textContent = mealsView_ === 'daily' ? 'Invite Guest' : mealsView_ === 'schedules' ? 'Add Schedule' : 'Add Resident';
+      $('meals-add-label').textContent = mealsView_ === 'daily' ? 'Add Meal Arrangement' : mealsView_ === 'schedules' ? 'Add Schedule' : 'Add Resident';
       $('meals-search').placeholder = mealsView_ === 'daily' ? 'Search today’s roster...' : mealsView_ === 'schedules' ? 'Search meal schedules...' : 'Search residents...';
       if (mealsView_ === 'daily') renderMealsDaily_();
       else if (mealsView_ === 'schedules') renderMealSchedules_();
@@ -8136,10 +8147,17 @@
     function createMealRosterRow_(row) {
       const wrapper = createElement('article', 'meal-roster-row');
       const info = createElement('div');
-      info.appendChild(createElement('div', 'meal-roster-name', row.name || 'Unnamed person'));
+      const name = createElement('div', `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`, row.name || 'Unnamed person');
+      info.appendChild(name);
       const meta = createElement('div', 'meal-roster-meta');
       meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? row.seating : 'Not attending'));
-      (row.sources || []).forEach(source => meta.appendChild(createElement('span', 'meal-source-pill', source.label)));
+      // A "residence" source means two different things depending on the
+      // subject: a Permanent Resident record, or a guest currently staying in
+      // the ashram. Only the former is the Permanent Resident badge.
+      (row.sources || []).forEach(source => {
+        const isResident = source.type === 'residence' && row.subjectType === 'permanentResident';
+        meta.appendChild(createElement('span', `meal-source-pill${isResident ? ' is-resident' : ''}`, source.label));
+      });
       if (row.isException) meta.appendChild(createElement('span', 'meal-source-pill', 'Modified today'));
       info.appendChild(meta);
       if (row.note) info.appendChild(createElement('div', 'meal-roster-note', row.note));
@@ -8169,14 +8187,37 @@
         restore.addEventListener('click', () => restoreMealDefault_(row));
         actions.appendChild(restore);
       }
-      if (row.guestId) {
-        const profile = createElement('button', 'row-btn', 'View profile');
-        profile.type = 'button';
-        profile.addEventListener('click', () => navigate(`#guest/${encodeURIComponent(row.guestId)}`));
-        actions.appendChild(profile);
+      if (row.included) {
+        const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn');
+        remove.type = 'button';
+        remove.title = `Remove from ${mealsActiveMeal_.toLowerCase()} on this date`;
+        remove.setAttribute('aria-label', `Remove ${row.name || 'this person'} from ${mealsActiveMeal_.toLowerCase()} on this date`);
+        remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>';
+        remove.addEventListener('click', () => removeFromMeal_(row));
+        actions.appendChild(remove);
       }
       wrapper.appendChild(actions);
       return wrapper;
+    }
+
+    // Removing someone from a meal is a single-day exception, never a change to
+    // why they were on the roster in the first place. It writes the same daily
+    // override the Absent button does, scoped to this date and this meal alone,
+    // so the guest record, residency and any standing schedule are untouched and
+    // "Restore default" puts them back. Only offered for people currently
+    // attending — there is nothing to remove otherwise.
+    function removeFromMeal_(row) {
+      const meal = mealsActiveMeal_.toLowerCase();
+      const when = mealsData_?.date || 'this date';
+      if (!window.confirm(`Remove ${row.name || 'this person'} from ${meal} on ${when}?\n\nThis affects only this meal on this date. They move to Not Attending and can be put back with Restore default.`)) return;
+      saveMealDailyOverride_(row, { included: false });
+    }
+
+    // Swamiji is picked out by name on meal cards at the requester's request.
+    // Exact match only, so a guest whose name merely begins with "Swamiji" is
+    // not swept in.
+    function isSwamijiName_(name) {
+      return String(name || '').trim().toLowerCase() === 'swamiji';
     }
 
     function saveMealDailyOverride_(row, patch) {
@@ -8303,7 +8344,7 @@
       mealEditingSchedule_ = schedule;
       mealSelectedGuest_ = null;
       mealNewGuestName_ = '';
-      $('meal-editor-title').textContent = schedule ? 'Edit Meal Arrangement' : (allowSourceChoice ? 'Add Meal Schedule' : 'Invite Guest');
+      $('meal-editor-title').textContent = schedule ? 'Edit Meal Arrangement' : (allowSourceChoice ? 'Add Meal Schedule' : 'Add Meal Arrangement');
       $('meal-source-tabs').hidden = !allowSourceChoice && !schedule;
       $('meal-editor-details').hidden = true;
       $('meal-editor-footer').hidden = true;
