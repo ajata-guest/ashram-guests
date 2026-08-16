@@ -8361,6 +8361,12 @@
       $('meal-basic-purpose').value = '';
       $('meal-basic-purpose-other').value = '';
       $('meal-basic-assignment').value = '';
+      // Clearing a field's value does not fire `change`, so the conditional
+      // reveals driven by it keep whatever the last guest left behind — a
+      // stale "New guest" notice, or the Assignment box still showing after
+      // an Event Staff guest. Re-sync them explicitly on every open.
+      clearMealGuestNotice_();
+      updateMealBasicFields_();
       setMealEditorSource_(schedule?.sourceType || sourceType, false);
       populateMealSourceSelectors_();
       if (schedule) {
@@ -8387,6 +8393,9 @@
       if (reset) {
         mealSelectedGuest_ = null; mealNewGuestName_ = ''; mealEditingSchedule_ = null;
         $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true;
+        // Switching source clears the guest too, so its notice must go with it
+        // — otherwise it reappears on switching back to Individual guest.
+        clearMealGuestNotice_();
       }
       refreshMealExistingArrangements_();
     }
@@ -8436,13 +8445,22 @@
 
     function hideMealGuestSuggestions_() { $('meal-guest-suggestions').hidden = true; $('meal-guest-name').setAttribute('aria-expanded', 'false'); }
 
+    // The notice under the guest field describes whichever guest is currently
+    // chosen ("Guest already added" / "New guest ..."). It must be emptied
+    // whenever that choice is cleared, or it goes on describing the last one.
+    function clearMealGuestNotice_() {
+      const notice = $('meal-guest-notice');
+      notice.replaceChildren();
+      notice.hidden = true;
+    }
+
     function selectMealGuest_(guest, markDirty = false) {
       mealSelectedGuest_ = guest; mealNewGuestName_ = ''; $('meal-guest-name').value = guest.name || ''; hideMealGuestSuggestions_();
       const notice = $('meal-guest-notice'); notice.replaceChildren(); notice.hidden = false;
       notice.appendChild(createElement('span', '', 'Guest already added'));
       const actions = createElement('span', 'add-visit-selection-actions');
       const profile = createElement('button', 'row-btn', 'View profile'); profile.type = 'button'; profile.addEventListener('click', () => { closeMealEditor_(); navigate(`#guest/${encodeURIComponent(guest.guestId)}`); });
-      const change = createElement('button', 'row-btn', 'Change guest'); change.type = 'button'; change.addEventListener('click', () => { mealSelectedGuest_ = null; $('meal-guest-name').value = ''; notice.hidden = true; $('meal-existing-section').hidden = true; $('meal-guest-name').focus(); });
+      const change = createElement('button', 'row-btn', 'Change guest'); change.type = 'button'; change.addEventListener('click', () => { mealSelectedGuest_ = null; $('meal-guest-name').value = ''; clearMealGuestNotice_(); $('meal-existing-section').hidden = true; $('meal-guest-name').focus(); });
       actions.append(profile, change); notice.appendChild(actions);
       refreshMealExistingArrangements_(); if (markDirty) mealEditorDirty_ = true;
     }
@@ -8488,6 +8506,9 @@
       $('meal-weekdays-wrap').querySelectorAll('input').forEach(input => { input.checked = false; });
       document.querySelectorAll('.meal-choice').forEach(input => { input.checked = input.value === mealsActiveMeal_; });
       $('meal-default-seating').value = 'Floor'; $('meal-schedule-note').value = '';
+      // Same reason as in openMealEditor_: resetting the pattern to one-time
+      // leaves the weekday grid and start/end dates on screen without this.
+      updateMealRecurrenceFields_();
       if (mealEditorSource_ === 'sevaTeam') {
         const team = (mealsData_.teams || []).find(item => item.teamId === currentMealSourceId_());
         if (team) { $('meal-start-date').value = team.startDate || $('meal-start-date').value; $('meal-end-date').value = team.endDate || ''; }
