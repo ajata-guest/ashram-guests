@@ -2542,6 +2542,11 @@
     .meal-roster-name.is-swamiji { color:var(--salmon); }
     /* The meal selector was sitting flush against the first seating zone. */
     #meals-meal-tabs { margin-bottom:24px; }
+    /* The page accent is a pale mint picked for borders, headings and the tier
+       rail. Behind white button text it only reaches 1.7:1, so the solid
+       button takes a darker green from the same family (4.7:1) while every
+       other use of the accent keeps the light tone. */
+    #page-meals .primary-btn { background:#26834f; }
     .meal-schedule-groups { display:flex; gap:22px; flex-direction:column; }
     .meal-management-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 14px; border:1px solid #373737; border-radius:9px; background:#222; align-items:center; }
     .meal-management-row + .meal-management-row { margin-top:8px; }
@@ -2558,6 +2563,23 @@
     .meal-choice-grid .checkbox-label { margin:0; padding:11px; border:1px solid #3b3b3b; border-radius:8px; background:#252525; }
     .meal-editor-footer { display:grid; grid-template-columns:minmax(0,3fr) minmax(90px,1fr); gap:10px; }
     .meal-editor-footer > * { width:100%; margin:0; }
+    /* The meal editor's top-level blocks — source tabs, guest lookup, existing
+       arrangements, section nav, details, footer — are siblings of the dialog
+       itself, not of the flex column that spaces the inner detail sections, so
+       they stacked flush against one another. A flex column gives them all the
+       same rhythm; `[hidden]` is `display:none !important` above, so hidden
+       blocks contribute no gap. */
+    #meal-editor-modal .modal-content, #meal-resident-modal .modal-content {
+      display:flex; width:min(100%,560px); gap:16px; flex-direction:column;
+    }
+    #meal-editor-modal .modal-header, #meal-resident-modal .modal-header { margin-bottom:0; }
+    #meal-editor-modal .meal-manager-source-tabs { margin-bottom:0; }
+    /* The suggestion list is absolutely positioned inside the dialog, and the
+       dialog is its own scroll container. With only the guest section showing,
+       the dialog is barely taller than the input, so the list was cut off at
+       its edge and typing spawned a scrollbar. Reserving room underneath while
+       the list is open lets it open into empty space instead. */
+    #meal-editor-modal .modal-content:has(#meal-guest-suggestions:not([hidden])) { padding-bottom:250px; }
     #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
     #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover { background:#83e3aa; }
     .meal-editor-existing-list { display:flex; gap:8px; flex-direction:column; }
@@ -8187,30 +8209,13 @@
         restore.addEventListener('click', () => restoreMealDefault_(row));
         actions.appendChild(restore);
       }
-      if (row.included) {
-        const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn');
-        remove.type = 'button';
-        remove.title = `Remove from ${mealsActiveMeal_.toLowerCase()} on this date`;
-        remove.setAttribute('aria-label', `Remove ${row.name || 'this person'} from ${mealsActiveMeal_.toLowerCase()} on this date`);
-        remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>';
-        remove.addEventListener('click', () => removeFromMeal_(row));
-        actions.appendChild(remove);
-      }
+      // No delete control here on purpose. Removing someone from one meal on
+      // one date is exactly what Absent already does — a daily override that
+      // leaves the guest record, residency and any standing schedule intact —
+      // so a bin beside it would be a second button for the same write.
+      // Deleting the underlying arrangement is done in Meal Schedules.
       wrapper.appendChild(actions);
       return wrapper;
-    }
-
-    // Removing someone from a meal is a single-day exception, never a change to
-    // why they were on the roster in the first place. It writes the same daily
-    // override the Absent button does, scoped to this date and this meal alone,
-    // so the guest record, residency and any standing schedule are untouched and
-    // "Restore default" puts them back. Only offered for people currently
-    // attending — there is nothing to remove otherwise.
-    function removeFromMeal_(row) {
-      const meal = mealsActiveMeal_.toLowerCase();
-      const when = mealsData_?.date || 'this date';
-      if (!window.confirm(`Remove ${row.name || 'this person'} from ${meal} on ${when}?\n\nThis affects only this meal on this date. They move to Not Attending and can be put back with Restore default.`)) return;
-      saveMealDailyOverride_(row, { included: false });
     }
 
     // Swamiji is picked out by name on meal cards at the requester's request.
