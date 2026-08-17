@@ -2530,30 +2530,56 @@
        single scroll container, each month spanning exactly its own days, so
        the two can never drift out of alignment however far you scroll. */
     .meal-calendar {
-      position:relative; display:flex; gap:4px; padding:7px; align-items:stretch; margin-bottom:18px;
+      position:relative; display:flex; gap:8px; padding:9px 8px 8px; flex-direction:column; margin-bottom:18px;
       border:1px solid #2b2b2b; border-radius:13px;
       background:
         linear-gradient(180deg, rgba(113,217,157,.055), rgba(113,217,157,0) 46%),
         linear-gradient(180deg, #202020, #191919);
       box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
     }
-    .meal-cal-scroll { overflow-x:auto; overflow-y:hidden; flex:1 1 auto; scrollbar-width:none; scroll-behavior:smooth; }
-    .meal-cal-scroll::-webkit-scrollbar { display:none; }
-    .meal-cal-track { display:grid; width:max-content; grid-template-rows:auto auto; gap:6px 0; }
-    .meal-cal-month {
-      padding:0; border:0; background:transparent; color:var(--muted); cursor:pointer;
-      font:inherit; font-size:.78rem; font-weight:700; letter-spacing:.04em; text-align:left;
-      border-left:1px solid #333; white-space:nowrap;
+    /* The two controls live above the strip rather than inside it. The old
+       month label sat in the scroller, so it was both tiny and liable to be
+       scrolled away from — and nothing about it said "this opens a picker". */
+    .meal-cal-bar { display:flex; gap:8px; align-items:center; justify-content:space-between; padding:0 2px; }
+    .meal-cal-month-btn {
+      display:inline-flex; min-height:34px; padding:0 10px; gap:7px; align-items:center;
+      border:1px solid #3a3a3a; border-radius:9px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+      color:var(--text); cursor:pointer; font:inherit; font-size:.86rem; font-weight:600; white-space:nowrap;
     }
-    /* Keeps the month name on screen when its run of days is wider than the
-       viewport, so it is always there to tap. */
-    .meal-cal-month > span { position:sticky; left:0; display:inline-block; padding:0 8px; }
-    .meal-cal-month:hover { color:var(--text); }
+    .meal-cal-month-btn:hover { border-color:rgba(113,217,157,.45); color:#8ae5af; }
+    .meal-cal-month-btn .icon { width:16px; height:16px; margin:0; flex:none; color:var(--muted); }
+    .meal-cal-month-btn:hover .icon { color:#8ae5af; }
+    .meal-cal-caret { width:14px !important; height:14px !important; opacity:.8; }
+    .meal-cal-today-btn {
+      min-height:32px; padding:0 13px; border:1px solid #3a3a3a; border-radius:999px;
+      background:transparent; color:var(--muted); cursor:pointer; font:inherit; font-size:.8rem; font-weight:600;
+      transition:color .15s ease, border-color .15s ease, background .15s ease;
+    }
+    /* Lit only when today is out of reach — otherwise it would nag from a
+       screen that is already showing today. */
+    .meal-cal-today-btn.is-away {
+      border-color:rgba(113,217,157,.5); color:#8ae5af;
+      background:linear-gradient(180deg, rgba(113,217,157,.16), rgba(113,217,157,.05));
+    }
+    .meal-cal-today-btn:hover { border-color:rgba(113,217,157,.6); color:#8ae5af; }
+    .meal-cal-row { display:flex; gap:4px; align-items:stretch; }
+    .meal-cal-scroll {
+      overflow-x:auto; overflow-y:hidden; flex:1 1 auto; scrollbar-width:none; scroll-behavior:smooth;
+      scroll-snap-type:x proximity;
+    }
+    .meal-cal-scroll::-webkit-scrollbar { display:none; }
+    .meal-cal-track { display:flex; width:max-content; }
     .meal-cal-day {
       display:flex; width:52px; padding:7px 2px 8px; gap:2px; flex-direction:column; align-items:center;
       border:1px solid transparent; border-radius:8px; background:transparent; color:var(--muted);
-      cursor:pointer; font:inherit; scroll-margin-left:4px;
+      cursor:pointer; font:inherit; flex:0 0 52px;
+      scroll-snap-align:start; scroll-margin-left:4px;
     }
+    /* The 1st of a month trades its weekday for the month's name, so the
+       boundary is legible without a second row above the strip. */
+    .meal-cal-day.month-start { border-left:1px solid #333; border-top-left-radius:0; border-bottom-left-radius:0; }
+    .meal-cal-day.month-start .meal-cal-dow { color:#8ae5af; font-weight:700; }
     .meal-cal-day:hover { background:rgba(255,255,255,.045); color:var(--text); }
     .meal-cal-dow { font-size:.62rem; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap; }
     .meal-cal-num { font-size:1.02rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
@@ -2570,7 +2596,7 @@
     .meal-cal-day.weekend:not(.selected):not(.today) .meal-cal-num { color:#7e7e7e; }
     .meal-cal-arrow {
       display:flex; width:28px; align-items:center; justify-content:center; flex:0 0 28px;
-      align-self:flex-end; height:52px; border:1px solid transparent; border-radius:9px;
+      align-self:stretch; border:1px solid transparent; border-radius:9px;
       background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
       color:var(--muted); cursor:pointer;
     }
@@ -3267,12 +3293,24 @@
 
       <div id="meals-daily-view">
         <div class="meal-calendar">
-          <button id="meals-cal-prev" class="meal-cal-arrow" type="button" aria-label="Scroll to earlier days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
-          <div id="meals-cal-scroll" class="meal-cal-scroll">
-            <div id="meals-cal-track" class="meal-cal-track"></div>
+          <!-- Both controls sit outside the scroller, so neither can be
+               scrolled out of reach the way the old inline month label was. -->
+          <div class="meal-cal-bar">
+            <button id="meals-cal-month" class="meal-cal-month-btn" type="button" aria-haspopup="dialog" aria-label="Choose a date">
+              <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+              <span id="meals-cal-month-text">Month</span>
+              <svg class="icon meal-cal-caret" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <button id="meals-cal-today" class="meal-cal-today-btn" type="button">Today</button>
           </div>
-          <button id="meals-cal-next" class="meal-cal-arrow" type="button" aria-label="Scroll to later days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
-          <!-- The month label opens this. It stays a real, rendered input so
+          <div class="meal-cal-row">
+            <button id="meals-cal-prev" class="meal-cal-arrow" type="button" aria-label="Scroll to earlier days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
+            <div id="meals-cal-scroll" class="meal-cal-scroll">
+              <div id="meals-cal-track" class="meal-cal-track"></div>
+            </div>
+            <button id="meals-cal-next" class="meal-cal-arrow" type="button" aria-label="Scroll to later days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+          </div>
+          <!-- The month button opens this. It stays a real, rendered input so
                showPicker() works and so every existing reader of its value
                keeps working unchanged. -->
           <input type="date" id="meals-workspace-date" class="meal-cal-jump" aria-label="Jump to a date">
@@ -3994,6 +4032,16 @@
       });
       $('meals-cal-prev').addEventListener('click', () => scrollMealCalendar_(-1));
       $('meals-cal-next').addEventListener('click', () => scrollMealCalendar_(1));
+      $('meals-cal-month').addEventListener('click', openMealDatePicker_);
+      $('meals-cal-today').addEventListener('click', goToMealToday_);
+      // Coalesced to one update per frame: the strip fires scroll events far
+      // faster than the header needs redrawing.
+      let mealCalScrollPending_ = false;
+      $('meals-cal-scroll').addEventListener('scroll', () => {
+        if (mealCalScrollPending_) return;
+        mealCalScrollPending_ = true;
+        window.requestAnimationFrame(() => { mealCalScrollPending_ = false; updateMealCalendarBar_(); });
+      }, { passive: true });
       $('meals-search').addEventListener('input', () => renderMealsCurrentView_());
       $('meals-workspace-add-btn').addEventListener('click', handleMealsPrimaryAction_);
       $('meal-editor-close').addEventListener('click', requestCloseMealEditor_);
@@ -4524,7 +4572,7 @@
       // layout, and it has only just been given the class that grants it.
       window.requestAnimationFrame(() => {
         keepActiveStatusTabVisible_(pageId);
-        if (pageId === 'page-meals') scrollMealCalendarToSelected_();
+        if (pageId === 'page-meals') { scrollMealCalendarToSelected_(); updateMealCalendarBar_(); }
       });
       window.scrollTo(0, 0);
     }
@@ -8166,9 +8214,12 @@
     // than showing nothing.
     const MEAL_CAL_DAYS_BACK_ = 30;
     const MEAL_CAL_DAYS_FORWARD_ = 120;
-    // Must match the .meal-cal-day width in CSS: the grid columns and the
-    // scroll position are both derived from it.
+    // Must match the .meal-cal-day width in CSS: the track's cell width and
+    // every scroll position are derived from it.
     const MEAL_CAL_DAY_WIDTH_ = 52;
+    // The rendered window, kept so the header can answer "which month is on
+    // screen" and "where is today" without re-walking the DOM.
+    let mealCalendarDays_cache_ = [];
 
     function dateKeyOf_(date) {
       const pad = number => String(number).padStart(2, '0');
@@ -8198,43 +8249,25 @@
       const days = mealCalendarDays_(selectedKey, todayKey);
       const track = $('meals-cal-track');
       track.replaceChildren();
-      track.style.gridTemplateColumns = `repeat(${days.length}, ${MEAL_CAL_DAY_WIDTH_}px)`;
+      mealCalendarDays_cache_ = days;
 
-      // Row 1: one label per run of days in the same month, spanning exactly
-      // those columns. Tapping it opens the date picker.
-      let runStart = 0;
-      days.forEach((day, index) => {
-        const isLast = index === days.length - 1;
-        if (!isLast && days[index + 1].date.getMonth() === day.date.getMonth()) return;
-        const label = createElement('button', 'meal-cal-month');
-        label.type = 'button';
-        label.style.gridRow = '1';
-        label.style.gridColumn = `${runStart + 1} / span ${index - runStart + 1}`;
-        label.title = 'Jump to a date';
-        // Short names, as in the sketch. It also keeps the label narrower than
-        // a single day cell, so the sticky text can never be clipped mid-word
-        // when a month is down to its last visible day. The year is only worth
-        // saying once the window has crossed out of the current one.
-        const sameYear = String(day.date.getFullYear()) === todayKey.slice(0, 4);
-        label.appendChild(createElement('span', '', day.date.toLocaleDateString('en-GB',
-          sameYear ? { month: 'short' } : { month: 'short', year: 'numeric' })));
-        label.addEventListener('click', openMealDatePicker_);
-        track.appendChild(label);
-        runStart = index + 1;
-      });
-
-      // Row 2: the days themselves.
       days.forEach((day, index) => {
         const isToday = day.key === todayKey;
         const isSelected = day.key === selectedKey;
         const weekday = day.date.getDay();
         const isWeekend = weekday === 0 || weekday === 6;
-        const cell = createElement('button', `meal-cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}${isWeekend ? ' weekend' : ''}`);
+        // The 1st of a month, or the very first cell, carries the month name in
+        // place of its weekday. That is where the month row used to live; put
+        // inline it costs no height and cannot be scrolled away from its days.
+        const startsMonth = index === 0 || days[index - 1].date.getMonth() !== day.date.getMonth();
+        const cell = createElement('button', `meal-cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`
+          + `${isWeekend ? ' weekend' : ''}${startsMonth && index > 0 ? ' month-start' : ''}`);
         cell.type = 'button';
-        cell.style.gridRow = '2';
-        cell.style.gridColumn = String(index + 1);
         if (isSelected) cell.setAttribute('aria-current', 'date');
-        const relative = isToday ? 'Today' : day.key === tomorrowKey ? 'Tom' : MEAL_WEEKDAY_LABELS_[day.date.getDay()];
+        const relative = isToday ? 'Today'
+          : day.key === tomorrowKey ? 'Tom'
+          : startsMonth ? mealMonthLabel_(day.date, todayKey)
+          : MEAL_WEEKDAY_LABELS_[weekday];
         cell.appendChild(createElement('span', 'meal-cal-dow', relative));
         cell.appendChild(createElement('span', 'meal-cal-num', String(day.date.getDate())));
         cell.setAttribute('aria-label', day.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
@@ -8243,6 +8276,56 @@
       });
 
       scrollMealCalendarToSelected_();
+      updateMealCalendarBar_();
+    }
+
+    // The year is only worth saying once the window has crossed out of the
+    // current one.
+    function mealMonthLabel_(date, todayKey) {
+      const sameYear = String(date.getFullYear()) === todayKey.slice(0, 4);
+      return date.toLocaleDateString('en-GB', sameYear ? { month: 'short' } : { month: 'short', year: 'numeric' });
+    }
+
+    // Keeps the header in step with the strip: the month button names whatever
+    // is in view, and the Today button lights up only when today has scrolled
+    // out of reach or a different day is selected.
+    function updateMealCalendarBar_() {
+      const days = mealCalendarDays_cache_;
+      if (!days.length) return;
+      const scroller = $('meals-cal-scroll');
+      const todayKey = todayDateKey_();
+      const selectedKey = $('meals-workspace-date').value || todayKey;
+      const perScreen = Math.max(1, Math.floor((scroller.clientWidth || 0) / MEAL_CAL_DAY_WIDTH_));
+      const first = Math.min(days.length - 1, Math.max(0, Math.round(scroller.scrollLeft / MEAL_CAL_DAY_WIDTH_)));
+      const last = Math.min(days.length - 1, first + perScreen - 1);
+
+      const from = days[first].date;
+      const to = days[last].date;
+      const label = from.getMonth() === to.getMonth()
+        ? from.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+        : `${from.toLocaleDateString('en-GB', { month: 'short' })} – ${to.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
+      $('meals-cal-month-text').textContent = label;
+
+      const todayIndex = days.findIndex(day => day.key === todayKey);
+      const todayInView = todayIndex >= first && todayIndex <= last;
+      // clientWidth is 0 while the page is still hidden; treat that as "in
+      // view" so the button isn't lit before the strip has ever been seen.
+      const away = Boolean(scroller.clientWidth) && (!todayInView || selectedKey !== todayKey);
+      $('meals-cal-today').classList.toggle('is-away', away);
+    }
+
+    // Back to today from wherever the strip has drifted. If today is already
+    // the chosen date this is purely a scroll — no reload, no refetch.
+    function goToMealToday_() {
+      const todayKey = todayDateKey_();
+      if (($('meals-workspace-date').value || todayKey) !== todayKey) {
+        navigate(`#meals/${todayKey}`);
+        return;
+      }
+      const index = mealCalendarDays_cache_.findIndex(day => day.key === todayKey);
+      if (index < 0) return;
+      $('meals-cal-scroll').scrollLeft = Math.max(0, index * MEAL_CAL_DAY_WIDTH_ - 4);
+      updateMealCalendarBar_();
     }
 
     // The selected day goes to the left edge, matching the sketch — earlier
@@ -8257,9 +8340,8 @@
     // the page has layout.
     function scrollMealCalendarToSelected_() {
       const scroller = $('meals-cal-scroll');
-      const cells = $('meals-cal-track').querySelectorAll('.meal-cal-day');
-      let index = -1;
-      cells.forEach((cell, position) => { if (cell.classList.contains('selected')) index = position; });
+      const selectedKey = $('meals-workspace-date').value || todayDateKey_();
+      const index = mealCalendarDays_cache_.findIndex(day => day.key === selectedKey);
       if (index < 0) return;
       const left = index * MEAL_CAL_DAY_WIDTH_;
       const width = scroller.clientWidth;
