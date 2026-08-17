@@ -46,7 +46,7 @@ const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5 };
 const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity" };
 const COLLECTIONS = [
   "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
-  "mealSchedules", "mealSeatingChanges", "permanentResidents",
+  "mealSchedules", "mealSeatingChanges", "mealAbsences", "permanentResidents",
   "meetings", "sevaTeams", "teamMemberships", "specificSeva", "trips",
   "tripParticipants", "tripTravelLegs"
 ];
@@ -146,6 +146,18 @@ function residencyMeals(visit) {
 // dated record rather than a field on the guest. Writing one supersedes any
 // later change for the same person (see setMealSeatingFrom), so "from here on,
 // until changed again" stays literally true however many changes accumulate.
+// A guest away for a few days keeps their room, their stay and their standing
+// meal arrangement — they are simply not eating here meanwhile. One record per
+// absence, so it reads back as a single fact and can be undone as one.
+function absenceOn(absences, subjectType, subjectId, dateKey) {
+  return (absences || []).find(item =>
+    item.subjectType === subjectType
+    && item.subjectId === subjectId
+    && clean(item.fromKey, 20)
+    && clean(item.fromKey, 20) <= dateKey
+    && (!clean(item.toKey, 20) || clean(item.toKey, 20) >= dateKey)) || null;
+}
+
 function seatingChangeOn(changes, subjectType, subjectId, dateKey) {
   let best = null;
   (changes || []).forEach(item => {
@@ -342,7 +354,12 @@ function resolveMealDay(canonical, dateKey) {
       const override = overrideMap.get(`${candidate.subjectType}:${candidate.subjectId}:${meal}`);
       const expected = sources.length > 0;
       if (!expected && !override?.included) return;
-      const included = override ? Boolean(override.included) : expected;
+      // Being away drops them from the meal without touching why they were on
+      // the roster — so they still appear, under Not attending, one tap from
+      // being added back. A single-day override outranks the period, which is
+      // how a guest who does turn up for one lunch gets recorded.
+      const away = absenceOn(canonical.mealAbsences, candidate.subjectType, candidate.subjectId, dateKey);
+      const included = override ? Boolean(override.included) : (expected && !away);
       // Three layers, narrowest last: whatever put them on the roster decides
       // the base seating; a dated change in the Meals workspace supersedes it
       // from its own date on; a single-day override still beats both.
@@ -361,6 +378,9 @@ function resolveMealDay(canonical, dateKey) {
         defaultSeating,
         note: override?.note || "",
         sources,
+        away: Boolean(away),
+        awayFrom: away ? clean(away.fromKey, 20) : "",
+        awayTo: away ? clean(away.toKey, 20) : "",
         overrideId: override?.id || null,
         isException: Boolean(override),
         version: override ? versionOf(override) : 0
@@ -1064,6 +1084,16 @@ export function createFirestoreBridge(firebaseApp) {
       teams,
       individualSeva,
       residencies,
+      absences: canonical.mealAbsences
+        .map(item => ({
+          absenceId: item.id,
+          subjectType: item.subjectType === "permanentResident" ? "permanentResident" : "guest",
+          subjectId: item.subjectId || "",
+          from: clean(item.fromKey, 20),
+          to: clean(item.toKey, 20),
+          note: item.note || ""
+        }))
+        .sort((a, b) => a.from.localeCompare(b.from)),
       generatedAt: Date.now()
     };
   }
@@ -2415,6 +2445,46 @@ export function createFirestoreBridge(firebaseApp) {
     return { seatingChangeId: id, fromKey, seating, supersededCount: superseded.length };
   }
 
+  // An away period suspends a person's meals between two dates. It touches
+  // nothing else about the stay — the room stays theirs and the residency
+  // continues either side.
+  async function saveMealAbsence(payload) {
+    const actor = ensureApproved();
+    const subjectType = payload?.subjectType === "permanentResident" ? "permanentResident" : "guest";
+    const subjectId = clean(payload?.subjectId, 100);
+    const fromKey = clean(payload?.fromKey, 20);
+    const toKey = clean(payload?.toKey, 20);
+    const dateShape = /^\d{4}-\d{2}-\d{2}$/;
+    if (!subjectId) throw new Error("This person no longer exists.");
+    if (!dateShape.test(fromKey)) throw new Error("Give the first day away.");
+    if (!dateShape.test(toKey)) throw new Error("Give the last day away.");
+    if (toKey < fromKey) throw new Error("The last day away cannot be before the first.");
+    const id = clean(payload?.absenceId, 100) || `${subjectType}--${subjectId}--${fromKey}`;
+    const batch = writeBatch(db);
+    batch.set(doc(db, "mealAbsences", id), {
+      subjectType, subjectId, fromKey, toKey,
+      note: clean(payload?.note, 300),
+      updatedAt: Timestamp.now(), updatedBy: actor
+    });
+    await writeAuditBatch(batch, actor, "mealAbsence", id, "set", ["fromKey", "toKey"]);
+    await batch.commit();
+    invalidate();
+    return { absenceId: id, fromKey, toKey };
+  }
+
+  async function deleteMealAbsence(absenceId) {
+    const actor = ensureApproved();
+    const id = clean(absenceId, 100);
+    const reference = doc(db, "mealAbsences", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This away period no longer exists.");
+    const batch = writeBatch(db);
+    batch.delete(reference);
+    await writeAuditBatch(batch, actor, "mealAbsence", id, "delete", ["document"]);
+    await batch.commit();
+    invalidate();
+    return { absenceId: id, deleted: true };
+  }
+
   // The residency meal plan — which meals the stay covers, the seating it
   // starts from, and a note. Scoped to the visit alone: it never touches the
   // stay's dates, rooms or travel.
@@ -2495,6 +2565,8 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
       if (action === "setMealSeatingFrom") return setMealSeatingFrom(extra.payload || {});
       if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
+      if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
+      if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
       if (action === "saveMealSchedule") return saveMealSchedule(extra.payload || {});
       if (action === "deleteMealSchedule") return deleteMealSchedule(extra.scheduleId);
       if (action === "savePermanentResident") return savePermanentResident(extra.payload || {});

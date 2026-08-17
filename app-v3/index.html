@@ -2638,6 +2638,7 @@
        used for person-level facts elsewhere. Every other source pill —
        individual invitations, Seva-derived arrangements — stays green. */
     .meal-source-pill.is-resident { background:rgba(250,128,114,.13); color:var(--salmon); }
+    .meal-source-pill.is-away { background:rgba(243,205,151,.13); color:#F3CD97; }
     .meal-seat-pill { padding:3px 7px; border-radius:999px; background:#303030; color:#ddd; }
     /* Visual distinction only; nothing about Swamiji's meal or resident logic
        branches on the name. */
@@ -3442,6 +3443,24 @@
     </div>
   </div>
 
+  <!-- Away periods suspend meals between two dates without disturbing the
+       stay. Small dialog of its own, like the resident editor, because it
+       shares nothing with the arrangement form. -->
+  <div id="meal-away-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-away-title">
+      <div class="modal-header"><h2 id="meal-away-title">Away Period</h2><button id="meal-away-close" class="close-btn" type="button" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button></div>
+      <section class="add-visit-manager-section">
+        <div id="meal-away-subtitle" class="app-subtitle dialog-subtitle"></div>
+        <div class="date-time-row">
+          <div class="input-group"><label class="input-label" for="meal-away-from">First day away</label><input id="meal-away-from" class="edit-input" type="date"></div>
+          <div class="input-group"><label class="input-label" for="meal-away-to">Last day away</label><input id="meal-away-to" class="edit-input" type="date"></div>
+        </div>
+        <div class="input-group"><label class="input-label" for="meal-away-note">Note</label><input id="meal-away-note" class="edit-input" type="text" maxlength="300" placeholder="Where, or why"></div>
+      </section>
+      <div class="meal-editor-footer"><button id="meal-away-save" class="dialog-primary-btn" type="button">Save Changes</button><button id="meal-away-discard" class="dialog-secondary-btn" type="button">Discard</button></div>
+    </div>
+  </div>
+
   <div id="meal-resident-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-resident-title">
       <div class="modal-header"><h2 id="meal-resident-title">Add Permanent Resident</h2><button id="meal-resident-close" class="close-btn" type="button" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button></div>
@@ -4100,6 +4119,11 @@
       $('meal-resident-discard').addEventListener('click', closeMealResidentEditor_);
       $('meal-resident-modal').addEventListener('click', event => { if (event.target === $('meal-resident-modal')) closeMealResidentEditor_(); });
       $('meal-resident-save').addEventListener('click', saveMealResident_);
+
+      $('meal-away-close').addEventListener('click', closeMealAwayEditor_);
+      $('meal-away-discard').addEventListener('click', closeMealAwayEditor_);
+      $('meal-away-modal').addEventListener('click', event => { if (event.target === $('meal-away-modal')) closeMealAwayEditor_(); });
+      $('meal-away-save').addEventListener('click', saveMealAway_);
 
       $('meetings-search').addEventListener('input', () => renderMeetingsList_());
       $('meetings-workspace-add-btn').addEventListener('click', handleAddMeetingClick_);
@@ -8241,6 +8265,8 @@
     // schedule; every path that resets the editor clears it alongside its
     // schedule counterpart.
     let mealEditingResidency_ = null;
+    let mealAwayEditing_ = null;
+    let mealAwaySubject_ = { subjectType: 'guest', subjectId: '' };
     let mealEditorDirty_ = false;
     let mealResidentEditing_ = null;
 
@@ -8573,6 +8599,9 @@
         const isResident = source.type === 'residence' && row.subjectType === 'permanentResident';
         meta.appendChild(createElement('span', `meal-source-pill${isResident ? ' is-resident' : ''}`, source.label));
       });
+      // Says why they are not attending, so a blank Not-attending row is never
+      // a mystery.
+      if (row.away) meta.appendChild(createElement('span', 'meal-source-pill is-away', describeAwayPeriod_({ from: row.awayFrom, to: row.awayTo, note: '' })));
       if (row.isException) meta.appendChild(createElement('span', 'meal-source-pill', 'Modified today'));
       info.appendChild(meta);
       if (row.note) info.appendChild(createElement('div', 'meal-roster-note', row.note));
@@ -8913,6 +8942,74 @@
       return (mealsData_?.residencies || []).filter(item => item.guestId === guestId && item.accommodation === 'Ashram');
     }
 
+    function mealAbsencesFor_(guestId) {
+      if (!guestId) return [];
+      return (mealsData_?.absences || []).filter(item => item.subjectType === 'guest' && item.subjectId === guestId);
+    }
+
+    function describeAwayPeriod_(absence) {
+      const range = absence.from === absence.to
+        ? formatDateKeyDisplay(absence.from)
+        : `${formatDateKeyDisplay(absence.from)} to ${formatDateKeyDisplay(absence.to)}`;
+      return `Away ${range}${absence.note ? ` · ${absence.note}` : ''}`;
+    }
+
+    // The stay bounds the away period: being away from somewhere you are not
+    // staying is not a thing the roster can express.
+    function openMealAwayEditor_(absence, residency) {
+      mealAwayEditing_ = absence;
+      mealAwaySubject_ = { subjectType: 'guest', subjectId: currentMealSourceId_() };
+      $('meal-away-title').textContent = absence ? 'Edit Away Period' : 'Add Away Period';
+      $('meal-away-subtitle').textContent = residency ? describeResidencyWindow_(residency) : '';
+      $('meal-away-from').value = absence?.from || mealsData_?.date || todayDateKey_();
+      $('meal-away-to').value = absence?.to || absence?.from || mealsData_?.date || todayDateKey_();
+      $('meal-away-note').value = absence?.note || '';
+      [$('meal-away-from'), $('meal-away-to')].forEach(input => {
+        if (residency?.from) input.min = residency.from; else input.removeAttribute('min');
+        if (residency?.to) input.max = residency.to; else input.removeAttribute('max');
+      });
+      $('meal-away-modal').style.display = 'flex';
+      $('meal-away-modal').setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => $('meal-away-from').focus(), 0);
+    }
+
+    function closeMealAwayEditor_() {
+      $('meal-away-modal').style.display = 'none';
+      $('meal-away-modal').setAttribute('aria-hidden', 'true');
+      mealAwayEditing_ = null;
+    }
+
+    function saveMealAway_() {
+      const from = $('meal-away-from').value;
+      const to = $('meal-away-to').value;
+      if (!from || !to) { showToast('Give both the first and last day away.', 'error'); return; }
+      if (to < from) { showToast('The last day away cannot be before the first.', 'error'); return; }
+      $('meal-away-save').disabled = true;
+      apiCall('saveMealAbsence', { payload: {
+        absenceId: mealAwayEditing_?.absenceId || '',
+        subjectType: mealAwaySubject_.subjectType,
+        subjectId: mealAwaySubject_.subjectId,
+        fromKey: from, toKey: to, note: $('meal-away-note').value.trim()
+      } })
+        .then(() => {
+          showToast('Away period saved.', 'success');
+          closeMealAwayEditor_();
+          return reloadMeals_().then(refreshMealExistingArrangements_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't save the away period: ${getErrorMessage(err)}`, 'error')))
+        .finally(() => { $('meal-away-save').disabled = false; });
+    }
+
+    function deleteMealAbsence_(absence) {
+      if (!window.confirm(`Remove the away period ${describeAwayPeriod_(absence)}?\n\nTheir meals resume for those days.`)) return;
+      apiCall('deleteMealAbsence', { absenceId: absence.absenceId })
+        .then(() => {
+          showToast('Away period removed.', 'success');
+          return reloadMeals_().then(refreshMealExistingArrangements_);
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't remove the away period: ${getErrorMessage(err)}`, 'error')));
+    }
+
     function describeResidencyWindow_(residency) {
       const from = residency.from ? formatDateKeyDisplay(residency.from) : 'date not set';
       const to = residency.to ? formatDateKeyDisplay(residency.to) : 'departure not set';
@@ -8934,10 +9031,34 @@
         const edit = createElement('button', 'row-btn', 'Edit');
         edit.type = 'button';
         edit.addEventListener('click', () => editResidencyMealPlan_(residency));
-        actions.appendChild(edit);
+        const away = createElement('button', 'row-btn quiet', 'Add away');
+        away.type = 'button';
+        away.addEventListener('click', () => openMealAwayEditor_(null, residency));
+        actions.append(edit, away);
         row.append(info, actions);
         list.appendChild(row);
       });
+
+      // Away periods sit under the arrangement they interrupt, so a stay and
+      // the gaps in it read as one story.
+      if (mealEditorSource_ === 'individualGuest') {
+        mealAbsencesFor_(sourceId).forEach(absence => {
+          const row = createElement('div', 'upcoming-visit-row');
+          const info = createElement('div', 'upcoming-visit-dates', describeAwayPeriod_(absence));
+          const actions = createElement('div', 'upcoming-visit-actions');
+          const edit = createElement('button', 'row-btn', 'Edit');
+          edit.type = 'button';
+          edit.addEventListener('click', () => openMealAwayEditor_(absence, residencies[0] || null));
+          const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn');
+          remove.type = 'button';
+          remove.setAttribute('aria-label', 'Delete away period');
+          remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>';
+          remove.addEventListener('click', () => deleteMealAbsence_(absence));
+          actions.append(edit, remove);
+          row.append(info, actions);
+          list.appendChild(row);
+        });
+      }
 
       if (!schedules.length && !residencies.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No meal arrangements'));
       schedules.forEach(item => {
