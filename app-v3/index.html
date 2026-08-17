@@ -418,6 +418,11 @@
 
     .tier-tab:hover .tier-tab-count { color: #999; }
 
+    /* Pushes a tab to the far end of the tier row, under the page's Add
+       button — used for Permanent Residents, which is a standing list rather
+       than another view of the day. */
+    .tier-tab-end { margin-left: auto; }
+
     .zone {
       margin-bottom: 32px;
       border-radius: 10px;
@@ -2516,14 +2521,56 @@
        its three operational views and Add-Visit-inspired editor compact,
        touch-friendly and consistent with the rest of V3. */
     .meals-view-tabs { margin: 4px 0 18px; }
-    .meals-date-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .meals-date-nav .row-btn { min-height:38px; }
+    /* Calendar strip. The month row and the day row live in one grid inside a
+       single scroll container, each month spanning exactly its own days, so
+       the two can never drift out of alignment however far you scroll. */
+    .meal-calendar { position:relative; display:flex; gap:6px; align-items:stretch; margin-bottom:18px; }
+    .meal-cal-scroll { overflow-x:auto; overflow-y:hidden; flex:1 1 auto; scrollbar-width:none; scroll-behavior:smooth; }
+    .meal-cal-scroll::-webkit-scrollbar { display:none; }
+    .meal-cal-track { display:grid; width:max-content; grid-template-rows:auto auto; gap:6px 0; }
+    .meal-cal-month {
+      padding:0; border:0; background:transparent; color:var(--muted); cursor:pointer;
+      font:inherit; font-size:.78rem; font-weight:700; letter-spacing:.04em; text-align:left;
+      border-left:1px solid #333; white-space:nowrap;
+    }
+    /* Keeps the month name on screen when its run of days is wider than the
+       viewport, so it is always there to tap. */
+    .meal-cal-month > span { position:sticky; left:0; display:inline-block; padding:0 8px; }
+    .meal-cal-month:hover { color:var(--text); }
+    .meal-cal-day {
+      display:flex; width:52px; padding:7px 2px 8px; gap:2px; flex-direction:column; align-items:center;
+      border:1px solid transparent; border-radius:8px; background:transparent; color:var(--muted);
+      cursor:pointer; font:inherit; scroll-margin-left:4px;
+    }
+    .meal-cal-day:hover { background:#242424; color:var(--text); }
+    .meal-cal-dow { font-size:.64rem; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+    .meal-cal-num { font-size:1.02rem; font-weight:700; line-height:1.1; }
+    .meal-cal-day.today .meal-cal-dow { color:#71d99d; }
+    .meal-cal-day.today .meal-cal-num { color:#71d99d; }
+    .meal-cal-day.selected { border-color:rgba(113,217,157,.6); background:rgba(113,217,157,.13); color:var(--text); }
+    .meal-cal-day.selected .meal-cal-num { color:#8ae5af; }
+    .meal-cal-arrow {
+      display:flex; width:30px; align-items:center; justify-content:center; flex:0 0 30px;
+      align-self:flex-end; height:52px; border:1px solid var(--border); border-radius:8px;
+      background:var(--surface); color:var(--muted); cursor:pointer;
+    }
+    .meal-cal-arrow:hover { border-color:#4a4a4a; color:var(--text); }
+    .meal-cal-arrow .icon { width:18px; height:18px; margin:0; }
+    /* Rendered (so showPicker works) but invisible; anchors the picker popup
+       to the left of the strip, under the month label. */
+    .meal-cal-jump { position:absolute; top:0; left:8px; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
     .meal-overview-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
     .meal-overview-card { padding:15px; border:1px solid #373737; border-radius:10px; background:#202020; color:inherit; text-align:left; cursor:pointer; }
     .meal-overview-card.active { border-color:rgba(113,217,157,.65); background:rgba(113,217,157,.09); box-shadow:inset 3px 0 #71d99d; }
     .meal-overview-title { color:var(--text); font-size:.92rem; font-weight:700; }
     .meal-overview-total { display:block; margin-top:8px; color:#71d99d; font-size:1.65rem; font-weight:800; }
     .meal-overview-meta { display:flex; gap:12px; margin-top:4px; color:var(--subtle); font-size:.76rem; flex-wrap:wrap; }
+    /* Seating zones collapse from their own header. */
+    .meal-zone-toggle { width:100%; padding:0; border:0; background:transparent; cursor:pointer; font:inherit; text-align:left; }
+    .meal-zone-chevron { display:flex; margin-left:auto; align-items:center; color:var(--muted); transition:transform .15s ease; }
+    .meal-zone-chevron .icon { width:20px; height:20px; margin:0; }
+    .meal-zone-toggle[aria-expanded="false"] .meal-zone-chevron { transform:rotate(-90deg); }
+    .meal-zone-toggle[aria-expanded="false"] { margin-bottom:0; }
     .meal-roster-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:14px 15px; border:1px solid #353535; border-radius:9px; background:#222; align-items:center; }
     .meal-roster-row + .meal-roster-row { margin-top:9px; }
     .meal-roster-name { color:var(--text); font-weight:700; }
@@ -2540,8 +2587,10 @@
     /* Visual distinction only; nothing about Swamiji's meal or resident logic
        branches on the name. */
     .meal-roster-name.is-swamiji { color:var(--salmon); }
-    /* The meal selector was sitting flush against the first seating zone. */
-    #meals-meal-tabs { margin-bottom:24px; }
+    /* The overview cards are now the meal selector, so the 24px/20px breathing
+       room asked for between the selector and the first seating zone belongs
+       to them. */
+    .meal-overview-grid { margin-bottom:24px; }
     /* The page accent is a pale mint picked for borders, headings and the tier
        rail. Behind white button text it only reaches 1.7:1, so the solid
        button takes a darker green from the same family (4.7:1) while every
@@ -2593,7 +2642,7 @@
       .meal-overview-meta { grid-column:1/-1; }
       .meal-roster-row, .meal-management-row { grid-template-columns:1fr; }
       .meal-roster-actions { justify-content:flex-start; }
-      #meals-meal-tabs { margin-bottom:20px; }
+      .meal-overview-grid { margin-bottom:20px; }
       .meal-manager-source-tabs { grid-template-columns:1fr; }
       .meal-weekdays { grid-template-columns:repeat(4,1fr); }
       .meal-resident-grid { grid-template-columns:1fr; }
@@ -3196,14 +3245,18 @@
       <div id="meals-view-tabs" class="tier-tabs meals-view-tabs" role="tablist" aria-label="Meals workspace views"></div>
 
       <div id="meals-daily-view">
-        <div class="page-toolbar meals-date-nav">
-          <button id="meals-prev-date" class="row-btn" type="button" aria-label="Previous day"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
-          <input type="date" id="meals-workspace-date" class="edit-input" style="width:auto" aria-label="Meal date">
-          <button id="meals-today-date" class="row-btn" type="button">Today</button>
-          <button id="meals-next-date" class="row-btn" type="button" aria-label="Next day"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+        <div class="meal-calendar">
+          <button id="meals-cal-prev" class="meal-cal-arrow" type="button" aria-label="Scroll to earlier days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
+          <div id="meals-cal-scroll" class="meal-cal-scroll">
+            <div id="meals-cal-track" class="meal-cal-track"></div>
+          </div>
+          <button id="meals-cal-next" class="meal-cal-arrow" type="button" aria-label="Scroll to later days"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+          <!-- The month label opens this. It stays a real, rendered input so
+               showPicker() works and so every existing reader of its value
+               keeps working unchanged. -->
+          <input type="date" id="meals-workspace-date" class="meal-cal-jump" aria-label="Jump to a date">
         </div>
         <div id="meals-overview" class="meal-overview-grid" aria-label="Meal totals"></div>
-        <div id="meals-meal-tabs" class="segmented" role="tablist" aria-label="Meal"></div>
         <div id="meals-workspace-list"></div>
         <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
       </div>
@@ -3918,9 +3971,8 @@
       $('meals-workspace-date').addEventListener('change', () => {
         navigate(`#meals/${$('meals-workspace-date').value}`);
       });
-      $('meals-prev-date').addEventListener('click', () => moveMealsDate_(-1));
-      $('meals-next-date').addEventListener('click', () => moveMealsDate_(1));
-      $('meals-today-date').addEventListener('click', () => navigate(`#meals/${todayDateKey_()}`));
+      $('meals-cal-prev').addEventListener('click', () => scrollMealCalendar_(-1));
+      $('meals-cal-next').addEventListener('click', () => scrollMealCalendar_(1));
       $('meals-search').addEventListener('input', () => renderMealsCurrentView_());
       $('meals-workspace-add-btn').addEventListener('click', handleMealsPrimaryAction_);
       $('meal-editor-close').addEventListener('click', requestCloseMealEditor_);
@@ -8064,19 +8116,125 @@
       return loadMealsPage_(date).then(() => loadHomeSummary_().then(renderHome_));
     }
 
-    function moveMealsDate_(days) {
-      const value = $('meals-workspace-date').value || todayDateKey_();
-      const date = new Date(`${value}T12:00:00`);
-      date.setDate(date.getDate() + days);
+    // ---- Meals calendar strip ---------------------------------------------
+    // Replaces the old prev/date-field/Today/next toolbar. The window is
+    // anchored on today so today sits at the left edge on arrival, with a
+    // month of history behind it for looking back and four months ahead for
+    // planning. Picking a date outside that range widens the window rather
+    // than showing nothing.
+    const MEAL_CAL_DAYS_BACK_ = 30;
+    const MEAL_CAL_DAYS_FORWARD_ = 120;
+
+    function dateKeyOf_(date) {
       const pad = number => String(number).padStart(2, '0');
-      navigate(`#meals/${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`);
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function shiftDateKey_(key, days) {
+      const date = new Date(`${key}T12:00:00`);
+      date.setDate(date.getDate() + days);
+      return dateKeyOf_(date);
+    }
+
+    function mealCalendarDays_(selectedKey, todayKey) {
+      const first = shiftDateKey_(selectedKey < todayKey ? selectedKey : todayKey, -MEAL_CAL_DAYS_BACK_);
+      const last = shiftDateKey_(selectedKey > todayKey ? selectedKey : todayKey, MEAL_CAL_DAYS_FORWARD_);
+      const days = [];
+      for (let cursor = new Date(`${first}T12:00:00`); dateKeyOf_(cursor) <= last; cursor.setDate(cursor.getDate() + 1)) {
+        days.push({ key: dateKeyOf_(cursor), date: new Date(cursor) });
+      }
+      return days;
+    }
+
+    function renderMealCalendar_() {
+      const todayKey = todayDateKey_();
+      const selectedKey = $('meals-workspace-date').value || todayKey;
+      const tomorrowKey = shiftDateKey_(todayKey, 1);
+      const days = mealCalendarDays_(selectedKey, todayKey);
+      const track = $('meals-cal-track');
+      track.replaceChildren();
+      track.style.gridTemplateColumns = `repeat(${days.length}, 52px)`;
+
+      // Row 1: one label per run of days in the same month, spanning exactly
+      // those columns. Tapping it opens the date picker.
+      let runStart = 0;
+      days.forEach((day, index) => {
+        const isLast = index === days.length - 1;
+        if (!isLast && days[index + 1].date.getMonth() === day.date.getMonth()) return;
+        const label = createElement('button', 'meal-cal-month');
+        label.type = 'button';
+        label.style.gridRow = '1';
+        label.style.gridColumn = `${runStart + 1} / span ${index - runStart + 1}`;
+        label.title = 'Jump to a date';
+        // Short names, as in the sketch. It also keeps the label narrower than
+        // a single day cell, so the sticky text can never be clipped mid-word
+        // when a month is down to its last visible day. The year is only worth
+        // saying once the window has crossed out of the current one.
+        const sameYear = String(day.date.getFullYear()) === todayKey.slice(0, 4);
+        label.appendChild(createElement('span', '', day.date.toLocaleDateString('en-GB',
+          sameYear ? { month: 'short' } : { month: 'short', year: 'numeric' })));
+        label.addEventListener('click', openMealDatePicker_);
+        track.appendChild(label);
+        runStart = index + 1;
+      });
+
+      // Row 2: the days themselves.
+      days.forEach((day, index) => {
+        const isToday = day.key === todayKey;
+        const isSelected = day.key === selectedKey;
+        const cell = createElement('button', `meal-cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`);
+        cell.type = 'button';
+        cell.style.gridRow = '2';
+        cell.style.gridColumn = String(index + 1);
+        if (isSelected) cell.setAttribute('aria-current', 'date');
+        const relative = isToday ? 'Today' : day.key === tomorrowKey ? 'Tom’w' : MEAL_WEEKDAY_LABELS_[day.date.getDay()];
+        cell.appendChild(createElement('span', 'meal-cal-dow', relative));
+        cell.appendChild(createElement('span', 'meal-cal-num', String(day.date.getDate())));
+        cell.setAttribute('aria-label', day.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+        cell.addEventListener('click', () => navigate(`#meals/${day.key}`));
+        track.appendChild(cell);
+      });
+
+      scrollMealCalendarToSelected_();
+    }
+
+    // The selected day goes to the left edge, matching the sketch — earlier
+    // days stay one scroll away rather than taking up the strip.
+    function scrollMealCalendarToSelected_() {
+      const scroller = $('meals-cal-scroll');
+      const cell = $('meals-cal-track').querySelector('.meal-cal-day.selected');
+      if (!cell) return;
+      const behavior = scroller.style.scrollBehavior;
+      scroller.style.scrollBehavior = 'auto';
+      // Measured between rects rather than via offsetLeft: the cell's
+      // offsetParent is the positioned .meal-calendar row, so offsetLeft also
+      // counts the ‹ arrow and would overshoot by its width.
+      scroller.scrollLeft = Math.max(0, scroller.scrollLeft
+        + cell.getBoundingClientRect().left - scroller.getBoundingClientRect().left - 4);
+      scroller.style.scrollBehavior = behavior;
+    }
+
+    function scrollMealCalendar_(direction) {
+      const scroller = $('meals-cal-scroll');
+      scroller.scrollBy({ left: direction * Math.max(156, scroller.clientWidth - 52), behavior: 'smooth' });
+    }
+
+    function openMealDatePicker_() {
+      const input = $('meals-workspace-date');
+      if (typeof input.showPicker === 'function') {
+        try { input.showPicker(); return; } catch (error) { /* not allowed here; fall back */ }
+      }
+      input.focus();
+      input.click();
     }
 
     function renderMealsViewTabs_() {
       const container = $('meals-view-tabs');
       container.replaceChildren();
       MEALS_VIEWS_.forEach(view => {
-        const button = createElement('button', `tier-tab${mealsView_ === view.key ? ' active' : ''}`);
+        // Permanent Residents is a standing list, not another view of the
+        // chosen day, so it sits apart at the far end of the row.
+        const button = createElement('button', `tier-tab${view.key === 'residents' ? ' tier-tab-end' : ''}${mealsView_ === view.key ? ' active' : ''}`);
         button.type = 'button';
         button.setAttribute('role', 'tab');
         button.setAttribute('aria-selected', String(mealsView_ === view.key));
@@ -8102,21 +8260,13 @@
       else renderPermanentResidents_();
     }
 
-    function renderMealTabs_() {
-      const container = $('meals-meal-tabs');
-      container.replaceChildren();
-      ALLOWED_MEALS.forEach(meal => {
-        const button = createElement('button', mealsActiveMeal_ === meal ? 'active' : '', meal);
-        button.type = 'button';
-        button.setAttribute('role', 'tab');
-        button.setAttribute('aria-selected', String(mealsActiveMeal_ === meal));
-        button.addEventListener('click', () => { mealsActiveMeal_ = meal; renderMealsCurrentView_(); });
-        container.appendChild(button);
-      });
-    }
+    // Which seating zones the user has folded away. Kept outside the render so
+    // it survives a data refresh, and keyed by title since the zone list is
+    // rebuilt from scratch each time.
+    const mealZonesCollapsed_ = new Set();
 
     function renderMealsDaily_() {
-      renderMealTabs_();
+      renderMealCalendar_();
       const overview = $('meals-overview');
       overview.replaceChildren();
       ALLOWED_MEALS.forEach(meal => {
@@ -8149,11 +8299,28 @@
         if (!group.rows.length) return;
         shown += group.rows.length;
         const zone = createElement('section', `zone ${group.className}`);
-        const header = createElement('div', 'zone-header');
+        const collapsed = mealZonesCollapsed_.has(group.title);
+        const header = createElement('button', 'zone-header meal-zone-toggle');
+        header.type = 'button';
+        header.setAttribute('aria-expanded', String(!collapsed));
         header.appendChild(createElement('span', 'zone-title', group.title));
         header.appendChild(createElement('span', 'zone-count', String(group.rows.length)));
-        zone.appendChild(header);
-        group.rows.forEach(row => zone.appendChild(createMealRosterRow_(row)));
+        const chevron = createElement('span', 'meal-zone-chevron');
+        chevron.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>';
+        header.appendChild(chevron);
+        const body = createElement('div', 'meal-zone-body');
+        body.hidden = collapsed;
+        group.rows.forEach(row => body.appendChild(createMealRosterRow_(row)));
+        // Toggled in place rather than by re-rendering, so folding a zone does
+        // not rebuild the calendar strip and throw away its scroll position.
+        header.addEventListener('click', () => {
+          const nowCollapsed = !mealZonesCollapsed_.has(group.title);
+          if (nowCollapsed) mealZonesCollapsed_.add(group.title);
+          else mealZonesCollapsed_.delete(group.title);
+          body.hidden = nowCollapsed;
+          header.setAttribute('aria-expanded', String(!nowCollapsed));
+        });
+        zone.append(header, body);
         list.appendChild(zone);
       });
       $('meals-workspace-empty').hidden = shown > 0;
