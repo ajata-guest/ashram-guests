@@ -9011,6 +9011,30 @@
       }
       openMealEditor_('individualGuest', null, false);
       selectMealGuest_({ guestId: row.subjectId, name: row.name, personType: row.personType });
+      // Open the thing that actually put them on today's roster, rather than
+      // stopping at the list and making the reader find it. The row already
+      // knows: its sources name the residency or schedule responsible.
+      const governing = governingMealArrangement_(row);
+      if (governing?.residency) editResidencyMealPlan_(governing.residency);
+      else if (governing?.schedule) editMealArrangement_(governing.schedule);
+    }
+
+    // Residency first: for a guest housed here that is the standing rule, and
+    // the one an editor is most likely reaching for. Otherwise whichever
+    // schedule the roster row credits for this meal.
+    function governingMealArrangement_(row) {
+      const residency = mealResidenciesFor_(row.subjectId)
+        .find(item => isDateInsideResidency_(item, mealsData_?.date));
+      if (residency) return { residency };
+      const sourceIds = (row.sources || []).map(source => source.id);
+      const schedule = (mealsData_?.schedules || [])
+        .find(item => item.sourceType === 'individualGuest' && sourceIds.includes(item.scheduleId));
+      return schedule ? { schedule } : null;
+    }
+
+    function isDateInsideResidency_(residency, dateKey) {
+      if (!dateKey || !residency.from) return false;
+      return residency.from <= dateKey && (!residency.to || residency.to >= dateKey);
     }
 
     // ---- Permanent resident meal plan -------------------------------------
@@ -9019,9 +9043,7 @@
     function openMealResidentPlan_(resident) {
       mealResidentPlan_ = resident;
       $('meal-resident-plan-title').textContent = `${resident.name || 'Resident'} · Meal Plan`;
-      document.querySelectorAll('.resident-meal-choice').forEach(input => {
-        input.checked = (resident.meals || []).includes(input.value);
-      });
+      setMealChoices_('.resident-meal-choice', resident.meals);
       $('meal-resident-plan-seating').value = mealSeatingValueOrDefault_(resident.defaultSeating);
       $('meal-resident-plan-note').value = resident.mealNote || '';
       showMealResidentPlanSection_('meal-resident-plan-meals');
@@ -9272,9 +9294,7 @@
     function editResidencyMealPlan_(residency) {
       mealEditingSchedule_ = null;
       mealEditingResidency_ = residency;
-      document.querySelectorAll('.meal-choice').forEach(input => {
-        input.checked = (residency.meals || []).includes(input.value);
-      });
+      setMealChoices_('.meal-choice', residency.meals);
       $('meal-default-seating').value = mealSeatingValueOrDefault_(residency.seating);
       $('meal-schedule-note').value = residency.note || '';
       showMealArrangementForm_();
@@ -9282,6 +9302,18 @@
 
     function mealSeatingValueOrDefault_(seating) {
       return seating === 'Table and chair' || seating === 'Floor' ? seating : 'Floor';
+    }
+
+    // No recorded list means nobody has narrowed the plan, which the resolver
+    // reads as all three meals — so the form has to show all three too. Ticking
+    // none of them would otherwise present a state the save rules reject, which
+    // is exactly what happens to a payload cached before this field existed.
+    function setMealChoices_(selector, meals) {
+      const chosen = Array.isArray(meals) ? meals.filter(meal => ALLOWED_MEALS.includes(meal)) : [];
+      const effective = chosen.length ? chosen : ALLOWED_MEALS;
+      document.querySelectorAll(selector).forEach(input => {
+        input.checked = effective.includes(input.value);
+      });
     }
 
     function showMealArrangementForm_() {
