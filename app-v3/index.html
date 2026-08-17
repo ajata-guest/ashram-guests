@@ -3032,8 +3032,8 @@
           <label class="input-label" for="edit-accommodation">Accommodation</label>
           <select id="edit-accommodation" class="edit-input">
             <option value="Ashram">Ashram</option>
-            <option value="Outside - Arranged by Ashram">Outside — arranged by Ashram</option>
-            <option value="Outside - Self-arranged">Outside — self-arranged</option>
+            <option value="Outside - Self-arranged">Outside · Self-arranged</option>
+            <option value="Outside - Arranged by Ashram">Outside · Arranged by Ashram</option>
             <option value="No overnight stay">No overnight stay</option>
             <option value="TBD">TBD</option>
           </select>
@@ -4499,7 +4499,12 @@
       });
       updateWorkspaceDockForPage_(pageId);
       placeGlobalRefreshForPage_(pageId);
-      window.requestAnimationFrame(() => keepActiveStatusTabVisible_(pageId));
+      // Deferred to the next frame because both of these need the page to have
+      // layout, and it has only just been given the class that grants it.
+      window.requestAnimationFrame(() => {
+        keepActiveStatusTabVisible_(pageId);
+        if (pageId === 'page-meals') scrollMealCalendarToSelected_();
+      });
       window.scrollTo(0, 0);
     }
 
@@ -8124,6 +8129,9 @@
     // than showing nothing.
     const MEAL_CAL_DAYS_BACK_ = 30;
     const MEAL_CAL_DAYS_FORWARD_ = 120;
+    // Must match the .meal-cal-day width in CSS: the grid columns and the
+    // scroll position are both derived from it.
+    const MEAL_CAL_DAY_WIDTH_ = 52;
 
     function dateKeyOf_(date) {
       const pad = number => String(number).padStart(2, '0');
@@ -8153,7 +8161,7 @@
       const days = mealCalendarDays_(selectedKey, todayKey);
       const track = $('meals-cal-track');
       track.replaceChildren();
-      track.style.gridTemplateColumns = `repeat(${days.length}, 52px)`;
+      track.style.gridTemplateColumns = `repeat(${days.length}, ${MEAL_CAL_DAY_WIDTH_}px)`;
 
       // Row 1: one label per run of days in the same month, spanning exactly
       // those columns. Tapping it opens the date picker.
@@ -8200,17 +8208,31 @@
 
     // The selected day goes to the left edge, matching the sketch — earlier
     // days stay one scroll away rather than taking up the strip.
+    //
+    // The position is computed from the day's index rather than measured.
+    // handleRouteChange_ calls route.load() before showPage_, so the strip is
+    // always built while its page is still display:none; anything measured
+    // then reads zero, and a scrollLeft written then is clamped to zero — which
+    // is what left the strip parked on the first day of the window instead of
+    // on today. Arithmetic works regardless, and showPage_ re-applies it once
+    // the page has layout.
     function scrollMealCalendarToSelected_() {
       const scroller = $('meals-cal-scroll');
-      const cell = $('meals-cal-track').querySelector('.meal-cal-day.selected');
-      if (!cell) return;
+      const cells = $('meals-cal-track').querySelectorAll('.meal-cal-day');
+      let index = -1;
+      cells.forEach((cell, position) => { if (cell.classList.contains('selected')) index = position; });
+      if (index < 0) return;
+      const left = index * MEAL_CAL_DAY_WIDTH_;
+      const width = scroller.clientWidth;
+      // Only move when the day isn't already fully in view, so stepping from
+      // one day to the next doesn't yank the strip out from under you. While
+      // the page is hidden the width reads 0, which counts as out of view —
+      // exactly the case that needs anchoring.
+      if (width && left >= scroller.scrollLeft
+        && left + MEAL_CAL_DAY_WIDTH_ <= scroller.scrollLeft + width) return;
       const behavior = scroller.style.scrollBehavior;
       scroller.style.scrollBehavior = 'auto';
-      // Measured between rects rather than via offsetLeft: the cell's
-      // offsetParent is the positioned .meal-calendar row, so offsetLeft also
-      // counts the ‹ arrow and would overshoot by its width.
-      scroller.scrollLeft = Math.max(0, scroller.scrollLeft
-        + cell.getBoundingClientRect().left - scroller.getBoundingClientRect().left - 4);
+      scroller.scrollLeft = Math.max(0, left - 4);
       scroller.style.scrollBehavior = behavior;
     }
 
