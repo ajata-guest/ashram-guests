@@ -2313,6 +2313,11 @@
     .ws-stat { display: inline-flex; gap: 5px; align-items: baseline; min-width: 0; white-space: nowrap; }
     .ws-stat-value { display: inline; color: #fff; font-size: 1rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
     .ws-stat-label { display: inline; color: var(--subtle); font-size: 0.76rem; letter-spacing: 0.01em; }
+    /* A stat carrying a breakdown becomes a small column: figure and name on
+       top, the split beneath in the accent, dimmed. */
+    .ws-stat.has-detail { flex-direction: column; gap: 3px; align-items: flex-start; }
+    .ws-stat-head { display: inline-flex; gap: 5px; align-items: baseline; }
+    .ws-stat-detail { color: color-mix(in srgb, var(--accent) 62%, var(--subtle)); font-size: 0.68rem; letter-spacing: 0.01em; }
     .ws-foot { display: flex; align-items: center; }
     .ws-foot .badge { text-transform: none; }
     .ws-quiet { color: #5f5f5f; font-size: 0.76rem; }
@@ -2524,7 +2529,14 @@
     /* Calendar strip. The month row and the day row live in one grid inside a
        single scroll container, each month spanning exactly its own days, so
        the two can never drift out of alignment however far you scroll. */
-    .meal-calendar { position:relative; display:flex; gap:6px; align-items:stretch; margin-bottom:18px; }
+    .meal-calendar {
+      position:relative; display:flex; gap:4px; padding:7px; align-items:stretch; margin-bottom:18px;
+      border:1px solid #2b2b2b; border-radius:13px;
+      background:
+        linear-gradient(180deg, rgba(113,217,157,.055), rgba(113,217,157,0) 46%),
+        linear-gradient(180deg, #202020, #191919);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+    }
     .meal-cal-scroll { overflow-x:auto; overflow-y:hidden; flex:1 1 auto; scrollbar-width:none; scroll-behavior:smooth; }
     .meal-cal-scroll::-webkit-scrollbar { display:none; }
     .meal-cal-track { display:grid; width:max-content; grid-template-rows:auto auto; gap:6px 0; }
@@ -2542,19 +2554,27 @@
       border:1px solid transparent; border-radius:8px; background:transparent; color:var(--muted);
       cursor:pointer; font:inherit; scroll-margin-left:4px;
     }
-    .meal-cal-day:hover { background:#242424; color:var(--text); }
-    .meal-cal-dow { font-size:.64rem; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
-    .meal-cal-num { font-size:1.02rem; font-weight:700; line-height:1.1; }
+    .meal-cal-day:hover { background:rgba(255,255,255,.045); color:var(--text); }
+    .meal-cal-dow { font-size:.62rem; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap; }
+    .meal-cal-num { font-size:1.02rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
     .meal-cal-day.today .meal-cal-dow { color:#71d99d; }
     .meal-cal-day.today .meal-cal-num { color:#71d99d; }
-    .meal-cal-day.selected { border-color:rgba(113,217,157,.6); background:rgba(113,217,157,.13); color:var(--text); }
-    .meal-cal-day.selected .meal-cal-num { color:#8ae5af; }
-    .meal-cal-arrow {
-      display:flex; width:30px; align-items:center; justify-content:center; flex:0 0 30px;
-      align-self:flex-end; height:52px; border:1px solid var(--border); border-radius:8px;
-      background:var(--surface); color:var(--muted); cursor:pointer;
+    .meal-cal-day.selected {
+      border-color:rgba(113,217,157,.5); color:var(--text);
+      background:linear-gradient(180deg, rgba(113,217,157,.22), rgba(113,217,157,.07));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
     }
-    .meal-cal-arrow:hover { border-color:#4a4a4a; color:var(--text); }
+    .meal-cal-day.selected .meal-cal-num { color:#8ae5af; }
+    /* Weekends sit back a shade so the week reads at a glance. */
+    .meal-cal-day.weekend:not(.selected):not(.today) .meal-cal-dow,
+    .meal-cal-day.weekend:not(.selected):not(.today) .meal-cal-num { color:#7e7e7e; }
+    .meal-cal-arrow {
+      display:flex; width:28px; align-items:center; justify-content:center; flex:0 0 28px;
+      align-self:flex-end; height:52px; border:1px solid transparent; border-radius:9px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+      color:var(--muted); cursor:pointer;
+    }
+    .meal-cal-arrow:hover { border-color:rgba(113,217,157,.3); color:#8ae5af; }
     .meal-cal-arrow .icon { width:18px; height:18px; margin:0; }
     /* Rendered (so showPicker works) but invisible; anchors the picker popup
        to the left of the strip, under the month label. */
@@ -2586,7 +2606,8 @@
     .meal-seat-pill { padding:3px 7px; border-radius:999px; background:#303030; color:#ddd; }
     /* Visual distinction only; nothing about Swamiji's meal or resident logic
        branches on the name. */
-    .meal-roster-name.is-swamiji { color:var(--salmon); }
+    .meal-roster-name.is-swamiji,
+    .meal-management-title.is-swamiji { color:var(--salmon); }
     /* The overview cards are now the meal selector, so the 24px/20px breathing
        room asked for between the selector and the first seating zone belongs
        to them. */
@@ -3346,7 +3367,7 @@
         <section id="meal-seating-section" class="add-visit-manager-section">
           <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-meal"></use></svg>Meals &amp; Seating</h3>
           <div class="input-group"><span class="input-label">Meals</span><div class="meal-choice-grid"><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Breakfast">Breakfast</label><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Lunch">Lunch</label><label class="checkbox-label"><input class="checkbox-input meal-choice" type="checkbox" value="Dinner">Dinner</label></div></div>
-          <div class="input-group"><label class="input-label" for="meal-default-seating">Default seating</label><select id="meal-default-seating" class="edit-input"><option>Floor</option><option>Table and chair</option></select></div>
+          <div class="input-group"><label class="input-label" for="meal-default-seating">Default seating</label><select id="meal-default-seating" class="edit-input"><option value="Floor">Floor</option><option value="Table and chair">Table</option></select></div>
           <div class="input-group"><label class="input-label" for="meal-schedule-note">Note (optional)</label><textarea id="meal-schedule-note" class="edit-input" rows="3" maxlength="500"></textarea></div>
         </section>
       </div>
@@ -3360,7 +3381,7 @@
       <div class="modal-header"><h2 id="meal-resident-title">Add Permanent Resident</h2><button id="meal-resident-close" class="close-btn" type="button" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button></div>
       <section class="add-visit-manager-section">
         <div class="input-group"><label class="input-label" for="meal-resident-name">Name</label><input id="meal-resident-name" class="edit-input" type="text" maxlength="500"></div>
-        <div class="input-group"><label class="input-label" for="meal-resident-seating">Default seating</label><select id="meal-resident-seating" class="edit-input"><option>Floor</option><option>Table and chair</option></select></div>
+        <div class="input-group"><label class="input-label" for="meal-resident-seating">Default seating</label><select id="meal-resident-seating" class="edit-input"><option value="Floor">Floor</option><option value="Table and chair">Table</option></select></div>
         <div class="date-time-row"><div class="input-group"><label class="input-label" for="meal-resident-from">Active from (optional)</label><input id="meal-resident-from" class="edit-input" type="date"></div><div class="input-group"><label class="input-label" for="meal-resident-until">Active until (optional)</label><input id="meal-resident-until" class="edit-input" type="date"></div></div>
         <label class="checkbox-label"><input id="meal-resident-active" class="checkbox-input" type="checkbox" checked>Currently active</label>
         <div class="input-group"><label class="input-label" for="meal-resident-note">Note (optional)</label><textarea id="meal-resident-note" class="edit-input" rows="3" maxlength="500"></textarea></div>
@@ -4988,7 +5009,16 @@
       {
         route: '#meals', accent: '#71d99d', icon: 'icon-meal', title: 'Meals',
         description: 'Meal plans, attendance and exceptions',
-        stats: s => ALLOWED_MEALS.map(meal => ({ value: (s.meals.counts || {})[meal] || 0, label: meal.toLowerCase() })),
+        // The seating split rides under each meal's headcount: it is the thing
+        // the kitchen actually sets up from, and the adapter already sends it.
+        stats: s => ALLOWED_MEALS.map(meal => {
+          const seating = (s.meals.mealStats || {})[meal] || {};
+          return {
+            value: (s.meals.counts || {})[meal] || 0,
+            label: meal.toLowerCase(),
+            detail: `${seating.floor || 0} floor · ${seating.tableAndChair || 0} table`
+          };
+        }),
         quiet: s => `Expected attendance today \u00B7 ${s.meals.exceptionCount || 0} exception${s.meals.exceptionCount === 1 ? '' : 's'}`
       },
       {
@@ -5058,9 +5088,16 @@
         const info = createElement('span', 'ws-info');
         const stats = createElement('span', 'ws-stats');
         def.stats(summary).forEach(stat => {
-          const wrap = createElement('span', 'ws-stat');
-          wrap.appendChild(createElement('span', 'ws-stat-value', String(stat.value)));
-          wrap.appendChild(createElement('span', 'ws-stat-label', stat.label));
+          const wrap = createElement('span', `ws-stat${stat.detail ? ' has-detail' : ''}`);
+          // With a detail line the figure and its name pair up on one row and
+          // the breakdown sits beneath; without one the stat is unchanged.
+          const head = stat.detail ? createElement('span', 'ws-stat-head') : wrap;
+          head.appendChild(createElement('span', 'ws-stat-value', String(stat.value)));
+          head.appendChild(createElement('span', 'ws-stat-label', stat.label));
+          if (stat.detail) {
+            wrap.appendChild(head);
+            wrap.appendChild(createElement('span', 'ws-stat-detail', stat.detail));
+          }
           stats.appendChild(wrap);
         });
         info.appendChild(stats);
@@ -8083,7 +8120,7 @@
     }
 
     const MEALS_VIEWS_ = [
-      { key: 'daily', label: 'Daily Roster' },
+      { key: 'daily', label: 'Daily Schedule' },
       { key: 'schedules', label: 'Meal Schedules' },
       { key: 'residents', label: 'Permanent Residents' }
     ];
@@ -8190,12 +8227,14 @@
       days.forEach((day, index) => {
         const isToday = day.key === todayKey;
         const isSelected = day.key === selectedKey;
-        const cell = createElement('button', `meal-cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`);
+        const weekday = day.date.getDay();
+        const isWeekend = weekday === 0 || weekday === 6;
+        const cell = createElement('button', `meal-cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}${isWeekend ? ' weekend' : ''}`);
         cell.type = 'button';
         cell.style.gridRow = '2';
         cell.style.gridColumn = String(index + 1);
         if (isSelected) cell.setAttribute('aria-current', 'date');
-        const relative = isToday ? 'Today' : day.key === tomorrowKey ? 'Tom’w' : MEAL_WEEKDAY_LABELS_[day.date.getDay()];
+        const relative = isToday ? 'Today' : day.key === tomorrowKey ? 'Tom' : MEAL_WEEKDAY_LABELS_[day.date.getDay()];
         cell.appendChild(createElement('span', 'meal-cal-dow', relative));
         cell.appendChild(createElement('span', 'meal-cal-num', String(day.date.getDate())));
         cell.setAttribute('aria-label', day.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
@@ -8276,7 +8315,7 @@
       $('meals-schedules-view').hidden = mealsView_ !== 'schedules';
       $('meals-residents-view').hidden = mealsView_ !== 'residents';
       $('meals-add-label').textContent = mealsView_ === 'daily' ? 'Add Meal Arrangement' : mealsView_ === 'schedules' ? 'Add Schedule' : 'Add Resident';
-      $('meals-search').placeholder = mealsView_ === 'daily' ? 'Search today’s roster...' : mealsView_ === 'schedules' ? 'Search meal schedules...' : 'Search residents...';
+      $('meals-search').placeholder = mealsView_ === 'daily' ? 'Search today’s schedule...' : mealsView_ === 'schedules' ? 'Search meal schedules...' : 'Search residents...';
       if (mealsView_ === 'daily') renderMealsDaily_();
       else if (mealsView_ === 'schedules') renderMealSchedules_();
       else renderPermanentResidents_();
@@ -8299,7 +8338,7 @@
         card.appendChild(createElement('span', 'meal-overview-total', String(stats.total || 0)));
         const meta = createElement('span', 'meal-overview-meta');
         meta.appendChild(createElement('span', '', `${stats.floor || 0} floor`));
-        meta.appendChild(createElement('span', '', `${stats.tableAndChair || 0} table & chair`));
+        meta.appendChild(createElement('span', '', `${stats.tableAndChair || 0} table`));
         if (stats.absent) meta.appendChild(createElement('span', '', `${stats.absent} not attending`));
         card.appendChild(meta);
         card.addEventListener('click', () => { mealsActiveMeal_ = meal; renderMealsCurrentView_(); });
@@ -8311,7 +8350,7 @@
       const absent = ((mealsData_.notAttending || {})[mealsActiveMeal_] || []).filter(row => mealRowMatches_(row, query));
       const groups = [
         { title: 'Floor seating', className: 'zone-current', rows: attending.filter(row => row.seating === 'Floor') },
-        { title: 'Table and chair', className: 'zone-upcoming', rows: attending.filter(row => row.seating === 'Table and chair') },
+        { title: 'Table seating', className: 'zone-upcoming', rows: attending.filter(row => row.seating === 'Table and chair') },
         { title: 'Not attending', className: 'zone-urgent', rows: absent }
       ];
       const list = $('meals-workspace-list');
@@ -8361,7 +8400,7 @@
       const name = createElement('div', `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`, row.name || 'Unnamed person');
       info.appendChild(name);
       const meta = createElement('div', 'meal-roster-meta');
-      meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? row.seating : 'Not attending'));
+      meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? seatingLabel_(row.seating) : 'Not attending'));
       // A "residence" source means two different things depending on the
       // subject: a Permanent Resident record, or a guest currently staying in
       // the ashram. Only the former is the Permanent Resident badge.
@@ -8380,7 +8419,7 @@
       attend.addEventListener('click', () => saveMealDailyOverride_(row, { included: !row.included }));
       actions.appendChild(attend);
       if (row.included) {
-        const seating = createElement('button', 'row-btn', row.seating === 'Floor' ? 'Use chair' : 'Seat on floor');
+        const seating = createElement('button', 'row-btn', row.seating === 'Floor' ? 'Use table' : 'Seat on floor');
         seating.type = 'button';
         seating.addEventListener('click', () => saveMealDailyOverride_(row, { seatingOverride: row.seating === 'Floor' ? 'Table and chair' : 'Floor' }));
         actions.appendChild(seating);
@@ -8407,11 +8446,20 @@
       return wrapper;
     }
 
-    // Swamiji is picked out by name on meal cards at the requester's request.
-    // Exact match only, so a guest whose name merely begins with "Swamiji" is
-    // not swept in.
+    // Swamiji is picked out by name throughout the Meals workspace at the
+    // requester's request. Spacing and punctuation are ignored so "Swamiji",
+    // "Swami Ji" and "Swami-ji" all match, but it stays an exact match on the
+    // whole name — "Swamiji Atmananda" is a different person and is not swept
+    // in.
     function isSwamijiName_(name) {
-      return String(name || '').trim().toLowerCase() === 'swamiji';
+      return String(name || '').toLowerCase().replace(/[^a-z]/g, '') === 'swamiji';
+    }
+
+    // "Table and chair" is the stored seating value and must keep its exact
+    // spelling on the way to Firestore; this is only how it reads on screen.
+    function seatingLabel_(seating, plural = false) {
+      if (seating !== 'Table and chair') return seating;
+      return plural ? 'Tables' : 'Table';
     }
 
     function saveMealDailyOverride_(row, patch) {
@@ -8470,13 +8518,13 @@
       else if (item.recurrence === 'daily') timing = `Every day from ${formatDateKeyDisplay(item.startDate)}`;
       else timing = `${(item.weekdays || []).map(day => MEAL_WEEKDAY_LABELS_[day]).join(', ')} from ${formatDateKeyDisplay(item.startDate)}`;
       if (item.endDate) timing += ` to ${formatDateKeyDisplay(item.endDate)}`;
-      return `${timing} · ${(item.meals || []).join(', ')} · ${item.defaultSeating}`;
+      return `${timing} · ${(item.meals || []).join(', ')} · ${seatingLabel_(item.defaultSeating)}`;
     }
 
     function createMealScheduleRow_(item) {
       const row = createElement('article', 'meal-management-row');
       const info = createElement('div');
-      info.appendChild(createElement('div', 'meal-management-title', item.name || 'Unnamed arrangement'));
+      info.appendChild(createElement('div', `meal-management-title${isSwamijiName_(item.name) ? ' is-swamiji' : ''}`, item.name || 'Unnamed arrangement'));
       info.appendChild(createElement('div', 'meal-management-meta', mealScheduleSummary_(item)));
       if (item.note) info.appendChild(createElement('div', 'meal-management-meta', item.note));
       row.appendChild(info);
@@ -8507,9 +8555,9 @@
       residents.forEach(item => {
         const row = createElement('article', 'meal-management-row');
         const info = createElement('div');
-        info.appendChild(createElement('div', 'meal-management-title', item.name || 'Unnamed resident'));
+        info.appendChild(createElement('div', `meal-management-title${isSwamijiName_(item.name) ? ' is-swamiji' : ''}`, item.name || 'Unnamed resident'));
         const dates = [item.activeFrom && `from ${formatDateKeyDisplay(item.activeFrom)}`, item.activeUntil && `until ${formatDateKeyDisplay(item.activeUntil)}`].filter(Boolean).join(' ');
-        info.appendChild(createElement('div', 'meal-management-meta', `${item.defaultSeating} · ${item.active ? 'Active' : 'Inactive'}${dates ? ` · ${dates}` : ''}`));
+        info.appendChild(createElement('div', 'meal-management-meta', `${seatingLabel_(item.defaultSeating)} · ${item.active ? 'Active' : 'Inactive'}${dates ? ` · ${dates}` : ''}`));
         if (item.note) info.appendChild(createElement('div', 'meal-management-meta', item.note));
         row.appendChild(info);
         const actions = createElement('div', 'meal-roster-actions');
