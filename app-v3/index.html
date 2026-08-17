@@ -672,7 +672,7 @@
        a dialog is editing one record — a guest, a visit, a trip, a meeting —
        plus the guest picker shared by the Add flows. */
     #modal, #visit-editor-modal, #trip-editor-modal, #meeting-editor-modal, #add-to-workspace-modal,
-    #meal-editor-modal, #meal-resident-modal, #meal-away-modal,
+    #meal-editor-modal, #meal-resident-modal, #meal-away-modal, #meal-resident-plan-modal,
     #seva-team-modal, #specific-seva-modal {
       display: none;
       position: fixed;
@@ -2675,10 +2675,10 @@
        they stacked flush against one another. A flex column gives them all the
        same rhythm; `[hidden]` is `display:none !important` above, so hidden
        blocks contribute no gap. */
-    #meal-editor-modal .modal-content, #meal-resident-modal .modal-content, #meal-away-modal .modal-content {
+    #meal-editor-modal .modal-content, #meal-resident-modal .modal-content, #meal-away-modal .modal-content, #meal-resident-plan-modal .modal-content {
       display:flex; width:min(100%,560px); gap:16px; flex-direction:column;
     }
-    #meal-editor-modal .modal-header, #meal-resident-modal .modal-header, #meal-away-modal .modal-header { margin-bottom:0; }
+    #meal-editor-modal .modal-header, #meal-resident-modal .modal-header, #meal-away-modal .modal-header, #meal-resident-plan-modal .modal-header { margin-bottom:0; }
     #meal-editor-modal .meal-manager-source-tabs { margin-bottom:0; }
     /* The suggestion list is absolutely positioned inside the dialog, and the
        dialog is its own scroll container. With only the guest section showing,
@@ -2686,9 +2686,11 @@
        its edge and typing spawned a scrollbar. Reserving room underneath while
        the list is open lets it open into empty space instead. */
     #meal-editor-modal .modal-content:has(#meal-guest-suggestions:not([hidden])) { padding-bottom:250px; }
-    #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn, #meal-away-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
-    #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover, #meal-away-modal .dialog-primary-btn:hover { background:#83e3aa; }
+    #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn, #meal-away-modal .dialog-primary-btn, #meal-resident-plan-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
+    #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover, #meal-away-modal .dialog-primary-btn:hover, #meal-resident-plan-modal .dialog-primary-btn:hover { background:#83e3aa; }
     .meal-editor-existing-list { display:flex; gap:8px; flex-direction:column; }
+    /* The add button was sitting flush against the last arrangement row. */
+    #meal-add-arrangement { margin-top:14px; }
     .meal-manager-helper { color:#8ae5af; font-size:.8rem; line-height:1.45; }
     .meal-resident-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 
@@ -3443,6 +3445,42 @@
     </div>
   </div>
 
+  <!-- A permanent resident has no stay and no schedule, so their meal plan is
+       just two things: what they eat, and when they are away. Both live here,
+       reachable from the nav chips, rather than in the resident record editor
+       which is about who they are and since when. -->
+  <div id="meal-resident-plan-modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="meal-resident-plan-title">
+      <div class="modal-header">
+        <h2 id="meal-resident-plan-title">Meal Plan</h2>
+        <button id="meal-resident-plan-close" class="close-btn" type="button" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+      </div>
+      <div id="meal-resident-plan-nav" class="modal-section-nav" aria-label="Jump to section">
+        <button type="button" class="section-nav-pill active" data-resident-plan-target="meal-resident-plan-meals">Meals &amp; Seating</button>
+        <button type="button" class="section-nav-pill" data-resident-plan-target="meal-resident-plan-away">Away Periods</button>
+      </div>
+
+      <section id="meal-resident-plan-meals" class="add-visit-manager-section">
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-meal"></use></svg>Meals &amp; Seating</h3>
+        <div class="input-group"><span class="input-label">Meals</span><div class="meal-choice-grid">
+          <label class="checkbox-label"><input class="checkbox-input resident-meal-choice" type="checkbox" value="Breakfast">Breakfast</label>
+          <label class="checkbox-label"><input class="checkbox-input resident-meal-choice" type="checkbox" value="Lunch">Lunch</label>
+          <label class="checkbox-label"><input class="checkbox-input resident-meal-choice" type="checkbox" value="Dinner">Dinner</label>
+        </div></div>
+        <div class="input-group"><label class="input-label" for="meal-resident-plan-seating">Default seating</label><select id="meal-resident-plan-seating" class="edit-input"><option value="Floor">Floor</option><option value="Table and chair">Table</option></select></div>
+        <div class="input-group"><label class="input-label" for="meal-resident-plan-note">Note</label><textarea id="meal-resident-plan-note" class="edit-input" rows="3" maxlength="500"></textarea></div>
+      </section>
+
+      <section id="meal-resident-plan-away" class="add-visit-manager-section">
+        <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>Away Periods</h3>
+        <div id="meal-resident-plan-away-list" class="meal-editor-existing-list"></div>
+        <button id="meal-resident-plan-add-away" class="add-visit-full-btn" type="button">+ Add Away Period</button>
+      </section>
+
+      <div class="meal-editor-footer"><button id="meal-resident-plan-save" class="dialog-primary-btn" type="button">Save Changes</button><button id="meal-resident-plan-discard" class="dialog-secondary-btn" type="button">Discard</button></div>
+    </div>
+  </div>
+
   <!-- Away periods suspend meals between two dates without disturbing the
        stay. Small dialog of its own, like the resident editor, because it
        shares nothing with the arrangement form. -->
@@ -4119,6 +4157,17 @@
       $('meal-resident-discard').addEventListener('click', closeMealResidentEditor_);
       $('meal-resident-modal').addEventListener('click', event => { if (event.target === $('meal-resident-modal')) closeMealResidentEditor_(); });
       $('meal-resident-save').addEventListener('click', saveMealResident_);
+
+      $('meal-resident-plan-close').addEventListener('click', closeMealResidentPlan_);
+      $('meal-resident-plan-discard').addEventListener('click', closeMealResidentPlan_);
+      $('meal-resident-plan-modal').addEventListener('click', event => { if (event.target === $('meal-resident-plan-modal')) closeMealResidentPlan_(); });
+      $('meal-resident-plan-save').addEventListener('click', saveMealResidentPlan_);
+      $('meal-resident-plan-nav').addEventListener('click', event => {
+        const pill = event.target.closest('[data-resident-plan-target]');
+        if (pill) showMealResidentPlanSection_(pill.dataset.residentPlanTarget);
+      });
+      $('meal-resident-plan-add-away').addEventListener('click', () => openMealAwayEditor_(null, null,
+        { subjectType: 'permanentResident', subjectId: mealResidentPlan_.residentId }));
 
       $('meal-away-close').addEventListener('click', closeMealAwayEditor_);
       $('meal-away-discard').addEventListener('click', closeMealAwayEditor_);
@@ -8267,6 +8316,9 @@
     let mealEditingResidency_ = null;
     let mealAwayEditing_ = null;
     let mealAwaySubject_ = { subjectType: 'guest', subjectId: '' };
+    // Set while a permanent resident's meal plan is open, which also decides
+    // where an away-period change refreshes back to.
+    let mealResidentPlan_ = null;
     let mealEditorDirty_ = false;
     let mealResidentEditing_ = null;
 
@@ -8601,7 +8653,7 @@
       });
       // Says why they are not attending, so a blank Not-attending row is never
       // a mystery.
-      if (row.away) meta.appendChild(createElement('span', 'meal-source-pill is-away', describeAwayPeriod_({ from: row.awayFrom, to: row.awayTo, note: '' })));
+      if (row.away) meta.appendChild(createElement('span', 'meal-source-pill is-away', describeAwayPeriod_({ from: row.awayFrom, to: row.awayTo, note: row.awayNote })));
       if (row.isException) meta.appendChild(createElement('span', 'meal-source-pill', 'Modified today'));
       info.appendChild(meta);
       if (row.note) info.appendChild(createElement('div', 'meal-roster-note', row.note));
@@ -8618,19 +8670,22 @@
         seating.addEventListener('click', () => setMealSeatingFrom_(row, row.seating === 'Floor' ? 'Table and chair' : 'Floor'));
         actions.appendChild(seating);
       }
+      // Opens whatever governs this person's meals — the stay's arrangements
+      // for a guest, the resident's own plan for someone who lives here.
+      const edit = createElement('button', 'row-btn', 'Edit');
+      edit.type = 'button';
+      edit.addEventListener('click', () => editMealSubjectFromRoster_(row));
+      actions.appendChild(edit);
+
       const note = createElement('button', 'row-btn', row.note ? 'Edit note' : 'Add note');
       note.type = 'button';
       note.addEventListener('click', () => {
         const value = window.prompt(`Note for ${row.name} at ${mealsActiveMeal_.toLowerCase()}:`, row.note || '');
+        // Clearing the text removes the note; there is no separate undo to
+        // reach for, which is why Restore default no longer sits here.
         if (value !== null) saveMealDailyOverride_(row, { note: value });
       });
       actions.appendChild(note);
-      if (row.overrideId) {
-        const restore = createElement('button', 'row-btn', 'Restore default');
-        restore.type = 'button';
-        restore.addEventListener('click', () => restoreMealDefault_(row));
-        actions.appendChild(restore);
-      }
       // No delete control here on purpose. Removing someone from one meal on
       // one date is exactly what Absent already does — a daily override that
       // leaves the guest record, residency and any standing schedule intact —
@@ -8695,13 +8750,6 @@
           return reloadMeals_();
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't update seating: ${getErrorMessage(err)}`, 'error')));
-    }
-
-    function restoreMealDefault_(row) {
-      if (!row.overrideId) return;
-      apiCall('deleteMealOverride', { overrideId: row.overrideId })
-        .then(() => { showToast('Default restored.', 'success'); return reloadMeals_(); })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't restore the default: ${getErrorMessage(err)}`, 'error')));
     }
 
     function renderMealSchedules_() {
@@ -8943,8 +8991,117 @@
     }
 
     function mealAbsencesFor_(guestId) {
-      if (!guestId) return [];
-      return (mealsData_?.absences || []).filter(item => item.subjectType === 'guest' && item.subjectId === guestId);
+      return mealAbsencesForSubject_('guest', guestId);
+    }
+
+    function mealAbsencesForSubject_(subjectType, subjectId) {
+      if (!subjectId) return [];
+      return (mealsData_?.absences || []).filter(item => item.subjectType === subjectType && item.subjectId === subjectId);
+    }
+
+    // Edit on a roster card opens whatever actually governs that person's
+    // meals. For someone who lives here that is their own plan; for a guest it
+    // is the stay and any arrangements hanging off it.
+    function editMealSubjectFromRoster_(row) {
+      if (row.subjectType === 'permanentResident') {
+        const resident = (mealsData_?.permanentResidents || []).find(item => item.residentId === row.subjectId);
+        if (!resident) { showToast('This resident no longer exists.', 'error'); return; }
+        openMealResidentPlan_(resident);
+        return;
+      }
+      openMealEditor_('individualGuest', null, false);
+      selectMealGuest_({ guestId: row.subjectId, name: row.name, personType: row.personType });
+    }
+
+    // ---- Permanent resident meal plan -------------------------------------
+    // A resident has no stay and no schedule, so their plan is just what they
+    // eat and when they are away — two sections behind nav chips.
+    function openMealResidentPlan_(resident) {
+      mealResidentPlan_ = resident;
+      $('meal-resident-plan-title').textContent = `${resident.name || 'Resident'} · Meal Plan`;
+      document.querySelectorAll('.resident-meal-choice').forEach(input => {
+        input.checked = (resident.meals || []).includes(input.value);
+      });
+      $('meal-resident-plan-seating').value = mealSeatingValueOrDefault_(resident.defaultSeating);
+      $('meal-resident-plan-note').value = resident.mealNote || '';
+      showMealResidentPlanSection_('meal-resident-plan-meals');
+      renderMealResidentPlanAway_();
+      $('meal-resident-plan-modal').style.display = 'flex';
+      $('meal-resident-plan-modal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeMealResidentPlan_() {
+      $('meal-resident-plan-modal').style.display = 'none';
+      $('meal-resident-plan-modal').setAttribute('aria-hidden', 'true');
+      mealResidentPlan_ = null;
+    }
+
+    // One section at a time, chosen by the chips — the two have nothing to say
+    // to each other, so showing both would only lengthen the dialog.
+    function showMealResidentPlanSection_(targetId) {
+      $('meal-resident-plan-nav').querySelectorAll('[data-resident-plan-target]').forEach(pill => {
+        const active = pill.dataset.residentPlanTarget === targetId;
+        pill.classList.toggle('active', active);
+        $(pill.dataset.residentPlanTarget).hidden = !active;
+      });
+      // Meals and seating are what the footer saves; away periods save
+      // themselves as they are added, so it would be misleading there.
+      $('meal-resident-plan-save').closest('.meal-editor-footer').hidden = targetId !== 'meal-resident-plan-meals';
+    }
+
+    function renderMealResidentPlanAway_() {
+      const list = $('meal-resident-plan-away-list');
+      list.replaceChildren();
+      const absences = mealAbsencesForSubject_('permanentResident', mealResidentPlan_?.residentId);
+      if (!absences.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No away periods'));
+      absences.forEach(absence => {
+        const row = createElement('div', 'upcoming-visit-row');
+        const info = createElement('div', 'upcoming-visit-dates', describeAwayPeriod_(absence));
+        const actions = createElement('div', 'upcoming-visit-actions');
+        const edit = createElement('button', 'row-btn', 'Edit');
+        edit.type = 'button';
+        edit.addEventListener('click', () => openMealAwayEditor_(absence, null,
+          { subjectType: 'permanentResident', subjectId: mealResidentPlan_.residentId }));
+        const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', 'Delete away period');
+        remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>';
+        remove.addEventListener('click', () => deleteMealAbsence_(absence));
+        actions.append(edit, remove);
+        row.append(info, actions);
+        list.appendChild(row);
+      });
+    }
+
+    // Either editor may be the one on screen when an away period changes, and
+    // the resident held in memory is a copy from before the reload.
+    function refreshMealListsAfterAwayChange_() {
+      if (mealResidentPlan_) {
+        const fresh = (mealsData_?.permanentResidents || []).find(item => item.residentId === mealResidentPlan_.residentId);
+        if (fresh) mealResidentPlan_ = fresh;
+        renderMealResidentPlanAway_();
+        return;
+      }
+      refreshMealExistingArrangements_();
+    }
+
+    function saveMealResidentPlan_() {
+      const meals = [...document.querySelectorAll('.resident-meal-choice')].filter(input => input.checked).map(input => input.value);
+      if (!meals.length) { showToast('Choose at least one meal.', 'error'); return; }
+      $('meal-resident-plan-save').disabled = true;
+      apiCall('saveResidentMealPlan', { payload: {
+        residentId: mealResidentPlan_.residentId,
+        meals,
+        seating: $('meal-resident-plan-seating').value,
+        note: $('meal-resident-plan-note').value.trim()
+      } })
+        .then(() => {
+          showToast('Meal plan saved.', 'success');
+          closeMealResidentPlan_();
+          return reloadMeals_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't save the meal plan: ${getErrorMessage(err)}`, 'error')))
+        .finally(() => { $('meal-resident-plan-save').disabled = false; });
     }
 
     function describeAwayPeriod_(absence) {
@@ -8956,9 +9113,11 @@
 
     // The stay bounds the away period: being away from somewhere you are not
     // staying is not a thing the roster can express.
-    function openMealAwayEditor_(absence, residency) {
+    // `subject` is supplied when the caller is not the guest editor — a
+    // permanent resident's plan, for instance.
+    function openMealAwayEditor_(absence, residency, subject = null) {
       mealAwayEditing_ = absence;
-      mealAwaySubject_ = { subjectType: 'guest', subjectId: currentMealSourceId_() };
+      mealAwaySubject_ = subject || { subjectType: 'guest', subjectId: currentMealSourceId_() };
       $('meal-away-title').textContent = absence ? 'Edit Away Period' : 'Add Away Period';
       $('meal-away-subtitle').textContent = residency ? describeResidencyWindow_(residency) : '';
       $('meal-away-from').value = absence?.from || mealsData_?.date || todayDateKey_();
@@ -8994,7 +9153,7 @@
         .then(() => {
           showToast('Away period saved.', 'success');
           closeMealAwayEditor_();
-          return reloadMeals_().then(refreshMealExistingArrangements_);
+          return reloadMeals_().then(refreshMealListsAfterAwayChange_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't save the away period: ${getErrorMessage(err)}`, 'error')))
         .finally(() => { $('meal-away-save').disabled = false; });
@@ -9005,7 +9164,7 @@
       apiCall('deleteMealAbsence', { absenceId: absence.absenceId })
         .then(() => {
           showToast('Away period removed.', 'success');
-          return reloadMeals_().then(refreshMealExistingArrangements_);
+          return reloadMeals_().then(refreshMealListsAfterAwayChange_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't remove the away period: ${getErrorMessage(err)}`, 'error')));
     }

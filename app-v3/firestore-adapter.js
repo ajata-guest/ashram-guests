@@ -141,6 +141,14 @@ function residencyMeals(visit) {
   return chosen.length ? chosen : MEALS;
 }
 
+// The same rule for someone who lives here rather than visiting.
+function residentMeals(resident) {
+  const chosen = Array.isArray(resident?.meals)
+    ? resident.meals.filter(meal => MEALS.includes(meal))
+    : [];
+  return chosen.length ? chosen : MEALS;
+}
+
 // A seating change made in the Meals workspace takes effect from its own date
 // onward and leaves earlier days exactly as they were — which is why it is a
 // dated record rather than a field on the guest. Writing one supersedes any
@@ -286,7 +294,7 @@ function resolveMealDay(canonical, dateKey) {
   canonical.permanentResidents
     .filter(item => item.active !== false && dateInside(dateKey, item.activeFromKey || "", item.activeUntilKey || ""))
     .forEach(item => addSource(
-      "permanentResident", item.id, MEALS,
+      "permanentResident", item.id, residentMeals(item),
       { type: "residence", id: item.id, label: "Permanent resident" },
       item.defaultSeating, true
     ));
@@ -381,6 +389,7 @@ function resolveMealDay(canonical, dateKey) {
         away: Boolean(away),
         awayFrom: away ? clean(away.fromKey, 20) : "",
         awayTo: away ? clean(away.toKey, 20) : "",
+        awayNote: away ? clean(away.note, 300) : "",
         overrideId: override?.id || null,
         isException: Boolean(override),
         version: override ? versionOf(override) : 0
@@ -1049,6 +1058,8 @@ export function createFirestoreBridge(firebaseApp) {
       residentId: item.id,
       name: item.name || "",
       defaultSeating: mealSeating(item.defaultSeating),
+      meals: residentMeals(item),
+      mealNote: item.mealNote || "",
       activeFrom: item.activeFromKey || "",
       activeUntil: item.activeUntilKey || "",
       active: item.active !== false,
@@ -2025,6 +2036,12 @@ export function createFirestoreBridge(firebaseApp) {
         activeUntilKey,
         active: payload?.active !== false,
         note: clean(payload?.note),
+        // Owned by the Meals workspace, restated because this is a whole
+        // document set — the same way the residency plan is preserved on
+        // visits. Without these two lines, editing a resident's name would
+        // silently reset which meals they take.
+        meals: Array.isArray(existing?.meals) ? existing.meals.filter(meal => MEALS.includes(meal)) : [],
+        mealNote: clean(existing?.mealNote, 500),
         createdAt: existing?.createdAt || serverTimestamp(),
         createdBy: existing?.createdBy || actor,
         updatedAt: serverTimestamp(),
@@ -2445,6 +2462,30 @@ export function createFirestoreBridge(firebaseApp) {
     return { seatingChangeId: id, fromKey, seating, supersededCount: superseded.length };
   }
 
+  // A permanent resident's meal plan, edited from the Meals workspace. Narrow
+  // in the same way the residency plan is: which meals, the seating they start
+  // from, and a note. Never touches the resident's name or active dates.
+  async function saveResidentMealPlan(payload) {
+    const actor = ensureApproved();
+    const residentId = clean(payload?.residentId, 100);
+    const reference = doc(db, "permanentResidents", residentId);
+    if (!(await getDoc(reference)).exists()) throw new Error("This resident no longer exists.");
+    const meals = Array.isArray(payload?.meals) ? payload.meals.filter(meal => MEALS.includes(meal)) : [];
+    if (!meals.length) throw new Error("Choose at least one meal.");
+    const batch = writeBatch(db);
+    batch.update(reference, {
+      meals,
+      defaultSeating: mealSeating(payload?.seating),
+      mealNote: clean(payload?.note, 500),
+      updatedAt: Timestamp.now(),
+      updatedBy: actor
+    });
+    await writeAuditBatch(batch, actor, "permanentResident", residentId, "resident-meals", ["meals", "defaultSeating", "mealNote"]);
+    await batch.commit();
+    invalidate();
+    return { residentId, meals };
+  }
+
   // An away period suspends a person's meals between two dates. It touches
   // nothing else about the stay — the room stays theirs and the residency
   // continues either side.
@@ -2565,6 +2606,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
       if (action === "setMealSeatingFrom") return setMealSeatingFrom(extra.payload || {});
       if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
+      if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
       if (action === "saveMealSchedule") return saveMealSchedule(extra.payload || {});
