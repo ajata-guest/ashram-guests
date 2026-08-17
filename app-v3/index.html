@@ -989,6 +989,10 @@
       font-weight: 700;
     }
 
+    /* A quieter aside inside a field label, for saying what leaving something
+       blank will mean. */
+    .input-label-hint { color: var(--subtle); font-weight: 400; }
+
     .edit-input {
       width: 100%;
       padding: 10px;
@@ -3491,7 +3495,7 @@
         <div id="meal-away-subtitle" class="app-subtitle dialog-subtitle"></div>
         <div class="date-time-row">
           <div class="input-group"><label class="input-label" for="meal-away-from">First day away</label><input id="meal-away-from" class="edit-input" type="date"></div>
-          <div class="input-group"><label class="input-label" for="meal-away-to">Last day away</label><input id="meal-away-to" class="edit-input" type="date"></div>
+          <div class="input-group"><label class="input-label" for="meal-away-to">Last day away <span class="input-label-hint">— blank if not known</span></label><input id="meal-away-to" class="edit-input" type="date"></div>
         </div>
         <div class="input-group"><label class="input-label" for="meal-away-note">Note</label><input id="meal-away-note" class="edit-input" type="text" maxlength="300" placeholder="Where, or why"></div>
       </section>
@@ -9126,7 +9130,12 @@
         .finally(() => { $('meal-resident-plan-save').disabled = false; });
     }
 
+    // Three shapes: a single day, a closed range, and an open-ended absence
+    // where nobody knows the return date yet. The last reads "since", because
+    // it is a state the person is still in rather than a span already fixed —
+    // and because a missing end date should look deliberate, not dropped.
     function describeAwayPeriod_(absence) {
+      if (!absence.to) return `Away since ${formatDateKeyDisplay(absence.from)}${absence.note ? ` · ${absence.note}` : ''}`;
       const range = absence.from === absence.to
         ? formatDateKeyDisplay(absence.from)
         : `${formatDateKeyDisplay(absence.from)} to ${formatDateKeyDisplay(absence.to)}`;
@@ -9163,8 +9172,9 @@
     function saveMealAway_() {
       const from = $('meal-away-from').value;
       const to = $('meal-away-to').value;
-      if (!from || !to) { showToast('Give both the first and last day away.', 'error'); return; }
-      if (to < from) { showToast('The last day away cannot be before the first.', 'error'); return; }
+      if (!from) { showToast('Give the first day away.', 'error'); return; }
+      // Leaving the last day blank is how you say "back date unknown".
+      if (to && to < from) { showToast('The last day away cannot be before the first.', 'error'); return; }
       $('meal-away-save').disabled = true;
       apiCall('saveMealAbsence', { payload: {
         absenceId: mealAwayEditing_?.absenceId || '',

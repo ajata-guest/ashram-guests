@@ -2498,8 +2498,11 @@ export function createFirestoreBridge(firebaseApp) {
     const dateShape = /^\d{4}-\d{2}-\d{2}$/;
     if (!subjectId) throw new Error("This person no longer exists.");
     if (!dateShape.test(fromKey)) throw new Error("Give the first day away.");
-    if (!dateShape.test(toKey)) throw new Error("Give the last day away.");
-    if (toKey < fromKey) throw new Error("The last day away cannot be before the first.");
+    // A blank last day means the absence runs on until someone says otherwise
+    // — the case where nobody yet knows when they are back. absenceOn already
+    // reads an empty toKey that way, so only this gate needed relaxing.
+    if (toKey && !dateShape.test(toKey)) throw new Error("That last day away is not a date.");
+    if (toKey && toKey < fromKey) throw new Error("The last day away cannot be before the first.");
     const id = clean(payload?.absenceId, 100) || `${subjectType}--${subjectId}--${fromKey}`;
     const batch = writeBatch(db);
     batch.set(doc(db, "mealAbsences", id), {
