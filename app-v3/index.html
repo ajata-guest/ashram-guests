@@ -672,7 +672,7 @@
        a dialog is editing one record — a guest, a visit, a trip, a meeting —
        plus the guest picker shared by the Add flows. */
     #modal, #visit-editor-modal, #trip-editor-modal, #meeting-editor-modal, #add-to-workspace-modal,
-    #meal-editor-modal, #meal-resident-modal,
+    #meal-editor-modal, #meal-resident-modal, #meal-away-modal,
     #seva-team-modal, #specific-seva-modal {
       display: none;
       position: fixed;
@@ -2675,10 +2675,10 @@
        they stacked flush against one another. A flex column gives them all the
        same rhythm; `[hidden]` is `display:none !important` above, so hidden
        blocks contribute no gap. */
-    #meal-editor-modal .modal-content, #meal-resident-modal .modal-content {
+    #meal-editor-modal .modal-content, #meal-resident-modal .modal-content, #meal-away-modal .modal-content {
       display:flex; width:min(100%,560px); gap:16px; flex-direction:column;
     }
-    #meal-editor-modal .modal-header, #meal-resident-modal .modal-header { margin-bottom:0; }
+    #meal-editor-modal .modal-header, #meal-resident-modal .modal-header, #meal-away-modal .modal-header { margin-bottom:0; }
     #meal-editor-modal .meal-manager-source-tabs { margin-bottom:0; }
     /* The suggestion list is absolutely positioned inside the dialog, and the
        dialog is its own scroll container. With only the guest section showing,
@@ -2686,8 +2686,8 @@
        its edge and typing spawned a scrollbar. Reserving room underneath while
        the list is open lets it open into empty space instead. */
     #meal-editor-modal .modal-content:has(#meal-guest-suggestions:not([hidden])) { padding-bottom:250px; }
-    #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
-    #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover { background:#83e3aa; }
+    #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn, #meal-away-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
+    #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover, #meal-away-modal .dialog-primary-btn:hover { background:#83e3aa; }
     .meal-editor-existing-list { display:flex; gap:8px; flex-direction:column; }
     .meal-manager-helper { color:#8ae5af; font-size:.8rem; line-height:1.45; }
     .meal-resident-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
