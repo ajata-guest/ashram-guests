@@ -8237,6 +8237,10 @@
     let mealSelectedGuest_ = null;
     let mealNewGuestName_ = '';
     let mealEditingSchedule_ = null;
+    // Set while the Meals & Seating pane is editing a stay rather than a
+    // schedule; every path that resets the editor clears it alongside its
+    // schedule counterpart.
+    let mealEditingResidency_ = null;
     let mealEditorDirty_ = false;
     let mealResidentEditing_ = null;
 
@@ -8582,7 +8586,7 @@
       if (row.included) {
         const seating = createElement('button', 'row-btn', row.seating === 'Floor' ? 'Use table' : 'Seat on floor');
         seating.type = 'button';
-        seating.addEventListener('click', () => saveMealDailyOverride_(row, { seatingOverride: row.seating === 'Floor' ? 'Table and chair' : 'Floor' }));
+        seating.addEventListener('click', () => setMealSeatingFrom_(row, row.seating === 'Floor' ? 'Table and chair' : 'Floor'));
         actions.appendChild(seating);
       }
       const note = createElement('button', 'row-btn', row.note ? 'Edit note' : 'Add note');
@@ -8637,6 +8641,31 @@
       apiCall('upsertMealOverride', { payload })
         .then(() => { showToast('Meal updated.', 'success'); return reloadMeals_(); })
         .catch(error => handleApiError(error, err => showToast(`Couldn't update meal: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    // Seating is a standing preference, not a one-day note: it holds from the
+    // displayed date onward until it is changed again. Any single-day seating
+    // exception already sitting on this date is cleared at the same time, or it
+    // would mask the very change just made.
+    function setMealSeatingFrom_(row, seating) {
+      const date = mealsData_.date;
+      apiCall('setMealSeatingFrom', { payload: {
+        subjectType: row.subjectType, subjectId: row.subjectId, fromKey: date, seating
+      } })
+        .then(() => {
+          if (!row.overrideId || !row.isException) return null;
+          return apiCall('upsertMealOverride', { payload: {
+            overrideId: row.overrideId,
+            subjectType: row.subjectType, subjectId: row.subjectId,
+            date, meal: mealsActiveMeal_,
+            included: row.included, seatingOverride: '', note: row.note || ''
+          } });
+        })
+        .then(() => {
+          showToast(`${seatingLabel_(seating)} from ${formatDateKeyDisplay(date)} onward.`, 'success');
+          return reloadMeals_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't update seating: ${getErrorMessage(err)}`, 'error')));
     }
 
     function restoreMealDefault_(row) {
@@ -8789,7 +8818,7 @@
       $('meal-editor-team-section').hidden = sourceType !== 'sevaTeam';
       $('meal-editor-seva-section').hidden = sourceType !== 'individualSeva';
       if (reset) {
-        mealSelectedGuest_ = null; mealNewGuestName_ = ''; mealEditingSchedule_ = null;
+        mealSelectedGuest_ = null; mealNewGuestName_ = ''; mealEditingSchedule_ = null; mealEditingResidency_ = null;
         $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true;
         // Switching source clears the guest too, so its notice must go with it
         // — otherwise it reappears on switching back to Individual guest.
@@ -8876,13 +8905,41 @@
       return $('meal-seva-select').value;
     }
 
+    // Every ashram stay for this guest, newest window first. Staying here is
+    // already a standing invitation to all three meals, so the editor names it
+    // rather than inviting you to build an arrangement that exists.
+    function mealResidenciesFor_(guestId) {
+      if (!guestId) return [];
+      return (mealsData_?.residencies || []).filter(item => item.guestId === guestId && item.accommodation === 'Ashram');
+    }
+
+    function describeResidencyWindow_(residency) {
+      const from = residency.from ? formatDateKeyDisplay(residency.from) : 'date not set';
+      const to = residency.to ? formatDateKeyDisplay(residency.to) : 'departure not set';
+      return `Invited due to residency from ${from} to ${to}`;
+    }
+
     function refreshMealExistingArrangements_() {
       const sourceId = currentMealSourceId_();
       const section = $('meal-existing-section');
       if (!sourceId) { section.hidden = true; return; }
       const schedules = (mealsData_?.schedules || []).filter(item => item.sourceType === mealEditorSource_ && item.sourceId === sourceId);
       const list = $('meal-existing-list'); list.replaceChildren();
-      if (!schedules.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No meal arrangements'));
+
+      const residencies = mealEditorSource_ === 'individualGuest' ? mealResidenciesFor_(sourceId) : [];
+      residencies.forEach(residency => {
+        const row = createElement('div', 'upcoming-visit-row');
+        const info = createElement('div', 'upcoming-visit-dates', describeResidencyWindow_(residency));
+        const actions = createElement('div', 'upcoming-visit-actions');
+        const edit = createElement('button', 'row-btn', 'Edit');
+        edit.type = 'button';
+        edit.addEventListener('click', () => editResidencyMealPlan_(residency));
+        actions.appendChild(edit);
+        row.append(info, actions);
+        list.appendChild(row);
+      });
+
+      if (!schedules.length && !residencies.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No meal arrangements'));
       schedules.forEach(item => {
         const row = createElement('div', 'upcoming-visit-row');
         const info = createElement('div', 'upcoming-visit-dates', mealScheduleSummary_(item));
@@ -8898,6 +8955,7 @@
       if (mealEditorSource_ === 'individualGuest' && !mealSelectedGuest_ && !mealNewGuestName_) { showToast('Choose or add a guest first.', 'error'); return; }
       if (mealEditorSource_ !== 'individualGuest' && !currentMealSourceId_()) { showToast('Choose the Seva source first.', 'error'); return; }
       mealEditingSchedule_ = null;
+      mealEditingResidency_ = null;
       $('meal-recurrence').value = 'oneTime';
       $('meal-one-time-date').value = mealsData_?.date || todayDateKey_();
       $('meal-start-date').value = mealsData_?.date || todayDateKey_(); $('meal-end-date').value = '';
@@ -8919,6 +8977,7 @@
 
     function editMealArrangement_(item) {
       mealEditingSchedule_ = item;
+      mealEditingResidency_ = null;
       $('meal-recurrence').value = item.recurrence || 'oneTime'; $('meal-one-time-date').value = item.date || '';
       $('meal-start-date').value = item.startDate || ''; $('meal-end-date').value = item.endDate || '';
       $('meal-weekdays-wrap').querySelectorAll('input').forEach(input => { input.checked = (item.weekdays || []).includes(Number(input.value)); });
@@ -8927,14 +8986,55 @@
       showMealArrangementForm_();
     }
 
+    // Editing a residency is editing the stay's meal plan, not a schedule:
+    // the dates are the stay's own, so Schedule has nothing left to ask and
+    // Basic Details belongs to a guest who already exists.
+    function editResidencyMealPlan_(residency) {
+      mealEditingSchedule_ = null;
+      mealEditingResidency_ = residency;
+      document.querySelectorAll('.meal-choice').forEach(input => {
+        input.checked = (residency.meals || []).includes(input.value);
+      });
+      $('meal-default-seating').value = mealSeatingValueOrDefault_(residency.seating);
+      $('meal-schedule-note').value = residency.note || '';
+      showMealArrangementForm_();
+    }
+
+    function mealSeatingValueOrDefault_(seating) {
+      return seating === 'Table and chair' || seating === 'Floor' ? seating : 'Floor';
+    }
+
     function showMealArrangementForm_() {
-      const isNewGuest = Boolean(mealNewGuestName_);
+      const isResidency = Boolean(mealEditingResidency_);
+      const isNewGuest = Boolean(mealNewGuestName_) && !isResidency;
       $('meal-basic-section').hidden = !isNewGuest;
       $('meal-section-nav').querySelector('[data-meal-target="meal-basic-section"]').hidden = !isNewGuest;
-      $('meal-editor-details').hidden = false; $('meal-editor-footer').hidden = false; $('meal-section-nav').hidden = false;
+      $('meal-schedule-section').hidden = isResidency;
+      $('meal-section-nav').querySelector('[data-meal-target="meal-schedule-section"]').hidden = isResidency;
+      $('meal-editor-details').hidden = false; $('meal-editor-footer').hidden = false;
+      // With only one section left there is nothing to jump between.
+      $('meal-section-nav').hidden = isResidency;
       updateMealRecurrenceFields_(); updateMealBasicFields_();
-      const target = isNewGuest ? $('meal-basic-section') : $('meal-schedule-section');
+      applyMealDateLimits_();
+      const target = isResidency ? $('meal-seating-section') : isNewGuest ? $('meal-basic-section') : $('meal-schedule-section');
       window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    }
+
+    // A meal cannot be arranged before a guest arrives or after they leave, so
+    // the pickers are bounded by the stay rather than left open and rejected on
+    // save. Guests with no recorded stay are left unbounded.
+    function applyMealDateLimits_() {
+      const guestId = mealEditorSource_ === 'individualGuest' ? currentMealSourceId_() : '';
+      const windows = mealResidenciesFor_(guestId).filter(item => item.from);
+      const min = windows.length ? windows.map(item => item.from).sort()[0] : '';
+      const ends = windows.map(item => item.to).filter(Boolean).sort();
+      // An open-ended stay leaves the upper bound off entirely.
+      const max = windows.length && ends.length === windows.length ? ends[ends.length - 1] : '';
+      ['meal-one-time-date', 'meal-start-date', 'meal-end-date'].forEach(id => {
+        const input = $(id);
+        if (min) input.min = min; else input.removeAttribute('min');
+        if (max) input.max = max; else input.removeAttribute('max');
+      });
     }
 
     function updateMealRecurrenceFields_() {
@@ -8977,6 +9077,7 @@
     }
 
     function saveMealArrangement_() {
+      if (mealEditingResidency_) { saveResidencyMealPlan_(); return; }
       const payload = collectMealSchedulePayload_();
       $('meal-editor-save').disabled = true;
       apiCall('saveMealSchedule', { payload })
@@ -8985,10 +9086,35 @@
           showToast('Meal arrangement saved.', 'success');
           return reloadMeals_().then(() => {
             if (result.guestCreated) closeMealEditor_();
-            else { mealEditingSchedule_ = null; $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true; refreshMealExistingArrangements_(); }
+            else { mealEditingSchedule_ = null; mealEditingResidency_ = null; $('meal-editor-details').hidden = true; $('meal-editor-footer').hidden = true; $('meal-section-nav').hidden = true; refreshMealExistingArrangements_(); }
           });
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't save the arrangement: ${getErrorMessage(err)}`, 'error')))
+        .finally(() => { $('meal-editor-save').disabled = false; });
+    }
+
+    function saveResidencyMealPlan_() {
+      const meals = [...document.querySelectorAll('.meal-choice')].filter(input => input.checked).map(input => input.value);
+      if (!meals.length) { showToast('Choose at least one meal.', 'error'); return; }
+      $('meal-editor-save').disabled = true;
+      apiCall('saveResidencyMealPlan', { payload: {
+        visitId: mealEditingResidency_.visitId,
+        meals,
+        seating: $('meal-default-seating').value,
+        note: $('meal-schedule-note').value.trim()
+      } })
+        .then(() => {
+          mealEditorDirty_ = false;
+          mealEditingResidency_ = null;
+          showToast('Residency meals saved.', 'success');
+          return reloadMeals_().then(() => {
+            $('meal-editor-details').hidden = true;
+            $('meal-editor-footer').hidden = true;
+            $('meal-section-nav').hidden = true;
+            refreshMealExistingArrangements_();
+          });
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't save residency meals: ${getErrorMessage(err)}`, 'error')))
         .finally(() => { $('meal-editor-save').disabled = false; });
     }
 

@@ -46,7 +46,7 @@ const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5 };
 const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity" };
 const COLLECTIONS = [
   "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
-  "mealSchedules", "permanentResidents",
+  "mealSchedules", "mealSeatingChanges", "permanentResidents",
   "meetings", "sevaTeams", "teamMemberships", "specificSeva", "trips",
   "tripParticipants", "tripTravelLegs"
 ];
@@ -130,6 +130,31 @@ function groupBy(rows, key) {
 function mealSeating(value, fallback = "Floor") {
   const seating = clean(value, 40);
   return MEAL_SEATING.has(seating) ? seating : fallback;
+}
+
+// Which meals a stay covers. All three unless the residency plan says less;
+// an empty or unrecognised list means nobody chose, not "no meals".
+function residencyMeals(visit) {
+  const chosen = Array.isArray(visit?.residencyMeals)
+    ? visit.residencyMeals.filter(meal => MEALS.includes(meal))
+    : [];
+  return chosen.length ? chosen : MEALS;
+}
+
+// A seating change made in the Meals workspace takes effect from its own date
+// onward and leaves earlier days exactly as they were — which is why it is a
+// dated record rather than a field on the guest. Writing one supersedes any
+// later change for the same person (see setMealSeatingFrom), so "from here on,
+// until changed again" stays literally true however many changes accumulate.
+function seatingChangeOn(changes, subjectType, subjectId, dateKey) {
+  let best = null;
+  (changes || []).forEach(item => {
+    if (item.subjectType !== subjectType || item.subjectId !== subjectId) return;
+    const from = clean(item.fromKey, 20);
+    if (!from || from > dateKey) return;
+    if (!best || from > clean(best.fromKey, 20)) best = item;
+  });
+  return best ? mealSeating(best.seating) : "";
 }
 
 function weekdayOfDateKey(dateKey) {
@@ -257,11 +282,10 @@ function resolveMealDay(canonical, dateKey) {
   canonical.visits
     .filter(item => !item.isCancelled && item.accommodation === "Ashram"
       && item.arrivalDateKey && dateInside(dateKey, item.arrivalDateKey, item.departureDateKey || ""))
-    // A guest housed here is put on the roster by residence alone. Where a
-    // seating preference was recorded on the visit it becomes their default;
-    // otherwise the floor, as before. A daily override still wins over both.
+    // A guest housed here is put on the roster by residence alone — which
+    // meals, and the seating they start from, are both properties of the stay.
     .forEach(item => addSource(
-      "guest", item.guestId, MEALS,
+      "guest", item.guestId, residencyMeals(item),
       { type: "residence", id: item.id, label: "Staying in the ashram" },
       mealSeating(item.diningSeating), true
     ));
@@ -319,7 +343,11 @@ function resolveMealDay(canonical, dateKey) {
       const expected = sources.length > 0;
       if (!expected && !override?.included) return;
       const included = override ? Boolean(override.included) : expected;
-      const defaultSeating = candidate.mealSeating[meal]?.value || "Floor";
+      // Three layers, narrowest last: whatever put them on the roster decides
+      // the base seating; a dated change in the Meals workspace supersedes it
+      // from its own date on; a single-day override still beats both.
+      const standing = seatingChangeOn(canonical.mealSeatingChanges, candidate.subjectType, candidate.subjectId, dateKey);
+      const defaultSeating = standing || candidate.mealSeating[meal]?.value || "Floor";
       const seating = mealSeating(override?.seatingOverride, defaultSeating);
       const row = {
         subjectType: candidate.subjectType,
@@ -450,6 +478,10 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     // "" when nothing was recorded — the editor needs to tell that apart from
     // a deliberate choice of Floor.
     diningSeating: visit.diningSeating || "",
+    // The residency meal plan is owned by the Meals workspace, not the visit
+    // editor; exposed here so the editor can carry it back unchanged.
+    residencyMeals: residencyMeals(visit),
+    residencyMealNote: visit.residencyMealNote || "",
     cformComplete: Boolean(visit.cFormComplete),
     pickupRequired: Boolean(visit.pickupRequired),
     pickupMs: visit.pickupRequired ? pickup.ms : null,
@@ -1009,12 +1041,29 @@ export function createFirestoreBridge(firebaseApp) {
       const guest = guestsById[item.guestId];
       return guest ? { guestId: guest.id, name: guest.name, personType: guest.personType, ...taskView(item) } : null;
     }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    // Staying in the ashram is itself a standing meal arrangement, so the
+    // editor needs the stay windows to say so instead of offering to build one
+    // that already exists. Also what clamps the date pickers for everyone else.
+    const residencies = canonical.visits
+      .filter(item => !item.isCancelled && item.guestId && guestsById[item.guestId])
+      .map(item => ({
+        guestId: item.guestId,
+        visitId: item.id,
+        accommodation: item.accommodation || "TBD",
+        from: item.arrivalDateKey || "",
+        to: item.departureDateKey || "",
+        meals: residencyMeals(item),
+        seating: item.diningSeating || "",
+        note: item.residencyMealNote || ""
+      }))
+      .sort((a, b) => (a.from || "").localeCompare(b.from || ""));
     return {
       ...resolved,
       schedules,
       permanentResidents,
       teams,
       individualSeva,
+      residencies,
       generatedAt: Date.now()
     };
   }
@@ -1489,6 +1538,15 @@ export function createFirestoreBridge(firebaseApp) {
     diningSeating: MEAL_SEATING.has(clean(payload.diningSeating, 40))
       ? clean(payload.diningSeating, 40)
       : "",
+
+    // Owned by the Meals workspace and carried straight through. This write is
+    // a whole-document set, so anything not restated here would be erased by a
+    // save from the visit editor — a workspace silently deleting another's
+    // data, which is the one thing this architecture exists to prevent.
+    residencyMeals: Array.isArray(existing?.residencyMeals)
+      ? existing.residencyMeals.filter(meal => MEALS.includes(meal))
+      : [],
+    residencyMealNote: clean(existing?.residencyMealNote, 500),
 
     cFormComplete: Boolean(payload.isCformComplete),
 
@@ -2324,6 +2382,64 @@ export function createFirestoreBridge(firebaseApp) {
     return { overrideId: id, deleted: true };
   }
 
+  // Seating chosen in the Meals workspace applies from that date onward. Any
+  // change already recorded on or after the same date is removed first, so the
+  // newest instruction always owns the future and no stale later entry can
+  // quietly take over a few days on. Earlier changes stay untouched — that is
+  // what keeps past days reading as they did.
+  async function setMealSeatingFrom(payload) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical();
+    const subjectType = payload?.subjectType === "permanentResident" ? "permanentResident" : "guest";
+    const subjectId = clean(payload?.subjectId, 100);
+    const fromKey = clean(payload?.fromKey, 20);
+    const seating = mealSeating(payload?.seating, "");
+    if (!subjectId) throw new Error("This person no longer exists.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromKey)) throw new Error("A date is needed to set seating from.");
+    if (!seating) throw new Error("Choose Floor or Table.");
+
+    const superseded = canonical.mealSeatingChanges.filter(item =>
+      item.subjectType === subjectType && item.subjectId === subjectId
+      && clean(item.fromKey, 20) >= fromKey);
+
+    const id = `${subjectType}--${subjectId}--${fromKey}`;
+    const batch = writeBatch(db);
+    superseded.forEach(item => { if (item.id !== id) batch.delete(doc(db, "mealSeatingChanges", item.id)); });
+    batch.set(doc(db, "mealSeatingChanges", id), {
+      subjectType, subjectId, fromKey, seating,
+      updatedAt: Timestamp.now(), updatedBy: actor
+    });
+    await writeAuditBatch(batch, actor, "mealSeatingChange", id, "set", ["seating", "fromKey"]);
+    await batch.commit();
+    invalidate();
+    return { seatingChangeId: id, fromKey, seating, supersededCount: superseded.length };
+  }
+
+  // The residency meal plan — which meals the stay covers, the seating it
+  // starts from, and a note. Scoped to the visit alone: it never touches the
+  // stay's dates, rooms or travel.
+  async function saveResidencyMealPlan(payload) {
+    const actor = ensureApproved();
+    const visitId = clean(payload?.visitId, 100);
+    const reference = doc(db, "visits", visitId);
+    const snapshot = await getDoc(reference);
+    if (!snapshot.exists()) throw new Error("This visit no longer exists.");
+    const meals = Array.isArray(payload?.meals) ? payload.meals.filter(meal => MEALS.includes(meal)) : [];
+    if (!meals.length) throw new Error("Choose at least one meal.");
+    const batch = writeBatch(db);
+    batch.update(reference, {
+      residencyMeals: meals,
+      diningSeating: mealSeating(payload?.seating, ""),
+      residencyMealNote: clean(payload?.note, 500),
+      updatedAt: Timestamp.now(),
+      updatedBy: actor
+    });
+    await writeAuditBatch(batch, actor, "visit", visitId, "residency-meals", ["residencyMeals", "diningSeating", "residencyMealNote"]);
+    await batch.commit();
+    invalidate();
+    return { visitId, meals };
+  }
+
   async function deleteTripTravelLeg(legId) {
     const actor = ensureApproved();
     const id = clean(legId, 100);
@@ -2377,6 +2493,8 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "deleteMeeting") return deleteMeeting(extra.meetingId);
       if (action === "deleteMealOverride") return deleteMealOverride(extra.overrideId);
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
+      if (action === "setMealSeatingFrom") return setMealSeatingFrom(extra.payload || {});
+      if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
       if (action === "saveMealSchedule") return saveMealSchedule(extra.payload || {});
       if (action === "deleteMealSchedule") return deleteMealSchedule(extra.scheduleId);
       if (action === "savePermanentResident") return savePermanentResident(extra.payload || {});
