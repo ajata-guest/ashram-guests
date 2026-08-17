@@ -257,10 +257,13 @@ function resolveMealDay(canonical, dateKey) {
   canonical.visits
     .filter(item => !item.isCancelled && item.accommodation === "Ashram"
       && item.arrivalDateKey && dateInside(dateKey, item.arrivalDateKey, item.departureDateKey || ""))
+    // A guest housed here is put on the roster by residence alone. Where a
+    // seating preference was recorded on the visit it becomes their default;
+    // otherwise the floor, as before. A daily override still wins over both.
     .forEach(item => addSource(
       "guest", item.guestId, MEALS,
       { type: "residence", id: item.id, label: "Staying in the ashram" },
-      "Floor", true
+      mealSeating(item.diningSeating), true
     ));
 
   canonical.mealSchedules.filter(schedule => mealScheduleMatchesDate(schedule, dateKey)).forEach(schedule => {
@@ -444,6 +447,9 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     outsideAccommodationDetails: visit.outsideAccommodationDetails || "",
     outsideAccommodationConfirmed: Boolean(visit.outsideAccommodationConfirmed),
     selfArrangedStayingAt: visit.stayingAt || "",
+    // "" when nothing was recorded — the editor needs to tell that apart from
+    // a deliberate choice of Floor.
+    diningSeating: visit.diningSeating || "",
     cformComplete: Boolean(visit.cFormComplete),
     pickupRequired: Boolean(visit.pickupRequired),
     pickupMs: visit.pickupRequired ? pickup.ms : null,
@@ -1476,6 +1482,14 @@ export function createFirestoreBridge(firebaseApp) {
     ),
 
     stayingAt: clean(payload.selfArrangedStayingAt),
+
+    // Optional. "" means no preference was recorded, which is a different
+    // thing from a deliberate Floor, so it is not defaulted here. Anything
+    // outside the known seating values is dropped rather than stored.
+    diningSeating: MEAL_SEATING.has(clean(payload.diningSeating, 40))
+      ? clean(payload.diningSeating, 40)
+      : "",
+
     cFormComplete: Boolean(payload.isCformComplete),
 
     pickupRequired: Boolean(payload.pickupRequired),
