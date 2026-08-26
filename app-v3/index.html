@@ -11845,6 +11845,7 @@
       rows.forEach(row => {
         [...row.querySelector('.room-select').options].forEach(option => {
           option.disabled = false;
+          option.hidden = false;
           option.textContent = option.dataset.baseLabel || option.textContent;
           delete option.dataset.shareWith;
         });
@@ -11862,17 +11863,25 @@
       // upcoming visits for one guest are all considered; the Directory's
       // current/nearest visit is only a fallback if the workspace has not yet
       // been loaded.
-      if (newArrival) {
+      {
         const newEnd = newDeparture || Number.POSITIVE_INFINITY;
         const knownVisits = accommodationVisits_.length
           ? accommodationVisits_
-          : directoryRecords_.map(record => record.visit ? { ...record.visit, name: record.name } : null).filter(Boolean);
+          : directoryRecords_.map(record => record.visit
+            ? { ...record.visit, name: record.name, personType: record.personType }
+            : null).filter(Boolean);
         knownVisits.forEach(visit => {
-          if (visit.visitId === currentVisitId || !visit.arrivalMs) return;
+          if (visit.visitId === currentVisitId) return;
           const guestRooms = Array.isArray(visit.rooms) ? visit.rooms : [];
           if (!guestRooms.length) return;
+          // A residency has no dates because it has no end: someone lives
+          // there. It therefore overlaps every stay, and its room is locked
+          // rather than offered for sharing — the room only frees up when
+          // the resident moves out of it or stops being a resident.
+          const residency = isResidencyStay_(visit);
+          if (!residency && !visit.arrivalMs) return;
           const otherEnd = visit.departureMs || Number.POSITIVE_INFINITY;
-          if (newArrival < otherEnd && newEnd > visit.arrivalMs) {
+          if (residency || (newArrival < otherEnd && newEnd > visit.arrivalMs)) {
             guestRooms.forEach(room => {
               if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
               const occupants = occupiedRooms.get(room);
@@ -11880,7 +11889,8 @@
                 occupants.push({
                   visitId: visit.visitId,
                   name: resolveRoomOccupantName(visit.name, guestRooms, room),
-                  openEnded: !visit.departureMs
+                  openEnded: !visit.departureMs,
+                  locked: residency
                 });
               }
             });
@@ -11911,6 +11921,27 @@
 
           const occupants = occupiedRooms.get(option.value);
           if (!occupants || !occupants.length) return;
+
+          // A room someone lives in is not a room to share into, and for
+          // anyone else it is not a choice at all — so it leaves the list
+          // rather than sitting in it greyed out. Hidden rather than
+          // removed because the reset above puts options back as they were;
+          // a removed one would never return when the resident moves out.
+          const lockedBy = occupants.filter(o => o.locked);
+          if (lockedBy.length) {
+            option.disabled = true;
+            const heldBy = lockedBy.map(o => o.name).join(' and ');
+            // The exception is a room already saved against this visit: that
+            // is a clash that exists in the data, and hiding it would let a
+            // save quietly drop the allocation instead of showing the problem.
+            if (select.value === option.value) {
+              option.textContent = `${option.dataset.baseLabel} — occupied by ${heldBy}`;
+              warningMessages.push(`${option.value} is occupied by ${heldBy}. Choose another room.`);
+            } else {
+              option.hidden = true;
+            }
+            return;
+          }
 
           const names = occupants
             .map(o => `${o.name}${o.openEnded ? ' (departure TBD)' : ''}`)

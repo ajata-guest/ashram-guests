@@ -1660,6 +1660,23 @@ export function createFirestoreBridge(firebaseApp) {
       : []
   );
 
+  // Someone lives in this room. It is not shareable and not overridable —
+  // it frees up when they move out of it or stop being a resident, and not
+  // before. Checked regardless of dates, because a residency has none and
+  // occupies the room for as long as it exists.
+  requestedRooms.forEach(label => {
+    const residentHolder = canonical.visitRooms
+      .filter(item => item.visitId !== visitId && item.roomLabelSnapshot === label)
+      .map(item => canonical.visits.find(visit => visit.id === item.visitId && !visit.isCancelled))
+      .filter(Boolean)
+      .find(visit => isResidencyStay(visit,
+        (canonical.guests.find(guest => guest.id === visit.guestId) || {}).personType));
+    if (residentHolder) {
+      const holder = canonical.guests.find(guest => guest.id === residentHolder.guestId) || {};
+      throw new Error(`${label} is occupied by ${holder.name || "a permanent resident"}.`);
+    }
+  });
+
   requestedRooms.forEach(label => {
     if (millis(arrivalAt) === null) return;
 
@@ -2909,6 +2926,122 @@ export function createFirestoreBridge(firebaseApp) {
     return result;
   }
 
+  // ---- Resident rooms: bring them back into inventory -------------------
+  // Residents' rooms were held out of the guest room list by a "permanent"
+  // flag, which made them invisible rather than occupied — nobody could pick
+  // them, including the resident. They are ordinary ashram rooms, so this
+  // puts each one back into inventory and assigns it to the resident's stay
+  // instead. Occupancy then does the work the flag was doing: the stay never
+  // ends, so the room stays locked, and moving the resident frees it.
+  //
+  // A dry run unless { commit: true } is passed, and safe to run again: a
+  // room already assigned to its resident is skipped rather than rewritten.
+  async function migrateResidentRooms(options) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const commit = options?.commit === true;
+
+    const plan = [];
+    const blocked = [];
+    const writes = [];
+
+    canonical.guests
+      .filter(guest => !guest.archived && guest.personType === "Permanent Resident")
+      .forEach(guest => {
+        const stay = canonical.visits.find(visit => visit.guestId === guest.id
+          && !visit.isCancelled && visit.accommodation === "Ashram");
+        if (!stay) {
+          blocked.push({ name: guest.name, reason: "No residency stay to attach a room to." });
+          return;
+        }
+        const key = clean(guest.name, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+        const rooms = canonical.rooms.filter(room =>
+          (room.permanent || clean(room.category, 100).toLowerCase() === "permanent")
+          && key && clean(room.occupant, 200).toLowerCase().replace(/[^a-z0-9]/g, "") === key);
+        if (!rooms.length) {
+          plan.push({ name: guest.name, visitId: stay.id, action: "no-room-on-record", rooms: [] });
+          return;
+        }
+
+        const already = canonical.visitRooms.filter(item => item.visitId === stay.id);
+        const moved = [];
+        rooms.forEach((room, index) => {
+          const label = room.displayName || (clean(room.building, 100) + " - " + clean(room.room, 100));
+          // Someone else already holds it. Never silently double-assign.
+          const heldByOther = canonical.visitRooms.find(item => item.roomLabelSnapshot === label
+            && item.visitId !== stay.id
+            && canonical.visits.some(visit => visit.id === item.visitId && !visit.isCancelled));
+          if (heldByOther) {
+            blocked.push({ name: guest.name, room: label,
+              reason: "This room is already allocated to another stay." });
+            return;
+          }
+          const allocationId = "RESROOM-" + stay.id + "-" + room.id;
+          if (!already.some(item => item.roomLabelSnapshot === label)) {
+            writes.push({ type: "set", collection: "visitRooms", id: allocationId, data: {
+              visitId: stay.id,
+              roomId: room.id,
+              roomLabelSnapshot: label,
+              order: index + 1,
+              sharedOk: false,
+              createdAt: Timestamp.now(), createdBy: actor,
+              updatedAt: Timestamp.now(), updatedBy: actor,
+              schemaVersion: 1
+            } });
+          }
+          // Back into circulation as an ordinary room. It is not free — the
+          // resident's stay holds it — but that is now a fact about who is in
+          // it rather than a property of the room itself.
+          writes.push({ type: "update", collection: "rooms", id: room.id, data: {
+            permanent: false,
+            category: clean(room.category, 100).toLowerCase() === "permanent" ? "Normal" : (room.category || "Normal"),
+            updatedAt: Timestamp.now(), updatedBy: actor
+          } });
+          moved.push(label);
+        });
+
+        if (moved.length) plan.push({ name: guest.name, visitId: stay.id, action: "assign", rooms: moved });
+      });
+
+    const result = {
+      generatedAt: new Date().toISOString(),
+      committed: false,
+      residentsSeen: canonical.guests.filter(guest => !guest.archived
+        && guest.personType === "Permanent Resident").length,
+      roomsToAssign: plan.filter(item => item.action === "assign").reduce((total, item) => total + item.rooms.length, 0),
+      withoutRoomOnRecord: plan.filter(item => item.action === "no-room-on-record").map(item => item.name),
+      blocked,
+      documentsToWrite: writes.length,
+      plan
+    };
+
+    if (!commit) {
+      result.summary = [
+        "DRY RUN — nothing was written.",
+        result.roomsToAssign + " room(s) would be assigned to their resident and returned to inventory.",
+        result.withoutRoomOnRecord.length
+          ? "No room on record for: " + result.withoutRoomOnRecord.join(", ") + " (use the Quarters field for them)."
+          : "Every resident has a room on record.",
+        blocked.length ? blocked.length + " blocked — resolve before committing." : "Nothing is blocking a commit."
+      ];
+      return result;
+    }
+    if (blocked.length) throw new Error(blocked.length + " item(s) are blocked. Resolve them before committing.");
+
+    const batch = writeBatch(db);
+    writes.forEach(item => {
+      const reference = doc(db, item.collection, item.id);
+      if (item.type === "update") batch.update(reference, item.data);
+      else batch.set(reference, item.data);
+    });
+    await writeAuditBatch(batch, actor, "residentRooms", "all", "migrate", ["visitRooms", "rooms"]);
+    await batch.commit();
+    invalidate();
+    result.committed = true;
+    result.summary = ["Committed. " + result.roomsToAssign + " room(s) assigned and returned to inventory."];
+    return result;
+  }
+
   // A permanent resident's meal plan, edited from the Meals workspace. Narrow
   // in the same way the residency plan is: which meals, the seating they start
   // from, and a note. Never touches the resident's name or active dates.
@@ -3058,6 +3191,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
       if (action === "auditResidentMerge") return auditResidentMerge();
       if (action === "migrateResidentsToGuests") return migrateResidentsToGuests(extra.options || {});
+      if (action === "migrateResidentRooms") return migrateResidentRooms(extra.options || {});
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
