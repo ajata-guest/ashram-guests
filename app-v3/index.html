@@ -601,16 +601,23 @@
       text-align: right;
     }
 
+    /* On a wide screen the wrapper does nothing: badges and standing are
+       columns of the row itself. */
+    .dir-meta { display: contents; }
+
     @media (max-width: 620px) {
-      /* No room for three columns on a phone: the standing drops beneath the
-         name and takes the full width, where it reads as a caption. */
-      .dir-row { flex-wrap: wrap; padding: 12px 4px; }
-      /* Basis auto, so a long badge shrinks the name rather than being pushed
-         onto a line of its own — the name and who they are belong together. */
-      .dir-standing { flex: 1 1 100%; text-align: left; }
-      /* No room to reserve a column here — the badge simply sits at the end
-         of the name's line. */
-      .dir-badges { min-width: 0; margin-left: auto; }
+      .dir-row { flex-wrap: wrap; padding: 12px 4px; gap: 7px 10px; }
+      /* Three columns will not fit a phone, and letting them try is what made
+         the rows ragged: the badge's width decided where the edit button sat,
+         so it moved on every row, and a long name pushed the badge onto a
+         line of its own. Instead the name and the button take the first line
+         — the button always in the same place — and the badge runs into the
+         standing beneath as one wrapping caption. */
+      /* text-wrap: pretty keeps a long room name from leaving one orphan word
+         on a third line. Ignored where unsupported, which costs nothing. */
+      .dir-meta { display: block; flex: 1 1 100%; min-width: 0; text-wrap: pretty; }
+      .dir-badges { display: inline-flex; min-width: 0; margin-right: 7px; vertical-align: 1px; }
+      .dir-standing { display: inline; }
       /* A finger needs more than a mouse does. */
       .dir-edit { width: 36px; height: 36px; }
     }
@@ -6793,12 +6800,17 @@
       });
       row.appendChild(edit);
 
+      // Who they are and where they stand travel together. On a wide screen
+      // the wrapper is display:contents, so both are columns of the row
+      // exactly as if it were not there; on a phone it becomes the second
+      // line and they run together as one caption.
+      const meta = createElement('span', 'dir-meta');
       const badges = createElement('span', 'dir-badges');
       badges.appendChild(createPersonTypeBadge(record.personType));
       if (record.archived) badges.appendChild(createBadge('Archived', 'badge-gray'));
-      row.appendChild(badges);
-
-      row.appendChild(createElement('span', 'dir-standing', directoryStandingLine_(record)));
+      meta.appendChild(badges);
+      meta.appendChild(createElement('span', 'dir-standing', directoryStandingLine_(record)));
+      row.appendChild(meta);
       return row;
     }
 
