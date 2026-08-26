@@ -2523,6 +2523,12 @@
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
+      /* Four figures need the row closed up to stay on one line. Only such a
+         card tightens, so the other four keep the spacing they were drawn
+         with. */
+      .workspace-card.has-four-stats .ws-stats { gap: 8px 13px; }
+      .workspace-card.has-four-stats .ws-stat { gap: 4px; }
+      .workspace-card.has-four-stats .ws-stat-label { font-size: 0.72rem; }
       .modal-content { padding: 20px 16px; }
       .add-visit-manager-section { padding: 14px; }
       .upcoming-visit-row { gap: 8px; padding: 10px; }
@@ -2541,6 +2547,15 @@
         grid-template-columns: 1fr 1fr;
         gap: 8px;
       }
+    }
+
+    /* The 50px indent aligns the figures under the title, past the icon. With
+       four of them there is no longer room for both below this width, and the
+       indent is the part worth giving up — the alternative is a fourth figure
+       dropped onto its own line, where it reads as a separate group rather
+       than the last of four. Wider phones keep the alignment. */
+    @media (max-width: 380px) {
+      .workspace-card.has-four-stats .ws-info { padding-left: 0; }
     }
 
     @media (max-width: 340px) {
@@ -5291,7 +5306,13 @@
 
         const info = createElement('span', 'ws-info');
         const stats = createElement('span', 'ws-stats');
-        def.stats(summary).forEach(stat => {
+        const statList = def.stats(summary);
+        // Four figures are one more than the row was built for, and on a phone
+        // the fourth drops to its own line — where it reads as a separate
+        // group rather than the last of four. Marked here so only such a card
+        // gives up the indent and tightens, leaving the others untouched.
+        if (statList.length > 3) card.classList.add('has-four-stats');
+        statList.forEach(stat => {
           const wrap = createElement('span', `ws-stat${stat.detail ? ' has-detail' : ''}`);
           // With a detail line the figure and its name pair up on one row and
           // the breakdown sits beneath; without one the stat is unchanged.
