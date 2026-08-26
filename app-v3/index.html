@@ -989,10 +989,6 @@
       font-weight: 700;
     }
 
-    /* A quieter aside inside a field label, for saying what leaving something
-       blank will mean. */
-    .input-label-hint { color: var(--subtle); font-weight: 400; }
-
     .edit-input {
       width: 100%;
       padding: 10px;
@@ -3495,7 +3491,7 @@
         <div id="meal-away-subtitle" class="app-subtitle dialog-subtitle"></div>
         <div class="date-time-row">
           <div class="input-group"><label class="input-label" for="meal-away-from">First day away</label><input id="meal-away-from" class="edit-input" type="date"></div>
-          <div class="input-group"><label class="input-label" for="meal-away-to">Last day away <span class="input-label-hint">— blank if not known</span></label><input id="meal-away-to" class="edit-input" type="date"></div>
+          <div class="input-group"><label class="input-label" for="meal-away-to">Last day away</label><input id="meal-away-to" class="edit-input" type="date"></div>
         </div>
         <div class="input-group"><label class="input-label" for="meal-away-note">Note</label><input id="meal-away-note" class="edit-input" type="text" maxlength="300" placeholder="Where, or why"></div>
       </section>
@@ -6186,9 +6182,15 @@
 
       const visit = summary.visit;
       if (visit) {
-        card.appendChild(createDetailLine('icon-calendar', visit.arrivalDisplay ? `Arrives ${visit.arrivalDisplay}` : 'Arrival date TBD'));
+        // Same tense rule as the Accommodation card: a date already past is
+        // something that happened, not something still expected.
+        const stayStatus = visitStayStatus_(visit);
+        card.appendChild(createDetailLine('icon-calendar', visit.arrivalDisplay
+          ? `${stayStatus === 'upcoming' ? 'Arrives' : 'Arrived'} ${visit.arrivalDisplay}`
+          : 'Arrival date TBD'));
         if (visit.departureDisplay) {
-          card.appendChild(createDetailLine('icon-calendar', `Departs ${visit.departureDisplay}`));
+          card.appendChild(createDetailLine('icon-calendar',
+            `${stayStatus === 'departed' ? 'Departed' : 'Departs'} ${visit.departureDisplay}`));
         }
         if (visit.accommodation === 'Ashram') {
           card.appendChild(createDetailLine(
@@ -6698,6 +6700,14 @@
       { label: 'Personal travel to arrange', test: v => (v.travelLegs || []).some(leg => leg.status === 'Required') }
     ]);
 
+    // Who the guest is, rather than what still needs doing. Kept as its own
+    // group because these are alternatives, not additional conditions: picking
+    // Friend and Visitor should widen the list to both, where picking two of
+    // the chips above narrows it to visits meeting each.
+    const ACCOMMODATION_TYPE_CHIPS_ = Object.freeze([
+      'Invited Guest', 'Friend', 'Visitor', 'Event Staff', 'Other'
+    ]);
+
     let accommodationVisits_ = [];
     let accommodationSection_ = 'attention';
     const accommodationActiveChips_ = new Set();
@@ -6761,6 +6771,7 @@
       container.replaceChildren();
 
       ACCOMMODATION_CHIPS_.forEach(def => addAccommodationChip_(container, def.label));
+      ACCOMMODATION_TYPE_CHIPS_.forEach(label => addAccommodationChip_(container, label));
       // Building chips come from the Rooms sheet, so renaming or adding a
       // building updates this row with no code change.
       accommodationBuildings_().forEach(building => addAccommodationChip_(container, building));
@@ -6830,8 +6841,14 @@
         (visit.rooms || []).join(' '), visit.pickupFrom, visit.dropoffTo
       ].filter(Boolean).join(' '));
 
+      // Person-type chips are alternatives to each other; every other chip is
+      // an additional condition. So the visit must satisfy all of the latter,
+      // and — when any type is selected — be one of the chosen types.
+      const activeTypes = [...accommodationActiveChips_].filter(label => ACCOMMODATION_TYPE_CHIPS_.includes(label));
       const filtered = accommodationVisits_.filter(visit => {
+        if (activeTypes.length && !activeTypes.includes(visit.personType || 'Invited Guest')) return false;
         for (const label of accommodationActiveChips_) {
+          if (ACCOMMODATION_TYPE_CHIPS_.includes(label)) continue;
           if (!accommodationChipTest_(visit, label)) return false;
         }
         if (!query) return true;
@@ -7036,14 +7053,34 @@
       // one line. Two icon rows labelled "Arrives" and "Departs" spent half the
       // card's height on a range you take in at a glance, and the year only
       // needs saying twice when the stay actually crosses into the next one.
+      // A time only exists here once someone confirmed one, so its presence is
+      // the signal — no need to ask whether it was set.
+      const withTime = (text, time) => {
+        const label = visitTimeLabel_(time);
+        return label ? `${text}, ${label}` : text;
+      };
+      const status = visitStayStatus_(visit);
+      // With both dates the line is a bare range and says nothing about where
+      // the guest is in it, so the standing is a badge instead — it keeps the
+      // date line to one short row. Upcoming needs no badge: that is what a
+      // future date already means.
+      if (visit.arrivalMs && visit.departureMs) {
+        if (status === 'staying') badges.appendChild(createBadge('Staying', 'badge-confirmed'));
+        else if (status === 'departed') badges.appendChild(createBadge('Departed', 'badge-gray'));
+      }
       if (visit.arrivalMs && visit.departureMs) {
         const sameYear = new Date(visit.arrivalMs).getFullYear() === new Date(visit.departureMs).getFullYear();
         const from = sameYear ? dayMonth(visit.arrivalMs) : dateFormat(visit.arrivalMs);
-        card.appendChild(createDetailLine('icon-calendar', `${from} – ${dateFormat(visit.departureMs)}`));
+        card.appendChild(createDetailLine('icon-calendar',
+          `${withTime(from, visit.arrivalTime)} – ${withTime(dateFormat(visit.departureMs), visit.departureTime)}`));
       } else if (visit.arrivalMs) {
-        card.appendChild(createDetailLine('icon-calendar', `Arrives ${dateFormat(visit.arrivalMs)}`));
+        // Past tense once the day has come: the card was still promising an
+        // arrival for guests who were already here.
+        card.appendChild(createDetailLine('icon-calendar',
+          `${status === 'upcoming' ? 'Arrives' : 'Arrived'} ${withTime(dateFormat(visit.arrivalMs), visit.arrivalTime)}`));
       } else if (visit.departureMs) {
-        card.appendChild(createDetailLine('icon-calendar', `Departs ${dateFormat(visit.departureMs)}`));
+        card.appendChild(createDetailLine('icon-calendar',
+          `${status === 'departed' ? 'Departed' : 'Departs'} ${withTime(dateFormat(visit.departureMs), visit.departureTime)}`));
       }
 
       if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
@@ -7108,6 +7145,32 @@
     function hasVisitArrived_(visit) {
       if (visit.arrivalMs !== null && visit.arrivalMs !== undefined) return visit.arrivalMs <= Date.now();
       return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayDateKey_();
+    }
+
+    // Where a stay stands right now. Compared by date key rather than by the
+    // millisecond timestamp so that the day someone arrives counts as arrived
+    // from midnight, not from the hour written on the card — otherwise a guest
+    // due at 3pm reads as "arrives" all morning while they are already here.
+    function visitStayStatus_(visit) {
+      const today = todayDateKey_();
+      const arrival = visit.arrivalDate || '';
+      const departure = visit.departureDate || '';
+      if (departure && departure < today) return 'departed';
+      if (arrival && arrival <= today) return 'staying';
+      if (arrival) return 'upcoming';
+      return departure ? 'staying' : 'unknown';
+    }
+
+    // "15:30" as it is stored, rendered the way it reads locally. Taken from
+    // the stored string rather than the timestamp so the hour shown is the one
+    // in India regardless of where the browser thinks it is.
+    function visitTimeLabel_(time) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(String(time || ''));
+      if (!match) return '';
+      const hour = Number(match[1]);
+      const suffix = hour < 12 ? 'am' : 'pm';
+      const twelve = hour % 12 === 0 ? 12 : hour % 12;
+      return `${twelve}:${match[2]} ${suffix}`;
     }
 
     // ---- Stay-window hints -------------------------------------------------
