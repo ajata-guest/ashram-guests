@@ -2913,6 +2913,7 @@
             <option value="Visitor">Visitor</option>
             <option value="Event Staff">Event Staff</option>
             <option value="Other">Other</option>
+            <option value="Permanent Resident">Permanent Resident</option>
           </select>
         </div>
 
@@ -3033,6 +3034,7 @@
               <option value="Visitor">Visitor</option>
               <option value="Event Staff">Event Staff</option>
               <option value="Other">Other</option>
+              <option value="Permanent Resident">Permanent Resident</option>
             </select>
           </div>
           <div class="checkbox-row">
@@ -3450,7 +3452,7 @@
       <div id="meal-editor-details" class="add-visit-manager" hidden>
         <section id="meal-basic-section" class="add-visit-manager-section" hidden>
           <h3 class="form-section-title"><svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>Basic Guest Details</h3>
-          <div class="input-group"><label class="input-label" for="meal-basic-person-type">Person Type</label><select id="meal-basic-person-type" class="edit-input"><option>Invited Guest</option><option>Friend</option><option>Visitor</option><option>Event Staff</option><option>Other</option></select></div>
+          <div class="input-group"><label class="input-label" for="meal-basic-person-type">Person Type</label><select id="meal-basic-person-type" class="edit-input"><option>Invited Guest</option><option>Friend</option><option>Visitor</option><option>Event Staff</option><option>Other</option><option>Permanent Resident</option></select></div>
           <label class="checkbox-label"><input id="meal-basic-foreign" class="checkbox-input" type="checkbox">Foreign National</label>
           <div id="meal-basic-purpose-group" class="input-group"><label class="input-label" for="meal-basic-purpose">Purpose</label><select id="meal-basic-purpose" class="edit-input"><option value="">-- Not specified --</option><option>Discourse</option><option>Kirtan/Music</option><option>Interreligious Presence</option><option>Official/Diplomatic</option><option>Other</option></select><input id="meal-basic-purpose-other" class="edit-input" type="text" placeholder="Describe the purpose" hidden></div>
           <div id="meal-basic-assignment-group" class="input-group" hidden><label class="input-label" for="meal-basic-assignment">Assignment</label><input id="meal-basic-assignment" class="edit-input" type="text" placeholder="Cook, driver, technician, etc."></div>
@@ -6746,7 +6748,7 @@
     // Friend and Visitor should widen the list to both, where picking two of
     // the chips above narrows it to visits meeting each.
     const ACCOMMODATION_TYPE_CHIPS_ = Object.freeze([
-      'Invited Guest', 'Friend', 'Visitor', 'Event Staff', 'Other'
+      'Invited Guest', 'Friend', 'Visitor', 'Event Staff', 'Other', 'Permanent Resident'
     ]);
 
     let accommodationVisits_ = [];
@@ -10255,7 +10257,9 @@
       Friend: 'badge-blue',
       Visitor: 'badge-purple',
       'Event Staff': 'badge-teal',
-      Other: 'badge-silver'
+      Other: 'badge-silver',
+      // Someone who lives here, distinct from every kind of guest passing through.
+      'Permanent Resident': 'badge-confirmed'
     });
 
     function personTypeBadgeClass(personType) {

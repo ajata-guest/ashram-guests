@@ -31,8 +31,14 @@ import {
 
 const TIMEZONE = "Asia/Kolkata";
 const APPROVED_EMAILS = new Set(["atma.chetan108@gmail.com", "rajatbhatiaom@gmail.com"]);
-const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff", "Other"]);
-const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other"]);
+// Permanent Resident is a person who lives here rather than one passing
+// through. It is a Person Type like any other so that residents can hold an
+// ordinary guest record and reach seva, meetings and trips — all of which are
+// keyed on guestId and are therefore closed to them otherwise.
+const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff", "Other", "Permanent Resident"]);
+// Residents are eligible for Seva Teams: the exclusion here is about guests
+// whose time is already committed, which is not true of someone who lives here.
+const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other", "Permanent Resident"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
 const MEAL_SEATING = new Set(["Floor", "Table and chair"]);
 const MEAL_SOURCE_TYPES = new Set(["individualGuest", "sevaTeam", "individualSeva"]);
