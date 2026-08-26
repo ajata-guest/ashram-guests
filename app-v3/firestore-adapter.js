@@ -790,7 +790,6 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       specificSeva: tasks,
       mealsToday: meals.filter(item => item.date === todayKey),
       upcomingMeetings: meetings.filter(item => item.status === "Scheduled"),
-      nextMeeting: meetings.filter(item => item.status === "Scheduled" && item.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date))[0] || null,
       trips
     };
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });

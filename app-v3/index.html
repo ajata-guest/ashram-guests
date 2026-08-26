@@ -552,7 +552,43 @@
       font-size: 0.98rem;
     }
 
-    .dir-badges { display: flex; flex: 0 0 auto; gap: 6px; align-items: center; }
+    /* A floor on the width, not a fixed one: person-type badges range from
+       "Friend" to "Permanent Resident", and letting the box shrink to each
+       left the edit buttons at a different place on every row. A guest
+       carrying a second badge still pushes past it rather than spilling. */
+    .dir-badges {
+      display: flex;
+      flex: 0 0 auto;
+      min-width: 152px;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dir-edit {
+      display: flex;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: none;
+      color: var(--subtle);
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .dir-edit .icon { width: 15px; height: 15px; margin: 0; }
+
+    .dir-edit:hover,
+    .dir-edit:focus-visible {
+      outline: none;
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--salmon);
+    }
 
     /* A fixed column rather than shrink-to-fit: with the width left to the
        text, every row started its badges somewhere different and the column
@@ -572,7 +608,11 @@
       /* Basis auto, so a long badge shrinks the name rather than being pushed
          onto a line of its own — the name and who they are belong together. */
       .dir-standing { flex: 1 1 100%; text-align: left; }
-      .dir-badges { margin-left: auto; }
+      /* No room to reserve a column here — the badge simply sits at the end
+         of the name's line. */
+      .dir-badges { min-width: 0; margin-left: auto; }
+      /* A finger needs more than a mouse does. */
+      .dir-edit { width: 36px; height: 36px; }
     }
 
     /* No content-visibility here, deliberately. These cards vary a lot in
@@ -3987,6 +4027,7 @@
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
     <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></symbol>
   </svg>
 
@@ -6369,66 +6410,14 @@
       return card;
     }
 
-    // V3 Operational Workspaces Architecture — Phase D. The 5-tile
-    // homepage, driven by getHomeSummary — deliberately the lightest read
-    // in the whole API (aggregate counts only, no guest-level rows), so the
-    // homepage never needs the full dataset just to render. Static
-    // structure/labels defined once here; renderHomeTiles just rebuilds the
-    // small stat lines on each refresh, cheap since it's only 5 small cards.
-    const HOME_TILE_DEFS_ = [
-      {
-        workspace: 'accommodation',
-        title: 'Accommodation & Travel',
-        icon: 'icon-bed',
-        lines: summary => [
-          `${summary.accommodation.today || 0} today`,
-          `${summary.accommodation.currentlyResiding} currently residing`,
-          `${summary.accommodation.upcoming || 0} upcoming`,
-          summary.accommodation.attentionNeeded ? `${summary.accommodation.attentionNeeded} need attention` : ''
-        ]
-      },
-      {
-        workspace: 'meals',
-        title: 'Meals',
-        icon: 'icon-meal',
-        lines: summary => [`${summary.meals.today} meal record${summary.meals.today === 1 ? '' : 's'} today`]
-      },
-      {
-        workspace: 'meetings',
-        title: 'Meetings with Swamiji',
-        icon: 'icon-calendar',
-        lines: summary => [
-          `${summary.meetings.today} today`,
-          summary.meetings.needsCompletion ? `${summary.meetings.needsCompletion} need completion` : ''
-        ]
-      },
-      {
-        workspace: 'seva',
-        title: 'Seva Teams & Tasks',
-        icon: 'icon-people',
-        lines: summary => [
-          `${summary.seva.activeTeams} active team${summary.seva.activeTeams === 1 ? '' : 's'}`,
-          `${summary.seva.activeSpecificSeva} active individual task${summary.seva.activeSpecificSeva === 1 ? '' : 's'}`
-        ]
-      },
-      {
-        workspace: 'trips',
-        title: 'Trips',
-        icon: 'icon-flight',
-        lines: summary => [
-          `${summary.trips.active} active`,
-          `${summary.trips.upcoming} upcoming`
-        ]
-      }
-    ];
-
     // ============================================================
     // GUEST DIRECTORY
-    // The V2 dashboard's visual language — tier tabs, filter chips, zone
-    // headers, a responsive grid of full cards — over the whole guest list
-    // held in memory. No pagination and no per-keystroke request: every
-    // record is already here, so tiering, filtering and searching are all
-    // instant and all local.
+    // A register of people, not a sixth workspace: one alphabetical row per
+    // guest, saying who they are and where they stand, with the profile
+    // behind it holding everything else. It is the only place a guest with
+    // no stay exists at all, and the only route to Archive and Delete.
+    // The whole list is already in memory, so filtering and searching are
+    // instant and local — no pagination, no per-keystroke request.
     // ============================================================
 
     // Person type is a field on the guest, so the Residents filter falls out
@@ -6765,16 +6754,44 @@
     }
 
     function directoryRowFor_(record) {
-      const row = createElement('button', 'dir-row');
-      row.type = 'button';
+      // A div carrying the button role rather than a real button element,
+      // because the row holds a button of its own and nesting one inside
+      // another is invalid — browsers break the nesting apart and the inner
+      // one stops working.
+      // Same arrangement the full guest card already uses.
+      const row = createElement('div', 'dir-row');
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `Open ${record.name || 'guest'}'s profile`);
+      const openProfile = () => navigate(`#guest/${encodeURIComponent(record.guestId)}`);
       row.addEventListener('click', () => {
         if (consumedLongPressClick_(row)) return;
-        navigate(`#guest/${encodeURIComponent(record.guestId)}`);
+        openProfile();
+      });
+      row.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openProfile();
+        }
       });
       attachLongPress_(row, () => guestCardSheet_(record));
 
       row.appendChild(createElement('span', 'dir-name', record.name || 'Unnamed Guest'));
+
+      // The four basic fields, edited from the list without going through the
+      // profile first. It sits with the person-type badge because it edits
+      // exactly what that badge shows.
+      const edit = createElement('button', 'dir-edit');
+      edit.type = 'button';
+      edit.setAttribute('aria-label', `Edit ${record.name || 'guest'}'s details`);
+      edit.title = 'Edit details';
+      edit.appendChild(createIcon_('icon-edit'));
+      edit.addEventListener('click', event => {
+        // Otherwise the row beneath it opens the profile at the same time.
+        event.stopPropagation();
+        openModal('edit', record.guestId);
+      });
+      row.appendChild(edit);
 
       const badges = createElement('span', 'dir-badges');
       badges.appendChild(createPersonTypeBadge(record.personType));
@@ -12172,10 +12189,10 @@
           showToast(mode === 'add' ? 'Guest added.' : 'Guest updated.', 'success');
 
           // The edited fields are patched straight into the in-memory copy so
-          // the change is on screen at once. Tier and priority stay untouched
-          // here — those are the server's to decide, and guessing at them
-          // locally is the drift this rework removed — so the full snapshot
-          // is refetched in the background to settle them.
+          // the change is on screen at once. The standing line stays untouched
+          // here — it is derived from stays, meals, meetings and trips, none
+          // of which this save touches — so the full snapshot is refetched in
+          // the background to settle it.
           const record = directoryRecords_.find(r => r.guestId === payload.guestId);
           if (record) {
             record.name = payload.name;
