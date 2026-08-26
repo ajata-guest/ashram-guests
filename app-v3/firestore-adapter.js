@@ -2569,6 +2569,176 @@ export function createFirestoreBridge(firebaseApp) {
     };
   }
 
+  // ---- Resident/guest merge: migration ---------------------------------
+  // Turns each permanent resident into an ordinary guest plus one open-ended
+  // ashram stay carrying their meals, seating and note. Nothing is deleted:
+  // the permanentResidents records are left exactly as they are, so the app
+  // keeps reading them until the reads are switched over separately, and so
+  // this can be undone by removing what it wrote.
+  //
+  // A dry run unless { commit: true } is passed. The dry run does the identical
+  // work and returns the identical plan — it simply never hands the batch to
+  // Firestore — so what you review is what would happen.
+  //
+  // Safe to run more than once: ids are derived from the resident id, and a
+  // resident whose guest record already exists is skipped rather than
+  // rewritten, so a re-run finishes a partial job instead of duplicating it.
+  async function migrateResidentsToGuests(options) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const commit = options?.commit === true;
+    const normalise = value => clean(value, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const guestsById = Object.fromEntries(canonical.guests.map(item => [item.id, item]));
+    const guestsByName = new Map();
+    canonical.guests.filter(item => !item.archived).forEach(item => {
+      const key = normalise(item.nameNormalized || item.name);
+      if (key) guestsByName.set(key, item.id);
+    });
+
+    const plan = [];
+    const blocked = [];
+    const writes = [];
+
+    canonical.permanentResidents.forEach(resident => {
+      const residentId = resident.id;
+      const name = clean(resident.name);
+      const guestId = `MIG-RES-${residentId}`;
+      const visitId = `MIG-RESV-${residentId}`;
+
+      if (!name) {
+        blocked.push({ residentId, reason: "This resident has no name, so no guest record can be made from it." });
+        return;
+      }
+      // Re-checked here rather than trusted from the audit: a matching guest
+      // may have been added in between.
+      const collision = guestsByName.get(normalise(name));
+      if (collision && collision !== guestId) {
+        blocked.push({ residentId, name, reason: `A guest named "${name}" already exists (${collision}). Link or rename before migrating this one.` });
+        return;
+      }
+      if (guestsById[guestId]) {
+        plan.push({ residentId, name, guestId, visitId, action: "already-migrated", records: 0 });
+        return;
+      }
+
+      const rekey = [];
+      const move = (collectionName, rows, idFor) => rows.forEach(row => {
+        const nextId = idFor(row);
+        rekey.push({ collection: collectionName, from: row.id, to: nextId });
+        writes.push({ type: "delete", collection: collectionName, id: row.id });
+        const data = { ...row, subjectType: "guest", subjectId: guestId, updatedAt: Timestamp.now(), updatedBy: actor };
+        if (collectionName === "mealOverrides") data.guestId = guestId;
+        delete data.id;
+        writes.push({ type: "set", collection: collectionName, id: nextId, data });
+      });
+
+      const mine = list => list.filter(item => item.subjectType === "permanentResident" && item.subjectId === residentId);
+      move("mealAbsences", mine(canonical.mealAbsences), row => `guest--${guestId}--${clean(row.fromKey, 20)}`);
+      move("mealSeatingChanges", mine(canonical.mealSeatingChanges), row => `guest--${guestId}--${clean(row.fromKey, 20)}`);
+      move("mealOverrides", mine(canonical.mealOverrides), row =>
+        `guest--${guestId}--${clean(row.dateKey, 20)}--${clean(row.meal, 40).toLowerCase().replace(/\s+/g, "-")}`);
+
+      writes.push({
+        type: "set", collection: "guests", id: guestId,
+        data: {
+          name,
+          nameNormalized: name.toLowerCase(),
+          foreignNational: false,
+          personType: "Permanent Resident",
+          invitedPurposes: [],
+          invitedPurposeOther: "",
+          staffAssignment: "",
+          archived: false,
+          archivedAt: null,
+          migratedFromResidentId: residentId,
+          schemaVersion: 1,
+          createdAt: Timestamp.now(), createdBy: actor,
+          updatedAt: Timestamp.now(), updatedBy: actor
+        }
+      });
+
+      // No arrival or departure: living here has no beginning to record, which
+      // is the shape chosen over inventing a date. hasArrivalDate stays false
+      // and the calendar fields stay null, exactly as for any dateless stay,
+      // so nothing downstream has to special-case the document itself.
+      writes.push({
+        type: "set", collection: "visits", id: visitId,
+        data: {
+          guestId,
+          arrivalAt: null, arrivalDateKey: "", arrivalTimeConfirmed: false,
+          departureAt: null, departureDateKey: "", departureTimeConfirmed: false,
+          accommodation: "Ashram",
+          outsideAccommodationDetails: "", outsideAccommodationConfirmed: false,
+          stayingAt: "",
+          diningSeating: mealSeating(resident.defaultSeating),
+          residencyMeals: residentMeals(resident),
+          residencyMealNote: clean(resident.mealNote, 500),
+          cFormComplete: false,
+          pickupRequired: false, pickupAt: null, pickupDateKey: "", pickupTimeConfirmed: false,
+          pickupFrom: "", pickupDetails: "",
+          dropoffRequired: false, dropoffAt: null, dropoffDateKey: "", dropoffTimeConfirmed: false,
+          dropoffTo: "", dropoffDetails: "",
+          isCancelled: false, cancelledAt: null,
+          hasArrivalDate: false, calendarStartAt: null, calendarEndAt: null,
+          migratedFromResidentId: residentId,
+          schemaVersion: 1,
+          createdAt: Timestamp.now(), createdBy: actor,
+          updatedAt: Timestamp.now(), updatedBy: actor
+        }
+      });
+
+      plan.push({
+        residentId, name, guestId, visitId, action: "migrate",
+        personType: "Permanent Resident",
+        meals: residentMeals(resident),
+        seating: mealSeating(resident.defaultSeating),
+        mealNote: clean(resident.mealNote, 500),
+        rekey,
+        records: 2 + rekey.length
+      });
+    });
+
+    const result = {
+      generatedAt: new Date().toISOString(),
+      committed: false,
+      residentsSeen: canonical.permanentResidents.length,
+      toMigrate: plan.filter(item => item.action === "migrate").length,
+      alreadyMigrated: plan.filter(item => item.action === "already-migrated").length,
+      blocked,
+      documentsToWrite: writes.filter(item => item.type === "set").length,
+      documentsToDelete: writes.filter(item => item.type === "delete").length,
+      plan,
+      note: "permanentResidents records are left untouched, and nothing reads the new records until the read switch ships."
+    };
+
+    if (!commit) {
+      result.summary = [
+        "DRY RUN — nothing was written.",
+        `${result.toMigrate} resident(s) would become guests, ${result.alreadyMigrated} already done, ${blocked.length} blocked.`,
+        `${result.documentsToWrite} document(s) created, ${result.documentsToDelete} re-keyed away.`,
+        blocked.length ? "Resolve the blocked entries before committing." : "Nothing is blocking a commit."
+      ];
+      return result;
+    }
+    if (blocked.length) throw new Error(`${blocked.length} resident(s) are blocked. Resolve them before committing.`);
+
+    // One batch: the whole migration lands or none of it does, so a failure
+    // cannot leave a guest without their stay, or a half-re-keyed meal record.
+    const batch = writeBatch(db);
+    writes.forEach(item => {
+      const reference = doc(db, item.collection, item.id);
+      if (item.type === "delete") batch.delete(reference);
+      else batch.set(reference, item.data);
+    });
+    await writeAuditBatch(batch, actor, "residentMerge", "all", "migrate", ["guests", "visits", "mealRecords"]);
+    await batch.commit();
+    invalidate();
+    result.committed = true;
+    result.summary = [`Committed. ${result.toMigrate} resident(s) migrated, ${result.documentsToWrite} document(s) written.`];
+    return result;
+  }
+
   // A permanent resident's meal plan, edited from the Meals workspace. Narrow
   // in the same way the residency plan is: which meals, the seating they start
   // from, and a note. Never touches the resident's name or active dates.
@@ -2717,6 +2887,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "setMealSeatingFrom") return setMealSeatingFrom(extra.payload || {});
       if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
       if (action === "auditResidentMerge") return auditResidentMerge();
+      if (action === "migrateResidentsToGuests") return migrateResidentsToGuests(extra.options || {});
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
