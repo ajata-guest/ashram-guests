@@ -1808,7 +1808,13 @@
        than places you navigate to.
        ==================================================================== */
     .page { display: none; }
-    .page.active { display: block; }
+    /* Filled down to the bottom of the viewport so that the blank area under a
+       short list still belongs to the page. Without it the page box stops at
+       the last card and everything below is bare body — which is why a swipe
+       started there hit nothing. The padding subtracted is the body's own, so
+       a full-height page adds no scrolling of its own. dvh keeps it honest
+       while a phone's address bar comes and goes. */
+    .page.active { display: block; min-height: calc(100dvh - 40px); }
 
     /* The one place a page's width is decided. Everything inside a page
        inherits this column, so a card grid, an empty state or a form can
@@ -2469,6 +2475,7 @@
 
     @media (max-width: 620px) {
       body { padding: 14px; }
+      .page.active { min-height: calc(100dvh - 28px); }
       .header-container {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -4807,7 +4814,15 @@
       document.addEventListener('touchstart', event => {
         if (event.touches.length !== 1 || statusSwipeDialogOpen_() || event.target.closest(interactiveSelector)) return;
         const config = statusSwipeConfig_();
-        if (!config || !config.surface || config.keys.length < 2 || !config.surface.contains(event.target)) return;
+        if (!config || !config.surface || config.keys.length < 2) return;
+        // The gesture belongs to the page, not to the run of cards. Requiring
+        // the touch to land inside the surface meant that on a page showing one
+        // or two cards, most of the screen was dead to the swipe — the empty
+        // space below them is the page, not the list. The dock is a sibling of
+        // every page rather than a child, so the two gestures stay separated by
+        // where the touch begins, as before.
+        const page = config.surface.closest('.page');
+        if (!(page || config.surface).contains(event.target)) return;
         gesture = {
           ...config,
           startX: event.touches[0].clientX,
