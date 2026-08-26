@@ -3137,14 +3137,6 @@
           <div id="room-warning" class="field-message" aria-live="polite"></div>
         </div>
 
-        <!-- A resident lives somewhere that is deliberately not guest
-             inventory, so it cannot be picked from the room list. Written
-             here in plain words instead, and shown on their cards. -->
-        <div class="input-group" id="residency-quarters-group" hidden>
-          <label class="input-label" for="edit-residency-quarters">Quarters</label>
-          <input type="text" id="edit-residency-quarters" class="edit-input" maxlength="200" placeholder="Ganga Nilayam, 2nd floor" autocomplete="off">
-        </div>
-
         <!-- Sits with the room because it is the same question in sequence:
              where they are staying, then whether the paperwork for that stay
              is done. Carries its own label rather than floating as a lone
@@ -5209,7 +5201,10 @@
         description: 'Rooms, stays, travel legs and cabs',
         stats: s => [
           { value: s.accommodation.today || 0, label: 'today' },
-          { value: s.accommodation.currentlyResiding, label: 'residing' },
+          // Residing and nearby are the two halves of who is here right now:
+          // in the ashram, and in town but staying elsewhere.
+          { value: s.accommodation.currentlyResiding || 0, label: 'residing' },
+          { value: s.accommodation.nearby || 0, label: 'nearby' },
           { value: s.accommodation.upcoming || 0, label: 'upcoming' }
         ],
         attention: s => s.accommodation.attentionNeeded,
@@ -6254,9 +6249,7 @@
             'icon-bed',
             Array.isArray(visit.rooms) && visit.rooms.length
               ? visit.rooms.join(' & ')
-              // A resident always has quarters; if none are on record that is
-              // something to fix in the rooms data, not a room to assign.
-              : (stayStatus === 'resident' ? 'Quarters not recorded' : 'Room not assigned')
+              : 'Room not assigned'
           ));
         } else if (visit.accommodation) {
           const accommodationLabels = {
@@ -6750,14 +6743,16 @@
       { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
       // A resident is residing every day, with no arrival date to prove it.
       { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) || (v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today)) },
+      // Here but not housed here: arrived, not yet gone, staying anywhere
+      // other than the ashram. The other half of who is currently around,
+      // and the tab the homepage's Nearby count leads to.
+      { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && Boolean(v.arrivalDate) && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
       { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
     ]);
 
     const ACCOMMODATION_CHIPS_ = Object.freeze([
-      // A resident's room is held on the rooms collection, out of guest
-      // inventory, so its absence from the visit is not an unassigned room.
-      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length && !isResidencyStay_(v) },
+      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length },
       { label: 'Accommodation TBD', test: v => v.accommodation === 'TBD' },
       { label: 'Outside not confirmed', test: v => v.accommodation === 'Outside - Arranged by Ashram' && !v.outsideAccommodationConfirmed },
       { label: 'C-form pending', test: v => isCformPending_(v) },
@@ -7177,11 +7172,9 @@
             const sharing = describeRoomSharing_(roomSharingPartnersForVisit_(visit, room));
             if (sharing) card.appendChild(createElement('div', 'detail-subline', sharing));
           });
-        } else if (residency) {
-          // A resident has quarters by definition; none on record is a gap in
-          // the rooms data, not a room waiting to be assigned to them.
-          card.appendChild(createDetailLine('icon-bed', 'Quarters not recorded'));
         } else {
+          // A resident's room is ordinary inventory now, so one missing is a
+          // room waiting to be assigned exactly like anyone else's.
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
         }
       } else if (visit.accommodation) {
@@ -8163,7 +8156,6 @@
       $('edit-outside-accommodation-confirmed').checked = Boolean(visit && visit.outsideAccommodationConfirmed);
       $('edit-self-arranged-staying-at').value = (visit && visit.selfArrangedStayingAt) || '';
       setDiningSeating_((visit && visit.diningSeating) || '');
-      $('edit-residency-quarters').value = (visit && visit.residencyQuarters) || '';
       $('edit-cform').checked = Boolean(visit && visit.cformComplete);
 
       $('edit-arrival-date').value = (visit && visit.arrivalDate) || '';
@@ -8261,7 +8253,6 @@
         outsideAccommodationConfirmed: $('edit-outside-accommodation-confirmed').checked,
         selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
         diningSeating: getDiningSeating_(),
-        residencyQuarters: $('edit-residency-quarters').value.trim(),
         isCformComplete: $('edit-cform').checked,
         rooms: getRoomRowValues().map(room => ({ roomAllocationId: '', room })),
         sharedRoomAcks: Array.isArray(sharedRoomAcks) ? sharedRoomAcks : [],
@@ -10492,6 +10483,11 @@
         const realOption = [...select.options].find(opt => opt.value === value);
         const occupied = Boolean(realOption && realOption.disabled);
         const shareable = Boolean(realOption && !realOption.disabled && realOption.dataset.shareWith);
+        // The real <select> is never the thing on screen, so hiding an option
+        // on it hides nothing — this list is what the user actually opens.
+        // A room somebody lives in has to leave the list here too, or it sits
+        // there struck through as dead clutter.
+        optionEl.hidden = Boolean(realOption && realOption.hidden);
         optionEl.classList.toggle('occupied', occupied);
         optionEl.classList.toggle('shareable', shareable);
         optionEl.classList.toggle('selected', value === selectedValue);
@@ -10530,6 +10526,18 @@
         } else if (shareAction) {
           shareAction.remove();
         }
+      });
+
+      // A building whose every room is now hidden would otherwise leave its
+      // heading behind with nothing under it.
+      const list = row.querySelector('.room-custom-list');
+      [...list.querySelectorAll('.custom-select-group-label')].forEach(label => {
+        let anyVisible = false;
+        for (let sibling = label.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+          if (sibling.classList.contains('custom-select-group-label')) break;
+          if (!sibling.hidden) { anyVisible = true; break; }
+        }
+        label.hidden = !anyVisible;
       });
     }
 
@@ -11427,10 +11435,6 @@
       // for in exactly that case. Hidden, not cleared — same as the fields
       // below, so switching away and back does not lose an answer.
       $('dining-seating-group').hidden = !requiresRoom;
-      // Only a resident has quarters; everyone else is assigned a room from
-      // inventory, which is what the group above is for.
-      $('residency-quarters-group').hidden = !requiresRoom
-        || visitEditorGuestPersonType_ !== 'Permanent Resident';
       if (!requiresRoom) {
         setRoomRows([]);
         $('room-warning').textContent = '';

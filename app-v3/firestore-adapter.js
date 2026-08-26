@@ -56,19 +56,6 @@ const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Pas
 // dateless stay as an unfinished one asks this first. Written as one predicate
 // so the rule lives in a single place rather than as a person-type check
 // scattered through the read paths.
-// A resident's quarters are not a visit room — they are inventory taken out
-// of circulation, carrying the occupant's name. Matched on a normalised name
-// because that is the only link the rooms data has to a person.
-function permanentRoomsFor(canonical, name) {
-  const key = clean(name, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (!key) return [];
-  return (canonical.rooms || [])
-    .filter(room => (room.permanent || clean(room.category, 100).toLowerCase() === "permanent")
-      && clean(room.occupant, 200).toLowerCase().replace(/[^a-z0-9]/g, "") === key)
-    .map(room => room.displayName || (clean(room.building, 100) + " - " + clean(room.room, 100)))
-    .sort((a, b) => a.localeCompare(b));
-}
-
 function isResidencyStay(visit, personType) {
   return Boolean(visit) && personType === "Permanent Resident" && visit.accommodation === "Ashram";
 }
@@ -553,7 +540,6 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     // "" when nothing was recorded — the editor needs to tell that apart from
     // a deliberate choice of Floor.
     diningSeating: visit.diningSeating || "",
-    residencyQuarters: visit.residencyQuarters || "",
     // The residency meal plan is owned by the Meals workspace, not the visit
     // editor; exposed here so the editor can carry it back unchanged.
     residencyMeals: residencyMeals(visit),
@@ -677,9 +663,24 @@ function engagementsOutside(visits, engagements) {
   return result;
 }
 
-function isAshramResident(visit, todayKey) {
-  return Boolean(visit && visit.accommodation === "Ashram" && visit.arrivalDate && visit.arrivalDate <= todayKey
-    && (!visit.departureDate || visit.departureDate >= todayKey));
+function isAshramResident(visit, todayKey, personType) {
+  if (!visit || visit.accommodation !== "Ashram") return false;
+  // A residency has no arrival date to prove itself by — someone who lives
+  // here is residing every day. Without this a resident counted as neither
+  // residing nor nearby, which is what put the homepage tile out of step
+  // with the workspace's own Residing tab.
+  if (isResidencyStay(visit, personType)) return true;
+  return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey
+    && (!visit.departureDate || visit.departureDate >= todayKey);
+}
+
+// Here, but not on campus: arrived, not yet departed, staying anywhere other
+// than the ashram. The counterpart to residing rather than a subset of it —
+// between them they account for everyone currently around.
+function isNearby(visit, todayKey) {
+  return Boolean(visit) && visit.accommodation !== "Ashram"
+    && Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey
+    && (!visit.departureDate || visit.departureDate >= todayKey);
 }
 
 function priorityReasons(record, now, todayKey) {
@@ -698,13 +699,14 @@ function priorityReasons(record, now, todayKey) {
     });
   }
   if (stayOver) return reasons;
-  // A residency has no arrival to record and keeps its room on the rooms
-  // collection, so neither of these is a missing detail for a resident.
+  // A residency has no arrival to record — someone who lives here did not
+  // turn up on a date. Its room, though, is ordinary inventory allocated to
+  // the stay, so a resident without one is a room still to assign.
   const residency = isResidencyStay(visit, record.personType);
   if (!visit.arrivalDate && !residency) reasons.push("Arrival date not set");
   if (visit.accommodation === "TBD") reasons.push("Accommodation not decided");
   if (visit.accommodation === "Outside - Arranged by Ashram" && !visit.outsideAccommodationConfirmed) reasons.push("Outside accommodation not confirmed");
-  if (visit.accommodation === "Ashram" && !visit.rooms.length && !residency) reasons.push("Room missing");
+  if (visit.accommodation === "Ashram" && !visit.rooms.length) reasons.push("Room missing");
   // The C-form registers a foreign national staying on the premises, so it
   // only applies once they are actually here and only when the ashram itself
   // is housing them — not for a guest the ashram booked into a hotel.
@@ -835,19 +837,12 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       nextMeeting: meetings.filter(item => item.status === "Scheduled" && item.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date))[0] || null,
       trips
     };
-    // The Directory card reads rooms off the current visit, which a residency
-    // does not carry — so the quarters go on it here, the same as in
-    // Accommodation & Travel.
-    if (record.visit && isResidencyStay(record.visit, record.personType) && !record.visit.rooms.length) {
-      record.visit.rooms = record.visit.residencyQuarters
-        ? [record.visit.residencyQuarters]
-        : permanentRoomsFor(canonical, record.name);
-    }
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });
     record.priorityReasons = priorityReasons(record, now, todayKey);
     record.tier = directoryTier(record, record.priorityReasons, todayKey);
     record.tierLabel = DIRECTORY_TIER_LABEL[record.tier];
-    record.residingInAshram = isAshramResident(record.visit, todayKey);
+    record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType);
+    record.nearby = isNearby(record.visit, todayKey);
     return record;
   });
 }
@@ -858,7 +853,7 @@ function homeSummary(canonical, records) {
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
-    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, attentionNeeded: 0 },
+    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, nearby: 0, attentionNeeded: 0 },
     meals: {
       counts: todayMeals.counts,
       mealStats: todayMeals.mealStats,
@@ -874,11 +869,22 @@ function homeSummary(canonical, records) {
   // guest with more than one visit booked — and the homepage tile has to agree
   // with the workspace, which lists them all. The two tests below are the same
   // ones ACCOMMODATION_SECTIONS_ uses for its Today and Upcoming tabs.
+  const personTypeByGuest = Object.fromEntries(canonical.guests.map(guest => [guest.id, guest.personType]));
   canonical.visits.filter(visit => !visit.isCancelled).forEach(visit => {
     const arrival = visit.arrivalDateKey || "";
     const departure = visit.departureDateKey || "";
     if (arrival === today || departure === today) result.accommodation.today += 1;
     if (arrival && arrival > today) result.accommodation.upcoming += 1;
+    // Here right now, split by where they sleep. Residing counts a residency
+    // outright, since it has no arrival date to fall inside; nearby is
+    // everyone else who has arrived and not yet left, wherever they are
+    // staying. Both use the same tests as the workspace's own tabs.
+    const present = Boolean(arrival) && arrival <= today && (!departure || departure >= today);
+    if (visit.accommodation === "Ashram") {
+      if (isResidencyStay(visit, personTypeByGuest[visit.guestId]) || present) result.accommodation.currentlyResiding += 1;
+    } else if (present) {
+      result.accommodation.nearby += 1;
+    }
   });
 
   const activeTeams = new Set(), futureTeams = new Set();
@@ -888,7 +894,6 @@ function homeSummary(canonical, records) {
     if (visit) {
       if (visit.arrivalDate === today) result.accommodation.arrivingToday += 1;
       if (visit.departureDate === today) result.accommodation.departingToday += 1;
-      if (record.residingInAshram) result.accommodation.currentlyResiding += 1;
       if (record.priorityReasons.some(reason => /arrival|accommodation|room|c-form|pickup|drop-off|required/i.test(reason))) result.accommodation.attentionNeeded += 1;
     }
     record.upcomingMeetings.forEach(meeting => {
@@ -1102,20 +1107,13 @@ export function createFirestoreBridge(firebaseApp) {
       const guest = guestsById[item.guestId];
       if (!guest) return null;
       const view = visitView(item, roomsByVisit, legsByVisit);
-      // A residency holds no visit room, so the quarters recorded against
-      // the person are supplied here instead — the card then shows a room
-      // either way without having to know which kind of stay it is.
-      // What someone has written for this person wins over what the rooms
-      // data implies about them, since it was said deliberately and more
-      // recently.
-      const residencyRooms = !isResidencyStay(item, guest.personType) ? []
-        : (clean(item.residencyQuarters, 200)
-          ? [clean(item.residencyQuarters, 200)]
-          : permanentRoomsFor(canonical, guest.name));
+      // A residency reads its room the same way every other stay does. It
+      // used to need a free-text fallback, because a resident's room was
+      // held out of inventory and so could never be allocated; now the room
+      // is ordinary inventory allocated to the residency, and the residency
+      // itself is what locks it.
       return {
         ...view,
-        rooms: view.rooms.length ? view.rooms : residencyRooms,
-        residencyRooms,
         name: guest.name,
         personType: guest.personType,
         isForeign: Boolean(guest.foreignNational)
@@ -1338,7 +1336,6 @@ export function createFirestoreBridge(firebaseApp) {
       outsideAccommodationDetails: "", outsideAccommodationConfirmed: false,
       stayingAt: "",
       diningSeating: "",
-      residencyQuarters: "",
       residencyMeals: [...MEALS],
       residencyMealNote: "",
       cFormComplete: false,
@@ -1765,13 +1762,6 @@ export function createFirestoreBridge(firebaseApp) {
     diningSeating: MEAL_SEATING.has(clean(payload.diningSeating, 40))
       ? clean(payload.diningSeating, 40)
       : "",
-
-    // Where a resident lives, in plain words. Deliberately free text and not
-    // a room id: their quarters are not guest inventory, which is the whole
-    // reason they cannot be picked from the room list. Note that writing it
-    // describes where they are — it reserves nothing. Holding a room out of
-    // circulation is still done by marking that room permanent.
-    residencyQuarters: clean(payload.residencyQuarters, 200),
 
     // Owned by the Meals workspace and carried straight through. This write is
     // a whole-document set, so anything not restated here would be erased by a
@@ -3020,7 +3010,7 @@ export function createFirestoreBridge(firebaseApp) {
         "DRY RUN — nothing was written.",
         result.roomsToAssign + " room(s) would be assigned to their resident and returned to inventory.",
         result.withoutRoomOnRecord.length
-          ? "No room on record for: " + result.withoutRoomOnRecord.join(", ") + " (use the Quarters field for them)."
+          ? "No room on record for: " + result.withoutRoomOnRecord.join(", ") + " (add one with addResidentRoom)."
           : "Every resident has a room on record.",
         blocked.length ? blocked.length + " blocked — resolve before committing." : "Nothing is blocking a commit."
       ];
@@ -3039,6 +3029,111 @@ export function createFirestoreBridge(firebaseApp) {
     invalidate();
     result.committed = true;
     result.summary = ["Committed. " + result.roomsToAssign + " room(s) assigned and returned to inventory."];
+    return result;
+  }
+
+  // Adds one room to inventory and allocates it to a resident's stay, for the
+  // case the room did not exist as a room at all — Swamiji's floor being the
+  // one that prompted it. Nothing about it is special afterwards: it is an
+  // ordinary room, and the residency holding it is what keeps it off every
+  // other guest's list, exactly as for every other resident.
+  //
+  // A dry run unless { commit: true }. Safe to run again: both documents have
+  // ids derived from the room label and the stay, so a second run finds the
+  // room already there and the allocation already made.
+  async function addResidentRoom(options) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const commit = options?.commit === true;
+    const guestName = clean(options?.guestName, 200);
+    const building = clean(options?.building, 100);
+    const roomName = clean(options?.room, 100);
+    if (!guestName) throw new Error("Say whose room this is (guestName).");
+    if (!building || !roomName) throw new Error("Give both a building and a room.");
+
+    const normalise = value => clean(value, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matches = canonical.guests.filter(guest => !guest.archived
+      && normalise(guest.name) === normalise(guestName));
+    if (!matches.length) throw new Error("No guest named " + guestName + ".");
+    if (matches.length > 1) throw new Error("More than one guest is named " + guestName + ".");
+    const guest = matches[0];
+    if (guest.personType !== "Permanent Resident") {
+      throw new Error(guest.name + " is not a permanent resident. Ordinary rooms are allocated from the visit editor.");
+    }
+    const stay = canonical.visits.find(visit => visit.guestId === guest.id
+      && !visit.isCancelled && visit.accommodation === "Ashram");
+    if (!stay) throw new Error(guest.name + " has no residency stay to attach a room to.");
+
+    const label = building + " - " + roomName;
+    const roomId = "ROOM-" + normalise(label);
+    const existingRoom = canonical.rooms.find(room => room.id === roomId
+      || (room.displayName || (clean(room.building, 100) + " - " + clean(room.room, 100))) === label);
+    // Someone else already holds it — never quietly take a room off a stay.
+    const heldByOther = canonical.visitRooms.find(item => item.roomLabelSnapshot === label
+      && item.visitId !== stay.id
+      && canonical.visits.some(visit => visit.id === item.visitId && !visit.isCancelled));
+    if (heldByOther) throw new Error(label + " is already allocated to another stay.");
+
+    const writes = [];
+    if (!existingRoom) {
+      writes.push({ type: "set", collection: "rooms", id: roomId, data: {
+        building, room: roomName,
+        displayName: label,
+        category: "Normal",
+        active: true,
+        permanent: false,
+        occupant: "",
+        createdAt: Timestamp.now(), createdBy: actor,
+        updatedAt: Timestamp.now(), updatedBy: actor,
+        schemaVersion: 1
+      } });
+    }
+    const targetRoomId = existingRoom ? existingRoom.id : roomId;
+    const allocationId = "RESROOM-" + stay.id + "-" + targetRoomId;
+    const alreadyAllocated = canonical.visitRooms.some(item => item.visitId === stay.id
+      && item.roomLabelSnapshot === label);
+    if (!alreadyAllocated) {
+      writes.push({ type: "set", collection: "visitRooms", id: allocationId, data: {
+        visitId: stay.id,
+        roomId: targetRoomId,
+        roomLabelSnapshot: label,
+        order: canonical.visitRooms.filter(item => item.visitId === stay.id).length + 1,
+        sharedOk: false,
+        createdAt: Timestamp.now(), createdBy: actor,
+        updatedAt: Timestamp.now(), updatedBy: actor,
+        schemaVersion: 1
+      } });
+    }
+
+    const result = {
+      generatedAt: new Date().toISOString(),
+      committed: false,
+      guest: guest.name,
+      visitId: stay.id,
+      room: label,
+      roomExisted: Boolean(existingRoom),
+      alreadyAllocated,
+      documentsToWrite: writes.length
+    };
+    if (!commit) {
+      result.summary = writes.length
+        ? ["DRY RUN — nothing was written.",
+          (existingRoom ? label + " already exists as a room." : label + " would be added to the room inventory."),
+          (alreadyAllocated ? "It is already allocated to " + guest.name + "." : "It would be allocated to " + guest.name + "'s residency.")]
+        : ["DRY RUN — nothing to do. " + label + " is already " + guest.name + "'s room."];
+      return result;
+    }
+    if (writes.length) {
+      const batch = writeBatch(db);
+      writes.forEach(item => batch.set(doc(db, item.collection, item.id), item.data));
+      await writeAuditBatch(batch, actor, "residentRoom", stay.id, "add", ["rooms", "visitRooms"]);
+      await batch.commit();
+      invalidate();
+    }
+    result.committed = true;
+    result.summary = [writes.length
+      ? "Committed. " + label + " is now " + guest.name + "'s room."
+      : "Nothing to do — " + label + " was already " + guest.name + "'s room."];
     return result;
   }
 
@@ -3192,6 +3287,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "auditResidentMerge") return auditResidentMerge();
       if (action === "migrateResidentsToGuests") return migrateResidentsToGuests(extra.options || {});
       if (action === "migrateResidentRooms") return migrateResidentRooms(extra.options || {});
+      if (action === "addResidentRoom") return addResidentRoom(extra.options || {});
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
