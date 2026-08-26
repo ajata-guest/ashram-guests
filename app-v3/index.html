@@ -577,6 +577,8 @@
        out of the amber "needs attention" and red/green "state" families
        below, so they never get mistaken for a warning or a good outcome. */
     .badge-salmon { border: 1px solid rgba(250, 128, 114, 0.35); background: rgba(250, 128, 114, 0.16); color: var(--salmon); }
+    /* Invited Guest, moved off salmon so that colour can mean "lives here". */
+    .badge-gold { border: 1px solid rgba(243, 205, 151, 0.35); background: rgba(243, 205, 151, 0.16); color: #F3CD97; }
     .badge-blue { background: rgba(41, 128, 185, 0.2); color: #6fbaf0; }
     .badge-purple { background: rgba(155, 89, 182, 0.2); color: var(--purple); }
     .badge-gray { background: rgba(149, 165, 166, 0.18); color: #bdc3c7; }
@@ -7113,7 +7115,6 @@
       // dateless stay would otherwise collect are not omissions to chase.
       const residency = isResidencyStay_(visit);
       if (residency) {
-        badges.appendChild(createBadge('Lives here', 'badge-confirmed'));
         card.appendChild(createDetailLine('icon-calendar', 'Ongoing residency'));
       }
       // With both dates the line is a bare range and says nothing about where
@@ -8781,7 +8782,10 @@
       // subject: a Permanent Resident record, or a guest currently staying in
       // the ashram. Only the former is the Permanent Resident badge.
       (row.sources || []).forEach(source => {
-        const isResident = source.type === 'residence' && row.subjectType === 'permanentResident';
+        // Follows the person rather than which collection holds them, so it
+        // keeps working for a resident who is now an ordinary guest record.
+        const isResident = source.type === 'residence'
+          && (row.personType === 'Permanent Resident' || row.subjectType === 'permanentResident');
         meta.appendChild(createElement('span', `meal-source-pill${isResident ? ' is-resident' : ''}`, source.label));
       });
       // Says why they are not attending, so a blank Not-attending row is never
@@ -10313,13 +10317,14 @@
     // for everyone — which is the Invited Guest colour, so an Event Staff and
     // a Visitor read as Invited Guests on the Accommodation and Meals lists.
     const PERSON_TYPE_BADGE_CLASS_ = Object.freeze({
-      'Invited Guest': 'badge-salmon',
+      'Invited Guest': 'badge-gold',
       Friend: 'badge-blue',
       Visitor: 'badge-purple',
       'Event Staff': 'badge-teal',
       Other: 'badge-silver',
-      // Someone who lives here, distinct from every kind of guest passing through.
-      'Permanent Resident': 'badge-confirmed'
+      // Salmon, matching the resident pill in Meals and Swamiji's name there —
+      // the colour this app already uses for a standing fact about a person.
+      'Permanent Resident': 'badge-salmon'
     });
 
     function personTypeBadgeClass(personType) {

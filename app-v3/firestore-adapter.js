@@ -335,7 +335,11 @@ function resolveMealDay(canonical, dateKey) {
     // meals, and the seating they start from, are both properties of the stay.
     .forEach(item => addSource(
       "guest", item.guestId, residencyMeals(item),
-      { type: "residence", id: item.id, label: "Staying in the ashram" },
+      // Living here and staying here are both residence, but they are not the
+      // same fact, so the roster names them differently.
+      { type: "residence", id: item.id,
+        label: isResidencyStay(item, guestsById[item.guestId]?.personType)
+          ? "Permanent resident" : "Staying in the ashram" },
       mealSeating(item.diningSeating), true
     ));
 
