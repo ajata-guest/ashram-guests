@@ -716,9 +716,12 @@ function priorityReasons(record, now, todayKey) {
 // longer decide which tab a guest appears under.
 function directoryTier(record, reasons, todayKey) {
   const visit = record.visit;
-  // Decided before anything else: a resident is never passing through, so the
-  // transient tiers have nothing to say about them.
-  if (isResidencyStay(visit, record.personType)) return DIRECTORY_TIER.RESIDENT;
+  // Decided before anything else, and from the person rather than the stay:
+  // being a resident is a fact about who they are, where the stay is only how
+  // their meals are arranged. Keying it off the stay meant someone newly marked
+  // a resident sat in No activity until a stay existed — while the Meals tab,
+  // which asks the person, already listed them. The two now agree.
+  if (record.personType === "Permanent Resident") return DIRECTORY_TIER.RESIDENT;
   const happensToday = (visit && [visit.arrivalDate, visit.departureDate].includes(todayKey))
     || (record.mealsToday || []).length
     || (record.upcomingMeetings || []).some(item => item.status === "Scheduled" && item.date === todayKey);
@@ -1287,6 +1290,35 @@ export function createFirestoreBridge(firebaseApp) {
     };
   }
 
+  // Being a permanent resident means living here, so the stay that says so is
+  // created with the person rather than left as a second step someone has to
+  // remember. Without it they would sit in the Directory and the Meals tab but
+  // never appear on a roster, and their meal plan would have nowhere to live.
+  // Derived id, so this can never produce a second stay for the same guest.
+  function residencyVisitData(guestId, actor) {
+    return {
+      guestId,
+      arrivalAt: null, arrivalDateKey: "", arrivalTimeConfirmed: false,
+      departureAt: null, departureDateKey: "", departureTimeConfirmed: false,
+      accommodation: "Ashram",
+      outsideAccommodationDetails: "", outsideAccommodationConfirmed: false,
+      stayingAt: "",
+      diningSeating: "",
+      residencyMeals: [...MEALS],
+      residencyMealNote: "",
+      cFormComplete: false,
+      pickupRequired: false, pickupAt: null, pickupDateKey: "", pickupTimeConfirmed: false,
+      pickupFrom: "", pickupDetails: "",
+      dropoffRequired: false, dropoffAt: null, dropoffDateKey: "", dropoffTimeConfirmed: false,
+      dropoffTo: "", dropoffDetails: "",
+      isCancelled: false, cancelledAt: null,
+      hasArrivalDate: false, calendarStartAt: null, calendarEndAt: null,
+      schemaVersion: 1,
+      createdAt: serverTimestamp(), createdBy: actor,
+      updatedAt: serverTimestamp(), updatedBy: actor
+    };
+  }
+
   async function createGuest(payload) {
     const actor = ensureApproved();
     const id = clean(payload?.guestId, 100) || uuid();
@@ -1295,6 +1327,9 @@ export function createFirestoreBridge(firebaseApp) {
     await runTransaction(db, async transaction => {
       if ((await transaction.get(reference)).exists()) throw new Error("A guest with this ID already exists.");
       transaction.set(reference, { ...data, createdAt: serverTimestamp(), createdBy: actor });
+      if (data.personType === "Permanent Resident") {
+        transaction.set(doc(db, "visits", `RES-${id}`), residencyVisitData(id, actor));
+      }
       transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "create", ["name", "personType"]));
     });
     invalidate();
@@ -1306,11 +1341,22 @@ export function createFirestoreBridge(firebaseApp) {
     const id = clean(payload?.guestId, 100);
     if (!id) throw new Error("A Guest ID is required.");
     const reference = doc(db, "guests", id);
+    // Someone promoted to resident needs the stay that says they live here,
+    // exactly as if they had been created as one. Checked against the whole
+    // set rather than only the derived id, so a resident who arrived by
+    // migration is not given a second one.
+    const canonical = await loadCanonical();
+    const hasAshramStay = canonical.visits.some(visit => visit.guestId === id
+      && !visit.isCancelled && visit.accommodation === "Ashram");
     await runTransaction(db, async transaction => {
       const snapshot = await transaction.get(reference);
       if (!snapshot.exists()) throw new Error("This guest no longer exists.");
       assertVersion(snapshot.data(), payload.version);
-      transaction.update(reference, guestWriteData(payload, actor, snapshot.data()));
+      const nextData = guestWriteData(payload, actor, snapshot.data());
+      transaction.update(reference, nextData);
+      if (nextData.personType === "Permanent Resident" && !hasAshramStay) {
+        transaction.set(doc(db, "visits", `RES-${id}`), residencyVisitData(id, actor));
+      }
       transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "update-basics", ["name", "personType", "foreignNational", "invitedPurposes", "staffAssignment"]));
     });
     invalidate();
