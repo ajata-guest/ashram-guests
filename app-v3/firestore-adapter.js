@@ -56,6 +56,19 @@ const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Pas
 // dateless stay as an unfinished one asks this first. Written as one predicate
 // so the rule lives in a single place rather than as a person-type check
 // scattered through the read paths.
+// A resident's quarters are not a visit room — they are inventory taken out
+// of circulation, carrying the occupant's name. Matched on a normalised name
+// because that is the only link the rooms data has to a person.
+function permanentRoomsFor(canonical, name) {
+  const key = clean(name, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!key) return [];
+  return (canonical.rooms || [])
+    .filter(room => (room.permanent || clean(room.category, 100).toLowerCase() === "permanent")
+      && clean(room.occupant, 200).toLowerCase().replace(/[^a-z0-9]/g, "") === key)
+    .map(room => room.displayName || (clean(room.building, 100) + " - " + clean(room.room, 100)))
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function isResidencyStay(visit, personType) {
   return Boolean(visit) && personType === "Permanent Resident" && visit.accommodation === "Ashram";
 }
@@ -540,6 +553,7 @@ function visitView(visit, roomsByVisit, legsByVisit) {
     // "" when nothing was recorded — the editor needs to tell that apart from
     // a deliberate choice of Floor.
     diningSeating: visit.diningSeating || "",
+    residencyQuarters: visit.residencyQuarters || "",
     // The residency meal plan is owned by the Meals workspace, not the visit
     // editor; exposed here so the editor can carry it back unchanged.
     residencyMeals: residencyMeals(visit),
@@ -821,6 +835,14 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
       nextMeeting: meetings.filter(item => item.status === "Scheduled" && item.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date))[0] || null,
       trips
     };
+    // The Directory card reads rooms off the current visit, which a residency
+    // does not carry — so the quarters go on it here, the same as in
+    // Accommodation & Travel.
+    if (record.visit && isResidencyStay(record.visit, record.personType) && !record.visit.rooms.length) {
+      record.visit.rooms = record.visit.residencyQuarters
+        ? [record.visit.residencyQuarters]
+        : permanentRoomsFor(canonical, record.name);
+    }
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });
     record.priorityReasons = priorityReasons(record, now, todayKey);
     record.tier = directoryTier(record, record.priorityReasons, todayKey);
@@ -1080,8 +1102,20 @@ export function createFirestoreBridge(firebaseApp) {
       const guest = guestsById[item.guestId];
       if (!guest) return null;
       const view = visitView(item, roomsByVisit, legsByVisit);
+      // A residency holds no visit room, so the quarters recorded against
+      // the person are supplied here instead — the card then shows a room
+      // either way without having to know which kind of stay it is.
+      // What someone has written for this person wins over what the rooms
+      // data implies about them, since it was said deliberately and more
+      // recently.
+      const residencyRooms = !isResidencyStay(item, guest.personType) ? []
+        : (clean(item.residencyQuarters, 200)
+          ? [clean(item.residencyQuarters, 200)]
+          : permanentRoomsFor(canonical, guest.name));
       return {
         ...view,
+        rooms: view.rooms.length ? view.rooms : residencyRooms,
+        residencyRooms,
         name: guest.name,
         personType: guest.personType,
         isForeign: Boolean(guest.foreignNational)
@@ -1304,6 +1338,7 @@ export function createFirestoreBridge(firebaseApp) {
       outsideAccommodationDetails: "", outsideAccommodationConfirmed: false,
       stayingAt: "",
       diningSeating: "",
+      residencyQuarters: "",
       residencyMeals: [...MEALS],
       residencyMealNote: "",
       cFormComplete: false,
@@ -1348,6 +1383,10 @@ export function createFirestoreBridge(firebaseApp) {
     const canonical = await loadCanonical();
     const hasAshramStay = canonical.visits.some(visit => visit.guestId === id
       && !visit.isCancelled && visit.accommodation === "Ashram");
+    const wasResident = (canonical.guests.find(guest => guest.id === id) || {})
+      .personType === "Permanent Resident";
+    const residencyStays = canonical.visits.filter(visit => visit.guestId === id
+      && !visit.isCancelled && visit.accommodation === "Ashram" && !visit.arrivalDateKey);
     await runTransaction(db, async transaction => {
       const snapshot = await transaction.get(reference);
       if (!snapshot.exists()) throw new Error("This guest no longer exists.");
@@ -1356,6 +1395,20 @@ export function createFirestoreBridge(firebaseApp) {
       transaction.update(reference, nextData);
       if (nextData.personType === "Permanent Resident" && !hasAshramStay) {
         transaction.set(doc(db, "visits", `RES-${id}`), residencyVisitData(id, actor));
+      }
+      // Retyped away from resident: the standing stay says they live here,
+      // which is no longer true. Cancelled rather than deleted — it keeps the
+      // record and its meal plan, drops them off every roster and list, and
+      // can be undone by making them a resident again. Only dateless ashram
+      // stays are touched: a real visit with real dates is somebody's
+      // arrangements and is never collateral in a person-type change.
+      if (wasResident && nextData.personType !== "Permanent Resident") {
+        residencyStays.forEach(stay => {
+          transaction.update(doc(db, "visits", stay.id), {
+            isCancelled: true, cancelledAt: Timestamp.now(),
+            updatedAt: serverTimestamp(), updatedBy: actor
+          });
+        });
       }
       transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "update-basics", ["name", "personType", "foreignNational", "invitedPurposes", "staffAssignment"]));
     });
@@ -1695,6 +1748,13 @@ export function createFirestoreBridge(firebaseApp) {
     diningSeating: MEAL_SEATING.has(clean(payload.diningSeating, 40))
       ? clean(payload.diningSeating, 40)
       : "",
+
+    // Where a resident lives, in plain words. Deliberately free text and not
+    // a room id: their quarters are not guest inventory, which is the whole
+    // reason they cannot be picked from the room list. Note that writing it
+    // describes where they are — it reserves nothing. Holding a room out of
+    // circulation is still done by marking that room permanent.
+    residencyQuarters: clean(payload.residencyQuarters, 200),
 
     // Owned by the Meals workspace and carried straight through. This write is
     // a whole-document set, so anything not restated here would be erased by a

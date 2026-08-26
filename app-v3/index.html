@@ -3137,6 +3137,14 @@
           <div id="room-warning" class="field-message" aria-live="polite"></div>
         </div>
 
+        <!-- A resident lives somewhere that is deliberately not guest
+             inventory, so it cannot be picked from the room list. Written
+             here in plain words instead, and shown on their cards. -->
+        <div class="input-group" id="residency-quarters-group" hidden>
+          <label class="input-label" for="edit-residency-quarters">Quarters</label>
+          <input type="text" id="edit-residency-quarters" class="edit-input" maxlength="200" placeholder="Ganga Nilayam, 2nd floor" autocomplete="off">
+        </div>
+
         <!-- Sits with the room because it is the same question in sequence:
              where they are staying, then whether the paperwork for that stay
              is done. Carries its own label rather than floating as a lone
@@ -6229,18 +6237,26 @@
       if (visit) {
         // Same tense rule as the Accommodation card: a date already past is
         // something that happened, not something still expected.
-        const stayStatus = visitStayStatus_(visit);
-        card.appendChild(createDetailLine('icon-calendar', visit.arrivalDisplay
-          ? `${stayStatus === 'upcoming' ? 'Arrives' : 'Arrived'} ${visit.arrivalDisplay}`
-          : 'Arrival date TBD'));
-        if (visit.departureDisplay) {
-          card.appendChild(createDetailLine('icon-calendar',
-            `${stayStatus === 'departed' ? 'Departed' : 'Departs'} ${visit.departureDisplay}`));
+        const stayStatus = summary.personType === 'Permanent Resident' ? 'resident' : visitStayStatus_(visit);
+        if (stayStatus === 'resident') {
+          card.appendChild(createDetailLine('icon-calendar', 'Ongoing residency'));
+        } else {
+          card.appendChild(createDetailLine('icon-calendar', visit.arrivalDisplay
+            ? `${stayStatus === 'upcoming' ? 'Arrives' : 'Arrived'} ${visit.arrivalDisplay}`
+            : 'Arrival date TBD'));
+          if (visit.departureDisplay) {
+            card.appendChild(createDetailLine('icon-calendar',
+              `${stayStatus === 'departed' ? 'Departed' : 'Departs'} ${visit.departureDisplay}`));
+          }
         }
         if (visit.accommodation === 'Ashram') {
           card.appendChild(createDetailLine(
             'icon-bed',
-            Array.isArray(visit.rooms) && visit.rooms.length ? visit.rooms.join(' & ') : 'Room not assigned'
+            Array.isArray(visit.rooms) && visit.rooms.length
+              ? visit.rooms.join(' & ')
+              // A resident always has quarters; if none are on record that is
+              // something to fix in the rooms data, not a room to assign.
+              : (stayStatus === 'resident' ? 'Quarters not recorded' : 'Room not assigned')
           ));
         } else if (visit.accommodation) {
           const accommodationLabels = {
@@ -7161,7 +7177,11 @@
             const sharing = describeRoomSharing_(roomSharingPartnersForVisit_(visit, room));
             if (sharing) card.appendChild(createElement('div', 'detail-subline', sharing));
           });
-        } else if (!residency) {
+        } else if (residency) {
+          // A resident has quarters by definition; none on record is a gap in
+          // the rooms data, not a room waiting to be assigned to them.
+          card.appendChild(createDetailLine('icon-bed', 'Quarters not recorded'));
+        } else {
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
         }
       } else if (visit.accommodation) {
@@ -8143,6 +8163,7 @@
       $('edit-outside-accommodation-confirmed').checked = Boolean(visit && visit.outsideAccommodationConfirmed);
       $('edit-self-arranged-staying-at').value = (visit && visit.selfArrangedStayingAt) || '';
       setDiningSeating_((visit && visit.diningSeating) || '');
+      $('edit-residency-quarters').value = (visit && visit.residencyQuarters) || '';
       $('edit-cform').checked = Boolean(visit && visit.cformComplete);
 
       $('edit-arrival-date').value = (visit && visit.arrivalDate) || '';
@@ -8240,6 +8261,7 @@
         outsideAccommodationConfirmed: $('edit-outside-accommodation-confirmed').checked,
         selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
         diningSeating: getDiningSeating_(),
+        residencyQuarters: $('edit-residency-quarters').value.trim(),
         isCformComplete: $('edit-cform').checked,
         rooms: getRoomRowValues().map(room => ({ roomAllocationId: '', room })),
         sharedRoomAcks: Array.isArray(sharedRoomAcks) ? sharedRoomAcks : [],
@@ -11405,6 +11427,10 @@
       // for in exactly that case. Hidden, not cleared — same as the fields
       // below, so switching away and back does not lose an answer.
       $('dining-seating-group').hidden = !requiresRoom;
+      // Only a resident has quarters; everyone else is assigned a room from
+      // inventory, which is what the group above is for.
+      $('residency-quarters-group').hidden = !requiresRoom
+        || visitEditorGuestPersonType_ !== 'Permanent Resident';
       if (!requiresRoom) {
         setRoomRows([]);
         $('room-warning').textContent = '';
