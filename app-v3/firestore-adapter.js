@@ -2462,6 +2462,107 @@ export function createFirestoreBridge(firebaseApp) {
     return { seatingChangeId: id, fromKey, seating, supersededCount: superseded.length };
   }
 
+  // ---- Resident/guest merge: audit -------------------------------------
+  // Step one of turning permanent residents into ordinary guests. This reads
+  // and reports; it writes nothing, invalidates nothing, and is safe to run as
+  // often as you like. Its job is to answer, before anything is decided:
+  // whether the 8 residents are who we think they are, whether any of them
+  // already exists as a guest under another spelling, and exactly how many
+  // meal records would have to be re-keyed from a resident id to a guest id.
+  //
+  // Everything reported here is deliberately raw. It draws no conclusions and
+  // performs no matching beyond a normalised name comparison, because the one
+  // thing that would make the migration dangerous — the same human existing
+  // twice — is precisely the thing a machine should flag rather than resolve.
+  async function auditResidentMerge() {
+    ensureApproved();
+    const canonical = await loadCanonical();
+    const normalise = value => clean(value, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const guestsByName = new Map();
+    canonical.guests.filter(item => !item.archived).forEach(item => {
+      const key = normalise(item.nameNormalized || item.name);
+      if (!key) return;
+      if (!guestsByName.has(key)) guestsByName.set(key, []);
+      guestsByName.get(key).push({ guestId: item.id, name: item.name || "", personType: item.personType || "" });
+    });
+
+    // A permanent room is inventory that has been taken out of circulation.
+    // Matching is by occupant name, which is the only link the data has.
+    const permanentRooms = canonical.rooms.filter(room =>
+      room.permanent || clean(room.category, 100).toLowerCase() === "permanent");
+    const claimedRoomIds = new Set();
+
+    const countFor = (list, id) => list.filter(item =>
+      item.subjectType === "permanentResident" && item.subjectId === id).length;
+
+    const residents = canonical.permanentResidents.map(item => {
+      const key = normalise(item.name);
+      const rooms = permanentRooms.filter(room => normalise(room.occupant) === key && key);
+      rooms.forEach(room => claimedRoomIds.add(room.id));
+      const collisions = guestsByName.get(key) || [];
+      return {
+        residentId: item.id,
+        name: item.name || "",
+        active: item.active !== false,
+        activeFrom: item.activeFromKey || "",
+        activeUntil: item.activeUntilKey || "",
+        meals: residentMeals(item),
+        mealsNarrowed: residentMeals(item).length !== MEALS.length,
+        defaultSeating: mealSeating(item.defaultSeating),
+        mealNote: item.mealNote || "",
+        note: item.note || "",
+        permanentRooms: rooms.map(room => room.displayName || `${room.building} - ${room.room}`),
+        existingGuestMatches: collisions,
+        recordsToRekey: {
+          mealAbsences: countFor(canonical.mealAbsences, item.id),
+          mealSeatingChanges: countFor(canonical.mealSeatingChanges, item.id),
+          mealOverrides: countFor(canonical.mealOverrides, item.id)
+        }
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+
+    const warnings = [];
+    residents.forEach(entry => {
+      if (!entry.name) warnings.push(`Resident ${entry.residentId} has no name — it cannot be matched or migrated as is.`);
+      if (entry.existingGuestMatches.length) {
+        warnings.push(`"${entry.name}" already matches ${entry.existingGuestMatches.length} guest record(s). Migrating would create the same person twice unless these are linked instead.`);
+      }
+      if (!entry.permanentRooms.length) warnings.push(`No permanent room is recorded against "${entry.name}".`);
+      if (entry.permanentRooms.length > 1) warnings.push(`"${entry.name}" is the occupant of ${entry.permanentRooms.length} permanent rooms.`);
+      if (!entry.active) warnings.push(`"${entry.name}" is marked inactive — decide whether they should be migrated at all.`);
+      if (entry.activeUntil && entry.activeUntil < dateKeyOf(Date.now())) {
+        warnings.push(`"${entry.name}" has an active-until date in the past (${entry.activeUntil}).`);
+      }
+    });
+    permanentRooms.filter(room => !claimedRoomIds.has(room.id)).forEach(room => {
+      warnings.push(`Permanent room "${room.displayName || `${room.building} - ${room.room}`}" has occupant "${room.occupant || ""}" which matches no resident.`);
+    });
+
+    const totals = residents.reduce((acc, entry) => ({
+      mealAbsences: acc.mealAbsences + entry.recordsToRekey.mealAbsences,
+      mealSeatingChanges: acc.mealSeatingChanges + entry.recordsToRekey.mealSeatingChanges,
+      mealOverrides: acc.mealOverrides + entry.recordsToRekey.mealOverrides
+    }), { mealAbsences: 0, mealSeatingChanges: 0, mealOverrides: 0 });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      readOnly: true,
+      residentCount: residents.length,
+      guestCount: canonical.guests.filter(item => !item.archived).length,
+      permanentRoomCount: permanentRooms.length,
+      totalsToRekey: totals,
+      residents,
+      warnings,
+      summary: [
+        `${residents.length} permanent residents, ${canonical.guests.filter(item => !item.archived).length} active guests.`,
+        `${permanentRooms.length} rooms are held out of guest inventory as permanent.`,
+        `${totals.mealAbsences + totals.mealSeatingChanges + totals.mealOverrides} meal records would need re-keying (${totals.mealAbsences} away, ${totals.mealSeatingChanges} seating, ${totals.mealOverrides} daily).`,
+        warnings.length ? `${warnings.length} thing(s) to look at before migrating.` : "Nothing flagged."
+      ]
+    };
+  }
+
   // A permanent resident's meal plan, edited from the Meals workspace. Narrow
   // in the same way the residency plan is: which meals, the seating they start
   // from, and a note. Never touches the resident's name or active dates.
@@ -2609,6 +2710,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "upsertMealOverride") return upsertMealOverride(extra.payload || {});
       if (action === "setMealSeatingFrom") return setMealSeatingFrom(extra.payload || {});
       if (action === "saveResidencyMealPlan") return saveResidencyMealPlan(extra.payload || {});
+      if (action === "auditResidentMerge") return auditResidentMerge();
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
