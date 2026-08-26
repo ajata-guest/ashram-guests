@@ -1089,7 +1089,38 @@ export function createFirestoreBridge(firebaseApp) {
     const resolved = resolveMealDay(canonical, date);
     const schedules = canonical.mealSchedules.map(item => mealScheduleView(item, canonical))
       .sort((a, b) => a.name.localeCompare(b.name));
-    const permanentResidents = canonical.permanentResidents.map(item => ({
+    // The tab is a view over two sources while the migration is in flight:
+    // residents still held as their own records, and residents who have become
+    // guests with a standing stay. Each person appears once, from whichever
+    // source is actually in force for them, so the list is complete and
+    // truthful before, during and after. When the old records are gone the
+    // first half is simply always empty.
+    const migratedIds = new Set(canonical.guests.map(item => item.migratedFromResidentId).filter(Boolean));
+    const residentsAsGuests = canonical.guests
+      .filter(item => !item.archived && item.personType === "Permanent Resident")
+      .map(guest => {
+        const stay = canonical.visits.find(visit => visit.guestId === guest.id
+          && !visit.isCancelled && visit.accommodation === "Ashram");
+        return {
+          source: "guest",
+          residentId: "",
+          guestId: guest.id,
+          visitId: stay?.id || "",
+          name: guest.name || "",
+          defaultSeating: mealSeating(stay?.diningSeating),
+          meals: residencyMeals(stay || {}),
+          mealNote: stay?.residencyMealNote || "",
+          activeFrom: stay?.arrivalDateKey || "",
+          activeUntil: stay?.departureDateKey || "",
+          active: true,
+          note: "",
+          version: versionOf(stay || {})
+        };
+      });
+    const permanentResidents = canonical.permanentResidents.filter(item => !migratedIds.has(item.id)).map(item => ({
+      source: "record",
+      guestId: "",
+      visitId: "",
       residentId: item.id,
       name: item.name || "",
       defaultSeating: mealSeating(item.defaultSeating),
@@ -1100,7 +1131,7 @@ export function createFirestoreBridge(firebaseApp) {
       active: item.active !== false,
       note: item.note || "",
       version: versionOf(item)
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    })).concat(residentsAsGuests).sort((a, b) => a.name.localeCompare(b.name));
     const teams = canonical.sevaTeams.map(item => teamView(item)).sort((a, b) => a.name.localeCompare(b.name));
     const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
     const individualSeva = canonical.specificSeva.map(item => {

@@ -4201,8 +4201,7 @@
         const pill = event.target.closest('[data-resident-plan-target]');
         if (pill) showMealResidentPlanSection_(pill.dataset.residentPlanTarget);
       });
-      $('meal-resident-plan-add-away').addEventListener('click', () => openMealAwayEditor_(null, null,
-        { subjectType: 'permanentResident', subjectId: mealResidentPlan_.residentId }));
+      $('meal-resident-plan-add-away').addEventListener('click', () => openMealAwayEditor_(null, null, mealPlanSubject_(mealResidentPlan_)));
 
       $('meal-away-close').addEventListener('click', closeMealAwayEditor_);
       $('meal-away-discard').addEventListener('click', closeMealAwayEditor_);
@@ -8962,9 +8961,24 @@
         if (item.note) info.appendChild(createElement('div', 'meal-management-meta', item.note));
         row.appendChild(info);
         const actions = createElement('div', 'meal-roster-actions');
-        const edit = createElement('button', 'row-btn', 'Edit'); edit.type = 'button'; edit.addEventListener('click', () => openMealResidentEditor_(item));
-        const remove = createElement('button', 'row-btn danger', 'Delete'); remove.type = 'button'; remove.addEventListener('click', () => deleteMealResident_(item));
-        actions.append(edit, remove); row.appendChild(actions); list.appendChild(row);
+        // Edit always opens the plan that is actually in force for this person.
+        const edit = createElement('button', 'row-btn', 'Edit'); edit.type = 'button';
+        edit.addEventListener('click', () => openMealResidentPlan_(item));
+        actions.appendChild(edit);
+        if (item.source === 'guest') {
+          // Their record is a guest now, so it is the Directory that owns
+          // removing them — deleting from here would leave the guest behind.
+          const profile = createElement('button', 'row-btn quiet', 'Open profile'); profile.type = 'button';
+          profile.addEventListener('click', () => navigate(`#guest/${encodeURIComponent(item.guestId)}`));
+          actions.appendChild(profile);
+        } else {
+          const details = createElement('button', 'row-btn quiet', 'Details'); details.type = 'button';
+          details.addEventListener('click', () => openMealResidentEditor_(item));
+          const remove = createElement('button', 'row-btn danger', 'Delete'); remove.type = 'button';
+          remove.addEventListener('click', () => deleteMealResident_(item));
+          actions.append(details, remove);
+        }
+        row.appendChild(actions); list.appendChild(row);
       });
       $('meals-residents-empty').hidden = residents.length > 0;
     }
@@ -9137,6 +9151,12 @@
     // meals. For someone who lives here that is their own plan; for a guest it
     // is the stay and any arrangements hanging off it.
     function editMealSubjectFromRoster_(row) {
+      // A resident reaches the same plan dialog whichever way they are stored,
+      // so the card and the tab never disagree about what editing them means.
+      if (row.personType === 'Permanent Resident' && row.subjectType === 'guest') {
+        const entry = (mealsData_?.permanentResidents || []).find(item => item.guestId === row.subjectId);
+        if (entry) { openMealResidentPlan_(entry); return; }
+      }
       if (row.subjectType === 'permanentResident') {
         const resident = (mealsData_?.permanentResidents || []).find(item => item.residentId === row.subjectId);
         if (!resident) { showToast('This resident no longer exists.', 'error'); return; }
@@ -9174,6 +9194,15 @@
     // ---- Permanent resident meal plan -------------------------------------
     // A resident has no stay and no schedule, so their plan is just what they
     // eat and when they are away — two sections behind nav chips.
+    // A resident is either still their own record or already a guest with a
+    // standing stay. Everything the plan dialog does — reading away periods,
+    // adding one, saving meals — goes through this rather than assuming.
+    function mealPlanSubject_(entry) {
+      return entry?.source === 'guest'
+        ? { subjectType: 'guest', subjectId: entry.guestId }
+        : { subjectType: 'permanentResident', subjectId: entry?.residentId };
+    }
+
     function openMealResidentPlan_(resident) {
       mealResidentPlan_ = resident;
       $('meal-resident-plan-title').textContent = `${resident.name || 'Resident'} · Meal Plan`;
@@ -9208,7 +9237,8 @@
     function renderMealResidentPlanAway_() {
       const list = $('meal-resident-plan-away-list');
       list.replaceChildren();
-      const absences = mealAbsencesForSubject_('permanentResident', mealResidentPlan_?.residentId);
+      const subject = mealPlanSubject_(mealResidentPlan_);
+      const absences = mealAbsencesForSubject_(subject.subjectType, subject.subjectId);
       if (!absences.length) list.appendChild(createElement('div', 'upcoming-visit-empty', 'No away periods'));
       absences.forEach(absence => {
         const row = createElement('div', 'upcoming-visit-row');
@@ -9216,8 +9246,7 @@
         const actions = createElement('div', 'upcoming-visit-actions');
         const edit = createElement('button', 'row-btn', 'Edit');
         edit.type = 'button';
-        edit.addEventListener('click', () => openMealAwayEditor_(absence, null,
-          { subjectType: 'permanentResident', subjectId: mealResidentPlan_.residentId }));
+        edit.addEventListener('click', () => openMealAwayEditor_(absence, null, mealPlanSubject_(mealResidentPlan_)));
         const remove = createElement('button', 'row-btn danger upcoming-visit-delete-btn');
         remove.type = 'button';
         remove.setAttribute('aria-label', 'Delete away period');
@@ -9233,7 +9262,8 @@
     // the resident held in memory is a copy from before the reload.
     function refreshMealListsAfterAwayChange_() {
       if (mealResidentPlan_) {
-        const fresh = (mealsData_?.permanentResidents || []).find(item => item.residentId === mealResidentPlan_.residentId);
+        const key = mealResidentPlan_.source === 'guest' ? 'guestId' : 'residentId';
+        const fresh = (mealsData_?.permanentResidents || []).find(item => item[key] === mealResidentPlan_[key]);
         if (fresh) mealResidentPlan_ = fresh;
         renderMealResidentPlanAway_();
         return;
@@ -9245,12 +9275,18 @@
       const meals = [...document.querySelectorAll('.resident-meal-choice')].filter(input => input.checked).map(input => input.value);
       if (!meals.length) { showToast('Choose at least one meal.', 'error'); return; }
       $('meal-resident-plan-save').disabled = true;
-      apiCall('saveResidentMealPlan', { payload: {
-        residentId: mealResidentPlan_.residentId,
-        meals,
-        seating: $('meal-resident-plan-seating').value,
-        note: $('meal-resident-plan-note').value.trim()
-      } })
+      // Same dialog, two backings: a resident who has become a guest is saved
+      // through their stay, exactly as the residency editor would.
+      const asGuest = mealResidentPlan_.source === 'guest';
+      const action = asGuest ? 'saveResidencyMealPlan' : 'saveResidentMealPlan';
+      const payload = asGuest
+        ? { visitId: mealResidentPlan_.visitId, meals,
+            seating: $('meal-resident-plan-seating').value,
+            note: $('meal-resident-plan-note').value.trim() }
+        : { residentId: mealResidentPlan_.residentId, meals,
+            seating: $('meal-resident-plan-seating').value,
+            note: $('meal-resident-plan-note').value.trim() };
+      apiCall(action, { payload })
         .then(() => {
           showToast('Meal plan saved.', 'success');
           closeMealResidentPlan_();
