@@ -48,8 +48,6 @@ const MEAL_RECURRENCES = new Set(["oneTime", "daily", "weekly"]);
 // and emphatically nothing past. Sorting them into Past (which is what falling
 // through to it did) told the office a brand-new record was finished business.
 // They belong under All Guests until something is actually scheduled for them.
-const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5, RESIDENT: 6 };
-const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity", 6: "Resident" };
 
 // Someone who lives here, expressed as an ordinary guest with an ashram stay
 // that has no beginning and no end. Everything that would otherwise treat a
@@ -730,49 +728,7 @@ function priorityReasons(record, now, todayKey) {
 // with an unassigned room vanished from Today. Reasons still drive the card
 // badges, the search index and the homepage attention counts — they just no
 // longer decide which tab a guest appears under.
-function directoryTier(record, reasons, todayKey) {
-  const visit = record.visit;
-  // Decided before anything else, and from the person rather than the stay:
-  // being a resident is a fact about who they are, where the stay is only how
-  // their meals are arranged. Keying it off the stay meant someone newly marked
-  // a resident sat in No activity until a stay existed — while the Meals tab,
-  // which asks the person, already listed them. The two now agree.
-  if (record.personType === "Permanent Resident") return DIRECTORY_TIER.RESIDENT;
-  const happensToday = (visit && [visit.arrivalDate, visit.departureDate].includes(todayKey))
-    || (record.mealsToday || []).length
-    || (record.upcomingMeetings || []).some(item => item.status === "Scheduled" && item.date === todayKey);
-  if (happensToday) return DIRECTORY_TIER.TODAY;
-  const future = (visit && ((!visit.arrivalDate && !visit.departureDate) || !visit.departureDate || visit.arrivalDate > todayKey || visit.departureDate > todayKey))
-    || (record.upcomingMeetings || []).some(item => item.status === "Scheduled" && item.date > todayKey)
-    || (record.specificSeva || []).some(item => !item.endDate || item.endDate >= todayKey)
-    || (record.sevaTeams || []).some(item => item.status !== "Seva completed")
-    || (record.trips || []).some(item => ["Active", "Upcoming"].includes(item.status));
-  if (future) return DIRECTORY_TIER.UPCOMING;
-  // Past has to mean "something happened and is over", not merely "nothing is
-  // coming up". A record with no visit and no engagement of any kind has no
-  // history to be in the past of.
-  const hasAnyHistory = Boolean(record.visit)
-    || (record.visits || []).length
-    || (record.mealOverrides || record.meals || []).length
-    || (record.meetings || []).length
-    || (record.specificSeva || []).length
-    || (record.sevaTeams || []).length
-    || (record.trips || []).length;
-  return hasAnyHistory ? DIRECTORY_TIER.PAST : DIRECTORY_TIER.NONE;
-}
 
-function tierCounts(records) {
-  const counts = { priority: 0, today: 0, upcoming: 0, past: 0, all: records.length };
-  records.forEach(record => {
-    if (record.tier === 1) counts.priority += 1;
-    else if (record.tier === 2) counts.today += 1;
-    else if (record.tier === 3) counts.upcoming += 1;
-    // Only a real Past record counts as Past; a guest with no activity at all
-    // is reachable through All Guests and shouldn't inflate the Past tab.
-    else if (record.tier === 4) counts.past += 1;
-  });
-  return counts;
-}
 
 function roomInventory(canonical) {
   // Permanent resident rooms are not operational guest inventory. Excluding
@@ -839,8 +795,6 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
     };
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });
     record.priorityReasons = priorityReasons(record, now, todayKey);
-    record.tier = directoryTier(record, record.priorityReasons, todayKey);
-    record.tierLabel = DIRECTORY_TIER_LABEL[record.tier];
     record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType);
     record.nearby = isNearby(record.visit, todayKey);
     return record;
@@ -1024,7 +978,6 @@ export function createFirestoreBridge(firebaseApp) {
     return {
       guests,
       total: guests.length,
-      tierCounts: tierCounts(guests),
       rooms: roomInventory(canonical),
       timezone: TIMEZONE,
       generatedAt: Date.now()
@@ -1040,7 +993,6 @@ export function createFirestoreBridge(firebaseApp) {
       directory: {
         guests,
         total: guests.length,
-        tierCounts: tierCounts(guests),
         rooms: roomInventory(canonical),
         timezone: TIMEZONE,
         generatedAt

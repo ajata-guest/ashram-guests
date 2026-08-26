@@ -510,6 +510,71 @@
       gap: 18px;
     }
 
+    /* The Directory is a register of people, not a fifth dashboard: a row
+       identifies someone and says where they stand in one line, and the
+       profile behind it holds everything else. Rows rather than cards
+       because that is what makes a list of names scannable. */
+    .dir-list { display: flex; flex-direction: column; }
+
+    .dir-letter {
+      padding: 14px 2px 6px;
+      color: var(--subtle);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .dir-row {
+      display: flex;
+      width: 100%;
+      padding: 11px 4px;
+      gap: 10px;
+      align-items: center;
+      border: 0;
+      border-top: 1px solid var(--border);
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .dir-row:last-child { border-bottom: 1px solid var(--border); }
+    .dir-row:hover,
+    .dir-row:focus-visible { outline: none; background: var(--surface-hover); }
+
+    .dir-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: #fff;
+      font-size: 0.98rem;
+    }
+
+    .dir-badges { display: flex; flex: 0 0 auto; gap: 6px; align-items: center; }
+
+    /* A fixed column rather than shrink-to-fit: with the width left to the
+       text, every row started its badges somewhere different and the column
+       read as ragged rather than as a column. */
+    .dir-standing {
+      flex: 0 0 min(250px, 42%);
+      min-width: 0;
+      color: var(--subtle);
+      font-size: 0.8rem;
+      text-align: right;
+    }
+
+    @media (max-width: 620px) {
+      /* No room for three columns on a phone: the standing drops beneath the
+         name and takes the full width, where it reads as a caption. */
+      .dir-row { flex-wrap: wrap; padding: 12px 4px; }
+      /* Basis auto, so a long badge shrinks the name rather than being pushed
+         onto a line of its own — the name and who they are belong together. */
+      .dir-standing { flex: 1 1 100%; text-align: left; }
+      .dir-badges { margin-left: auto; }
+    }
+
     /* No content-visibility here, deliberately. These cards vary a lot in
        height — a name-only record next to one carrying dates, a room and a
        cab — so a single contain-intrinsic-size guess is wrong for most of
@@ -2853,7 +2918,6 @@
         <button id="directory-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Guest</span><span class="action-label-compact">Add</span></button>
       </div>
     </div>
-    <div id="directory-tabs" class="tier-tabs" role="tablist" aria-label="Directory tiers"></div>
     <div id="directory-chips" class="quick-filters" role="group" aria-label="Directory filters"></div>
     <div id="directory-body" class="app-body status-swipe-surface"></div>
     </div>
@@ -4398,7 +4462,7 @@
 
     const ROUTES_ = Object.freeze({
       home: { page: 'page-home', load: () => renderHome_() },
-      directory: { page: 'page-directory', load: arg => renderDirectory_(arg) },
+      directory: { page: 'page-directory', load: () => renderDirectory_() },
       accommodation: { page: 'page-accommodation', load: arg => loadAccommodationPage_(arg) },
       meals: { page: 'page-meals', load: arg => loadMealsPage_(arg) },
       meetings: { page: 'page-meetings', load: arg => loadMeetingsPage_(arg) },
@@ -4748,13 +4812,8 @@
 
     function statusSwipeConfig_() {
       switch (currentRoute_.name) {
-        case 'directory':
-          return {
-            keys: DIRECTORY_TIERS_.map(def => def.key),
-            activeKey: directoryTierKey_,
-            surface: $('directory-body'),
-            go: key => navigate(`#directory/${key}`)
-          };
+        // The Directory has no status rail to swipe along — it is one
+        // alphabetical list, filtered by chips.
         case 'accommodation':
           return {
             keys: ACCOMMODATION_SECTIONS_.map(def => def.key),
@@ -4915,7 +4974,6 @@
     // network round trip per keystroke. Held in memory, the Directory opens
     // instantly and search is local across every field a card displays.
     let directoryRecords_ = [];
-    let directoryTierCounts_ = { priority: 0, today: 0, upcoming: 0, past: 0, all: 0 };
     let directoryIncludesArchived_ = false;
     let homeSummary_ = null;
 
@@ -4943,8 +5001,6 @@
       buildRoomOptions();
 
       directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
-      directoryCardCache_.clear();
-      directoryTierCounts_ = data.tierCounts || directoryTierCounts_;
       directoryIncludesArchived_ = Boolean(includeArchived);
       updateLastRefreshed(data.generatedAt);
     }
@@ -6164,7 +6220,6 @@
         .then(() => {
           showToast('Guest deleted.', 'success');
           directoryRecords_ = directoryRecords_.filter(r => r.guestId !== summary.guestId);
-          directoryCardCache_.delete(summary.guestId);
           renderDirectory_();
           refreshDirectoryInBackground_();
         })
@@ -6376,64 +6431,42 @@
     // instant and all local.
     // ============================================================
 
-    const DIRECTORY_TIERS_ = Object.freeze([
-      // All leads, and is where the Directory opens. Priority used to sit here
-      // and swallowed every guest who had any unresolved matter, which pulled
-      // them out of Today/Upcoming/Past — so the tab you'd expect someone to be
-      // in was the one place they weren't. The reasons themselves are still
-      // computed and still shown on the card and in search; they just no longer
-      // decide which tab a guest lives in.
-      { key: 'all', tier: null, label: 'All Guests', shortLabel: 'All', accent: '#b878d6', zone: '', description: 'Every active Directory record' },
-      { key: 'today', tier: 2, label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Something happening today' },
-      { key: 'upcoming', tier: 3, label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
-      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
-      // People who live here. Their own tier because none of the tiers above
-      // describes them: nothing is upcoming, nothing is past, and they are not
-      // here for today in particular.
-      { key: 'residents', tier: 6, label: 'Residents', shortLabel: 'Residents', accent: '#71d99d', zone: 'zone-current', description: 'Permanent residents of the ashram' }
+    // Person type is a field on the guest, so the Residents filter falls out
+    // of it — no sixth tier computed from five workspaces' data. These are
+    // alternatives to one another: picking Friend and Visitor widens the list
+    // to both, where every other chip narrows it.
+    const DIRECTORY_TYPE_CHIPS_ = Object.freeze([
+      'Invited Guest', 'Friend', 'Visitor', 'Event Staff', 'Other', 'Permanent Resident'
     ]);
 
+    // Only facts about the person. What still needs arranging for a stay, who
+    // is on a team and who is on a trip are their own workspaces' questions,
+    // asked there against data this list does not carry.
     const DIRECTORY_CHIPS_ = Object.freeze([
-      { label: 'Invited Guest', test: r => r.personType === 'Invited Guest' },
-      { label: 'Friend', test: r => r.personType === 'Friend' },
-      { label: 'Visitor', test: r => r.personType === 'Visitor' },
-      { label: 'Event Staff', test: r => r.personType === 'Event Staff' },
-      { label: 'Other', test: r => r.personType === 'Other' },
-      { label: 'Foreign national', test: r => Boolean(r.isForeign) },
-      { label: 'Residing in Ashram', test: r => Boolean(r.residingInAshram) },
-      { label: 'Has a visit', test: r => Boolean(r.visit) },
-      { label: 'No visit', test: r => !r.visit },
-      { label: 'On a Seva Team', test: r => (r.sevaTeams || []).length > 0 },
-      { label: 'Individual Seva', test: r => (r.specificSeva || []).length > 0 },
-      { label: 'On a Trip', test: r => (r.trips || []).length > 0 }
+      ...DIRECTORY_TYPE_CHIPS_.map(label => ({ label, test: record => record.personType === label })),
+      { label: 'Foreign national', test: record => Boolean(record.isForeign) }
     ]);
 
-    let directoryTierKey_ = 'all';
     const directoryActiveChips_ = new Set();
     let directoryShowArchived_ = false;
     let directorySearchTimer_ = null;
     let directoryRenderFrame_ = null;
-    const directoryCardCache_ = new Map();
 
-    function renderDirectory_(arg) {
+    function renderDirectory_() {
       if (directoryRenderFrame_ !== null) {
         cancelAnimationFrame(directoryRenderFrame_);
         directoryRenderFrame_ = null;
       }
-      if (arg && DIRECTORY_TIERS_.some(t => t.key === arg)) directoryTierKey_ = arg;
       const filtered = directoryFilteredRecords_();
-      renderDirectoryTabs_(filtered);
       renderDirectoryChips_();
       renderDirectoryBody_(filtered);
     }
 
     function renderDirectoryResults_() {
-      const filtered = directoryFilteredRecords_();
-      renderDirectoryTabs_(filtered);
-      renderDirectoryBody_(filtered);
+      renderDirectoryBody_(directoryFilteredRecords_());
     }
 
-    // Paint the selected chip first, then update the heavier card grid. Rapid
+    // Paint the selected chip first, then update the list behind it. Rapid
     // consecutive taps collapse into one render of the final filter state.
     function scheduleDirectoryResultsRender_() {
       if (directoryRenderFrame_ !== null) cancelAnimationFrame(directoryRenderFrame_);
@@ -6447,41 +6480,22 @@
 
     function directoryFilteredRecords_() {
       const queryTerms = normalizeSearchText($('directory-search').value).split(/\s+/).filter(Boolean);
-      const activeTests = DIRECTORY_CHIPS_.filter(chip => directoryActiveChips_.has(chip.label));
+      // Person types are alternatives to each other; anything else is an
+      // additional condition. Same rule the Accommodation chips follow.
+      const activeTypes = [...directoryActiveChips_].filter(label => DIRECTORY_TYPE_CHIPS_.includes(label));
+      const activeTests = DIRECTORY_CHIPS_.filter(chip => directoryActiveChips_.has(chip.label)
+        && !DIRECTORY_TYPE_CHIPS_.includes(chip.label));
       return directoryRecords_.filter(record => {
         if (!directoryShowArchived_ && record.archived) return false;
+        if (activeTypes.length && !activeTypes.includes(record.personType)) return false;
         if (!activeTests.every(chip => chip.test(record))) return false;
         return queryTerms.every(term => record.searchText.includes(term));
       });
     }
 
-    function renderDirectoryTabs_(filteredRecords) {
-      const container = $('directory-tabs');
-      container.replaceChildren();
-      const filtered = filteredRecords || directoryFilteredRecords_();
-
-      DIRECTORY_TIERS_.forEach(def => {
-        const count = def.tier === null ? filtered.length : filtered.filter(r => r.tier === def.tier).length;
-        const tab = createElement('button', `tier-tab${def.key === directoryTierKey_ ? ' active' : ''}`);
-        tab.type = 'button';
-        tab.style.setProperty('--accent', def.accent);
-        tab.setAttribute('role', 'tab');
-        tab.setAttribute('aria-selected', String(def.key === directoryTierKey_));
-        tab.appendChild(createElement('span', 'tier-tab-count', String(count)));
-        tab.setAttribute('aria-label', def.label);
-        tab.appendChild(createElement('span', 'tier-tab-label', def.shortLabel || def.label));
-        tab.addEventListener('click', () => {
-          if (directoryTierKey_ === def.key) return;
-          directoryTierKey_ = def.key;
-          navigate(`#directory/${def.key}`);
-        });
-        container.appendChild(tab);
-      });
-    }
-
     // The chips are built once and then left alone — V2's arrangement, and the
     // reason its chips always felt instant. Every full Directory render used to
-    // throw all fourteen away and rebuild them with fresh listeners, so a
+    // throw them all away and rebuild them with fresh listeners, so a
     // background refresh landing mid-interaction destroyed the very element
     // under the user's finger: it took the keyboard focus with it, and the
     // rebuilt chip had to re-derive its own selected state to look unchanged.
@@ -6633,7 +6647,7 @@
       // Last in the row, so "+N more" always sits after the chips it reveals.
       addChipRowToggle_(container, 'directory', syncDirectoryChipState_);
 
-      // One delegated listener rather than fourteen, so nothing has to be
+      // One delegated listener rather than one per chip, so nothing has to be
       // rebound when the set of chips ever changes. The toggle carries a
       // different class and its own handler, so it doesn't match here.
       container.addEventListener('click', event => {
@@ -6701,43 +6715,112 @@
       applyChipVisibility_('directory-chips', 'directory', chip => chip.classList.contains('active'));
     }
 
-    function directoryCardFor_(record) {
-      const cached = directoryCardCache_.get(record.guestId);
-      if (cached && cached.record === record) return cached.card;
-      const card = createFullGuestCard(record);
-      directoryCardCache_.set(record.guestId, { record, card });
-      return card;
+    // Where this person stands, in one line. The same question the tier tabs
+    // used to answer by sorting people into Today/Upcoming/Past \u2014 but said in
+    // words on their own row, so it never competes with the workspaces for
+    // the meaning of "today". First match wins; every field it reads is
+    // already on the record.
+    function directoryStandingLine_(record) {
+      const today = todayDateKey_();
+      const visit = record.visit;
+      const rooms = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
+
+      const line = (() => {
+        if (record.residingInAshram) {
+          return rooms.length ? `Residing \u00B7 ${rooms.join(' & ')}` : 'Residing \u00B7 room not assigned';
+        }
+        if (record.nearby) {
+          return visit && visit.departureDisplay ? `Nearby until ${visit.departureDisplay}` : 'Nearby';
+        }
+        if (visit && visit.arrivalDate && visit.arrivalDate > today) {
+          return `Arriving ${visit.arrivalDisplay || formatDateKeyDisplay(visit.arrivalDate)}`;
+        }
+
+        // No stay in progress or ahead \u2014 so what, if anything, is on today.
+        const meetings = (record.upcomingMeetings || []).filter(item => item.status === 'Scheduled');
+        if (meetings.some(item => item.date === today)) return 'Meeting today';
+        if ((record.mealsToday || []).some(item => item.included)) return 'Meals today';
+
+        const nextMeeting = meetings.filter(item => item.date > today)
+          .sort((a, b) => a.date.localeCompare(b.date))[0];
+        if (nextMeeting) return `Meeting ${formatDateKeyDisplay(nextMeeting.date)}`;
+        const trip = (record.trips || []).find(item => ['Active', 'Upcoming'].includes(item.status));
+        if (trip) return `${trip.name} \u00B7 ${String(trip.status).toLowerCase()}`;
+        const team = (record.sevaTeams || []).find(item => item.status !== 'Seva completed');
+        if (team) return `${team.name} \u00B7 ${String(team.status).toLowerCase()}`;
+        const task = (record.specificSeva || []).find(item => item.status !== 'Seva completed');
+        if (task) return task.description;
+
+        // Nothing current and nothing ahead: all that is left is history.
+        if (visit && visit.departureDisplay) return `Last here ${visit.departureDisplay}`;
+        if (visit && visit.arrivalDisplay) return `Last here ${visit.arrivalDisplay}`;
+        if (visit) return 'Visit dates TBD';
+        return 'No activity';
+      })();
+
+      // The row shows one stay \u2014 the current or nearest. Saying how many there
+      // are is what stops it quietly hiding the others.
+      const count = Number(record.visitCount) || 0;
+      return count > 1 ? `${line} \u00B7 ${count} visits` : line;
+    }
+
+    function directoryRowFor_(record) {
+      const row = createElement('button', 'dir-row');
+      row.type = 'button';
+      row.setAttribute('aria-label', `Open ${record.name || 'guest'}'s profile`);
+      row.addEventListener('click', () => {
+        if (consumedLongPressClick_(row)) return;
+        navigate(`#guest/${encodeURIComponent(record.guestId)}`);
+      });
+      attachLongPress_(row, () => guestCardSheet_(record));
+
+      row.appendChild(createElement('span', 'dir-name', record.name || 'Unnamed Guest'));
+
+      const badges = createElement('span', 'dir-badges');
+      badges.appendChild(createPersonTypeBadge(record.personType));
+      if (record.archived) badges.appendChild(createBadge('Archived', 'badge-gray'));
+      row.appendChild(badges);
+
+      row.appendChild(createElement('span', 'dir-standing', directoryStandingLine_(record)));
+      return row;
     }
 
     function renderDirectoryBody_(filteredRecords) {
       const body = $('directory-body');
       body.replaceChildren();
 
-      const filtered = filteredRecords || directoryFilteredRecords_();
-      const def = DIRECTORY_TIERS_.find(t => t.key === directoryTierKey_) || DIRECTORY_TIERS_[0];
-      const records = def.tier === null ? filtered : filtered.filter(r => r.tier === def.tier);
+      // Alphabetical, because a directory is something you look a name up in.
+      // Which people matter right now is the homepage's question and each
+      // workspace's question, answered there against the right data.
+      const records = (filteredRecords || directoryFilteredRecords_())
+        .slice()
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }));
 
+      const total = directoryRecords_.filter(record => directoryShowArchived_ || !record.archived).length;
       $('directory-subtitle').textContent =
-        `${directoryTierCounts_.all} active record${directoryTierCounts_.all === 1 ? '' : 's'}`
-        + (directoryShowArchived_ ? ' \u00B7 showing archived' : '');
-
-      const zone = createElement('div', `zone ${def.zone || 'zone-current'}`);
-      const header = createElement('div', 'zone-header');
-      header.appendChild(createElement('span', 'zone-title', def.label));
-      header.appendChild(createElement('span', 'zone-count', String(records.length)));
-      header.appendChild(createElement('span', 'zone-description', def.description));
-      zone.appendChild(header);
+        (records.length === total
+          ? `${total} record${total === 1 ? '' : 's'}`
+          : `${records.length} of ${total}`)
+        + (directoryShowArchived_ ? ' \u00B7 including archived' : '');
 
       if (!records.length) {
-        zone.appendChild(createElement('div', 'zone-empty', 'Nobody here right now.'));
-      } else {
-        const grid = createElement('div', 'card-grid');
-        const fragment = document.createDocumentFragment();
-        records.forEach(record => fragment.appendChild(directoryCardFor_(record)));
-        grid.appendChild(fragment);
-        zone.appendChild(grid);
+        body.appendChild(createElement('div', 'zone-empty', 'Nobody matches.'));
+        return;
       }
-      body.appendChild(zone);
+
+      const list = createElement('div', 'dir-list');
+      const fragment = document.createDocumentFragment();
+      let letter = '';
+      records.forEach(record => {
+        const initial = String(record.name || '').trim().charAt(0).toUpperCase() || '#';
+        if (initial !== letter) {
+          letter = initial;
+          fragment.appendChild(createElement('div', 'dir-letter', letter));
+        }
+        fragment.appendChild(directoryRowFor_(record));
+      });
+      list.appendChild(fragment);
+      body.appendChild(list);
     }
 
     function handleDirectorySearchInput() {
@@ -12102,7 +12185,6 @@
             record.invitedPurposeOther = payload.invitedPurposeOther;
             record.staffAssignment = payload.staffAssignment;
             prepareRecordForDisplay_(record);
-            directoryCardCache_.delete(record.guestId);
             if (currentRoute_.name === 'directory') renderDirectory_();
           }
 
