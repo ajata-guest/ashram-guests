@@ -1947,7 +1947,20 @@
 
     .action-label-compact { display: none; }
 
-    .status-swipe-surface { min-width: 0; touch-action: pan-y; }
+    /* The surface reaches down past the last card so the blank area under a
+       short list is still part of it. That matters more than it looks: the
+       touchmove listener is passive and cannot preventDefault, so the sideways
+       axis is reserved purely by touch-action here — and touch-action can only
+       ever be narrowed by a descendant, never widened. Putting pan-y on .page
+       instead would have taken horizontal panning away from the tier tabs, the
+       filter chips and the meals calendar strip, all of which live inside it.
+       pinch-zoom is kept explicitly so extending this area does not quietly
+       cost the page its zoom. */
+    .status-swipe-surface {
+      min-width: 0;
+      min-height: calc(100dvh - 200px);
+      touch-action: pan-y pinch-zoom;
+    }
 
     .workspace-dock {
       --dock-panel-width: 64px;
