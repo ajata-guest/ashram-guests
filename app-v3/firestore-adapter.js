@@ -48,8 +48,17 @@ const MEAL_RECURRENCES = new Set(["oneTime", "daily", "weekly"]);
 // and emphatically nothing past. Sorting them into Past (which is what falling
 // through to it did) told the office a brand-new record was finished business.
 // They belong under All Guests until something is actually scheduled for them.
-const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5 };
-const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity" };
+const DIRECTORY_TIER = { PRIORITY: 1, TODAY: 2, UPCOMING: 3, PAST: 4, NONE: 5, RESIDENT: 6 };
+const DIRECTORY_TIER_LABEL = { 1: "Priority", 2: "Today", 3: "Upcoming", 4: "Past", 5: "No activity", 6: "Resident" };
+
+// Someone who lives here, expressed as an ordinary guest with an ashram stay
+// that has no beginning and no end. Everything that would otherwise treat a
+// dateless stay as an unfinished one asks this first. Written as one predicate
+// so the rule lives in a single place rather than as a person-type check
+// scattered through the read paths.
+function isResidencyStay(visit, personType) {
+  return Boolean(visit) && personType === "Permanent Resident" && visit.accommodation === "Ashram";
+}
 const COLLECTIONS = [
   "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
   "mealSchedules", "mealSeatingChanges", "mealAbsences", "permanentResidents",
@@ -297,8 +306,14 @@ function resolveMealDay(canonical, dateKey) {
     });
   }
 
+  // Skipped once the same person exists as a guest, so the two sources can
+  // never both feed the roster. This switches per person as the migration
+  // lands, which is what keeps a partial migration correct.
+  const migratedResidentIds = new Set(canonical.guests
+    .map(item => item.migratedFromResidentId).filter(Boolean));
   canonical.permanentResidents
-    .filter(item => item.active !== false && dateInside(dateKey, item.activeFromKey || "", item.activeUntilKey || ""))
+    .filter(item => !migratedResidentIds.has(item.id)
+      && item.active !== false && dateInside(dateKey, item.activeFromKey || "", item.activeUntilKey || ""))
     .forEach(item => addSource(
       "permanentResident", item.id, residentMeals(item),
       { type: "residence", id: item.id, label: "Permanent resident" },
@@ -306,8 +321,16 @@ function resolveMealDay(canonical, dateKey) {
     ));
 
   canonical.visits
-    .filter(item => !item.isCancelled && item.accommodation === "Ashram"
-      && item.arrivalDateKey && dateInside(dateKey, item.arrivalDateKey, item.departureDateKey || ""))
+    .filter(item => {
+      if (item.isCancelled || item.accommodation !== "Ashram") return false;
+      // A residency has no arrival date to fall inside, so it counts for every
+      // day; an ordinary stay still has to contain the date.
+      if (isResidencyStay(item, guestsById[item.guestId]?.personType)) {
+        return dateInside(dateKey, item.arrivalDateKey || "", item.departureDateKey || "");
+      }
+      return Boolean(item.arrivalDateKey)
+        && dateInside(dateKey, item.arrivalDateKey, item.departureDateKey || "");
+    })
     // A guest housed here is put on the roster by residence alone — which
     // meals, and the seating they start from, are both properties of the stay.
     .forEach(item => addSource(
@@ -657,10 +680,13 @@ function priorityReasons(record, now, todayKey) {
     });
   }
   if (stayOver) return reasons;
-  if (!visit.arrivalDate) reasons.push("Arrival date not set");
+  // A residency has no arrival to record and keeps its room on the rooms
+  // collection, so neither of these is a missing detail for a resident.
+  const residency = isResidencyStay(visit, record.personType);
+  if (!visit.arrivalDate && !residency) reasons.push("Arrival date not set");
   if (visit.accommodation === "TBD") reasons.push("Accommodation not decided");
   if (visit.accommodation === "Outside - Arranged by Ashram" && !visit.outsideAccommodationConfirmed) reasons.push("Outside accommodation not confirmed");
-  if (visit.accommodation === "Ashram" && !visit.rooms.length) reasons.push("Room missing");
+  if (visit.accommodation === "Ashram" && !visit.rooms.length && !residency) reasons.push("Room missing");
   // The C-form registers a foreign national staying on the premises, so it
   // only applies once they are actually here and only when the ashram itself
   // is housing them — not for a guest the ashram booked into a hotel.
@@ -686,6 +712,9 @@ function priorityReasons(record, now, todayKey) {
 // longer decide which tab a guest appears under.
 function directoryTier(record, reasons, todayKey) {
   const visit = record.visit;
+  // Decided before anything else: a resident is never passing through, so the
+  // transient tiers have nothing to say about them.
+  if (isResidencyStay(visit, record.personType)) return DIRECTORY_TIER.RESIDENT;
   const happensToday = (visit && [visit.arrivalDate, visit.departureDate].includes(todayKey))
     || (record.mealsToday || []).length
     || (record.upcomingMeetings || []).some(item => item.status === "Scheduled" && item.date === todayKey);

@@ -6354,7 +6354,11 @@
       { key: 'all', tier: null, label: 'All Guests', shortLabel: 'All', accent: '#b878d6', zone: '', description: 'Every active Directory record' },
       { key: 'today', tier: 2, label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', zone: 'zone-today', description: 'Something happening today' },
       { key: 'upcoming', tier: 3, label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', zone: 'zone-upcoming', description: 'Something still ahead of them' },
-      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' }
+      { key: 'past', tier: 4, label: 'Past', shortLabel: 'Past', accent: '#aaa', zone: 'zone-past', description: 'History, but nothing current or upcoming' },
+      // People who live here. Their own tier because none of the tiers above
+      // describes them: nothing is upcoming, nothing is past, and they are not
+      // here for today in particular.
+      { key: 'residents', tier: 6, label: 'Residents', shortLabel: 'Residents', accent: '#71d99d', zone: 'zone-current', description: 'Permanent residents of the ashram' }
     ]);
 
     const DIRECTORY_CHIPS_ = Object.freeze([
@@ -6726,13 +6730,16 @@
     const ACCOMMODATION_SECTIONS_ = Object.freeze([
       { key: 'attention', label: 'Needs Attention', shortLabel: 'Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
       { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
-      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
+      // A resident is residing every day, with no arrival date to prove it.
+      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) || (v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today)) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
       { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
     ]);
 
     const ACCOMMODATION_CHIPS_ = Object.freeze([
-      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length },
+      // A resident's room is held on the rooms collection, out of guest
+      // inventory, so its absence from the visit is not an unassigned room.
+      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length && !isResidencyStay_(v) },
       { label: 'Accommodation TBD', test: v => v.accommodation === 'TBD' },
       { label: 'Outside not confirmed', test: v => v.accommodation === 'Outside - Arranged by Ashram' && !v.outsideAccommodationConfirmed },
       { label: 'C-form pending', test: v => isCformPending_(v) },
@@ -7103,15 +7110,23 @@
         return label ? `${text}, ${label}` : text;
       };
       const status = visitStayStatus_(visit);
+      // A residency has no dates by design, so the three "not set" badges a
+      // dateless stay would otherwise collect are not omissions to chase.
+      const residency = isResidencyStay_(visit);
+      if (residency) {
+        badges.appendChild(createBadge('Lives here', 'badge-confirmed'));
+        card.appendChild(createDetailLine('icon-calendar', 'Ongoing residency'));
+      }
       // With both dates the line is a bare range and says nothing about where
       // the guest is in it, so the standing is a badge instead — it keeps the
       // date line to one short row. Upcoming needs no badge: that is what a
       // future date already means.
-      if (visit.arrivalMs && visit.departureMs) {
+      if (!residency && visit.arrivalMs && visit.departureMs) {
         if (status === 'staying') badges.appendChild(createBadge('Staying', 'badge-confirmed'));
         else if (status === 'departed') badges.appendChild(createBadge('Departed', 'badge-gray'));
       }
-      if (visit.arrivalMs && visit.departureMs) {
+      if (residency) { /* the line above already says it */ }
+      else if (visit.arrivalMs && visit.departureMs) {
         const sameYear = new Date(visit.arrivalMs).getFullYear() === new Date(visit.departureMs).getFullYear();
         const from = sameYear ? dayMonth(visit.arrivalMs) : dateFormat(visit.arrivalMs);
         card.appendChild(createDetailLine('icon-calendar',
@@ -7126,9 +7141,11 @@
           `${status === 'departed' ? 'Departed' : 'Departs'} ${withTime(dateFormat(visit.departureMs), visit.departureTime)}`));
       }
 
-      if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
-      if (!visit.departureMs && visit.accommodation && visit.accommodation !== 'No overnight stay') {
-        outstanding.push({ label: 'Departure date not set', badgeClass: 'badge-action' });
+      if (!residency) {
+        if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
+        if (!visit.departureMs && visit.accommodation && visit.accommodation !== 'No overnight stay') {
+          outstanding.push({ label: 'Departure date not set', badgeClass: 'badge-action' });
+        }
       }
 
       if (visit.accommodation === 'Ashram') {
@@ -7143,7 +7160,7 @@
             const sharing = describeRoomSharing_(roomSharingPartnersForVisit_(visit, room));
             if (sharing) card.appendChild(createElement('div', 'detail-subline', sharing));
           });
-        } else {
+        } else if (!residency) {
           outstanding.push({ label: 'Room not assigned', badgeClass: 'badge-action' });
         }
       } else if (visit.accommodation) {
@@ -7183,6 +7200,13 @@
       if (!visit || !visit.isForeign || visit.cformComplete) return false;
       if (visit.accommodation !== 'Ashram') return false;
       return hasVisitArrived_(visit);
+    }
+
+    // Mirrors isResidencyStay in the adapter: a stay that has no beginning
+    // because the person lives here. Kept as one predicate so the rule is
+    // stated once rather than as a person-type check in four renderers.
+    function isResidencyStay_(visit) {
+      return Boolean(visit) && visit.personType === 'Permanent Resident' && visit.accommodation === 'Ashram';
     }
 
     function hasVisitArrived_(visit) {
