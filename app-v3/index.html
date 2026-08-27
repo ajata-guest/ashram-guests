@@ -1013,15 +1013,16 @@
        narrowing a name never pushes the remaining basic fields around. */
     .guest-name-lookup { position: relative; }
 
-    /* The suggestion list is absolutely positioned inside its dialog, and the
-       dialog is its own scroll container — so where the lookup is the last
-       thing in a short dialog the list was cut off at the dialog's edge and
-       typing spawned a scrollbar. Reserving room underneath while the list is
-       open lets the dialog grow and the list open into empty space. Written
-       once for every dialog carrying a guest lookup (Add Guest, Add Visit and
-       the meal editor) rather than per dialog, which is how the meal editor
-       came to be the only one that behaved. */
-    .modal-content:has(.guest-name-suggestions:not([hidden])) { padding-bottom: 250px; }
+    /* The room a dialog makes for its open suggestion list is measured and set
+       by syncSuggestionSpace_ rather than written here: a fixed reservation is
+       either too little — the list cut off at the dialog's edge — or, far more
+       often, too much, leaving a stretch of empty dialog under a list of two
+       names.
+       Deliberately no transition on that padding. It reads well, but the
+       measurement clears the padding and re-reads the dialog's height on every
+       keystroke, and mid-animation those reads are of a height on its way
+       somewhere — so an eased resize buys a little smoothness at the cost of
+       reserving the wrong amount of room. */
 
     .guest-name-suggestions {
       position: absolute;
@@ -8022,6 +8023,7 @@
       const list = $('add-visit-guest-suggestions');
       if (!list) return;
       list.hidden = true;
+      syncSuggestionSpace_(list);
       $('add-visit-guest-name').setAttribute('aria-expanded', 'false');
       $('add-visit-guest-name').removeAttribute('aria-activedescendant');
       addVisitSuggestionIndex_ = -1;
@@ -8080,6 +8082,7 @@
       }
       list.hidden = false;
       $('add-visit-guest-name').setAttribute('aria-expanded', 'true');
+      syncSuggestionSpace_(list);
     }
 
     function setActiveAddVisitSuggestion_(index) {
@@ -9600,10 +9603,15 @@
         add.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Basic details and the first meal arrangement will be saved together'));
         add.addEventListener('click', () => selectNewMealGuest_(input.value.trim())); list.appendChild(add);
       }
-      list.hidden = !list.children.length; input.setAttribute('aria-expanded', String(!list.hidden));
+      list.hidden = !list.children.length; syncSuggestionSpace_(list); input.setAttribute('aria-expanded', String(!list.hidden));
     }
 
-    function hideMealGuestSuggestions_() { $('meal-guest-suggestions').hidden = true; $('meal-guest-name').setAttribute('aria-expanded', 'false'); }
+    function hideMealGuestSuggestions_() {
+      const list = $('meal-guest-suggestions');
+      list.hidden = true;
+      syncSuggestionSpace_(list);
+      $('meal-guest-name').setAttribute('aria-expanded', 'false');
+    }
 
     // The notice under the guest field describes whichever guest is currently
     // chosen ("Guest already added" / "New guest ..."). It must be emptied
@@ -11282,9 +11290,43 @@
       if (foreignLabel) foreignLabel.classList.toggle('disabled-label', disabled);
     }
 
+    // Gives a dialog exactly as much room underneath as its open suggestion
+    // list actually needs, and takes it straight back when the list closes.
+    //
+    // The list is positioned absolutely, so it contributes nothing to the
+    // dialog's height and is clipped at the edge of the dialog's scroll box.
+    // A fixed reservation was the first fix and the wrong one: enough for ten
+    // names is far too much for two, and the dialog sat there half empty. This
+    // measures how far the list actually overhangs and reserves that.
+    //
+    // Call it after the list is populated and its hidden state is set — the
+    // measurement is of the real thing, not a prediction about it.
+    function syncSuggestionSpace_(list) {
+      const content = list && list.closest ? list.closest('.modal-content') : null;
+      if (!content) return;
+      // Measured against the dialog's natural height, so repeated calls as
+      // somebody types do not compound one reservation on top of the last.
+      content.style.removeProperty('padding-bottom');
+      if (list.hidden) return;
+
+      // Measured against the dialog's visible edge, not its scroll height. An
+      // absolutely positioned list adds to what a box can be scrolled to but
+      // nothing to how tall the box lays itself out — which is exactly why it
+      // ended up below the fold behind a scrollbar instead of inside a taller
+      // dialog. Padding is the one thing that does make the box taller.
+      const overhang = Math.ceil(
+        list.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom
+      );
+      if (overhang <= 0) return;
+
+      const base = parseFloat(window.getComputedStyle(content).paddingBottom) || 0;
+      content.style.paddingBottom = `${base + overhang + 12}px`;
+    }
+
     function hideExistingGuestSuggestions_() {
       const list = $('existing-guest-suggestions');
       list.hidden = true;
+      syncSuggestionSpace_(list);
       $('edit-name').setAttribute('aria-expanded', 'false');
       $('edit-name').removeAttribute('aria-activedescendant');
       existingGuestSuggestionIndex_ = -1;
@@ -11385,6 +11427,7 @@
 
       list.hidden = false;
       $('edit-name').setAttribute('aria-expanded', 'true');
+      syncSuggestionSpace_(list);
     }
 
     function setActiveExistingGuestSuggestion_(index) {
