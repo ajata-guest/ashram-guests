@@ -2182,6 +2182,22 @@
     .workspace-dock.open,
     .workspace-dock.dragging { height: var(--dock-panel-height); }
 
+    /* Meals only — see updateWorkspaceDockForPage_. Anchored to the bottom
+       rather than nudged down by some number of pixels, so the panel grows
+       upward from a fixed edge and cannot run off the screen on a short one,
+       whatever height it opens to. */
+    .workspace-dock.dock-low {
+      top: auto;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      transform: none;
+    }
+
+    .workspace-dock.dock-low .workspace-dock-panel {
+      top: auto;
+      bottom: 0;
+      transform: none;
+    }
+
     .workspace-dock-panel {
       position: absolute;
       top: 50%;
@@ -4899,6 +4915,12 @@
 
       if (!visible) setWorkspaceDockOpen_(false);
       dock.hidden = !visible;
+      // The dock is opened by dragging it sideways, which is the same gesture
+      // that moves the meal calendar's day strip — so wherever the two
+      // overlap, the dock takes the drag and the strip never sees it. They
+      // cannot share the axis, so on Meals the dock gives up the middle of the
+      // edge and sits at the bottom, clear of the strip entirely.
+      dock.classList.toggle('dock-low', pageId === 'page-meals');
       dock.querySelectorAll('.workspace-dock-destination').forEach(button => {
         const active = button.dataset.dockPage === pageId;
         button.classList.toggle('active', active);
