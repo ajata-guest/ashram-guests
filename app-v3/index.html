@@ -3541,13 +3541,19 @@
         </div>
       </div>
 
-      <div class="input-group">
+      <!-- The same lookup the Add Visit and meal editors use: matches drop
+           below the field as you type, and when none of them is the person
+           you mean, the last entry in that list creates them. It used to be a
+           list of results with a separate Create button beneath, which asked
+           you to look in two places for what is really one choice. -->
+      <div class="input-group" style="margin-bottom:0">
         <label class="input-label" for="add-to-workspace-search">Guest name</label>
-        <input type="text" id="add-to-workspace-search" class="edit-input" placeholder="Type a name..." autocomplete="off">
-      </div>
-      <div id="add-to-workspace-matches" class="travel-leg-list"></div>
-      <div id="add-to-workspace-create-row" class="dialog-actions" hidden>
-        <button id="add-to-workspace-create-btn" class="dialog-primary-btn" type="button">Create new guest "<span id="add-to-workspace-create-name"></span>"</button>
+        <div class="guest-name-lookup">
+          <input type="text" id="add-to-workspace-search" class="edit-input" maxlength="500" autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="add-to-workspace-suggestions"
+            placeholder="Start typing a guest name...">
+          <div id="add-to-workspace-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Guest suggestions" hidden></div>
+        </div>
       </div>
     </div>
   </div>
@@ -4445,6 +4451,7 @@
         if (!event.target.closest('.guest-name-lookup')) hideExistingGuestSuggestions_();
         if (!event.target.closest('#add-visit-manager-view .guest-name-lookup')) hideAddVisitGuestSuggestions_();
         if (!event.target.closest('#meal-editor-guest-section .guest-name-lookup')) hideMealGuestSuggestions_();
+        if (!event.target.closest('#add-to-workspace-modal .guest-name-lookup')) hideGuestPickerSuggestions_();
       });
       // The sheet's own buttons are built per card, so only the two fixed
       // ways out need binding here.
@@ -4484,7 +4491,7 @@
         if (event.target === $('add-to-workspace-modal')) closeGuestPicker_();
       });
       $('add-to-workspace-search').addEventListener('input', handleGuestPickerSearchInput_);
-      $('add-to-workspace-create-btn').addEventListener('click', createGuestFromPicker_);
+      $('add-to-workspace-search').addEventListener('keydown', handleGuestPickerKeydown_);
 
       $('visit-editor-modal').addEventListener('input', markModalDirty);
       $('visit-editor-modal').addEventListener('change', markModalDirty);
@@ -7889,22 +7896,36 @@
     // reuse this in their own phases rather than each building their own.
     let guestPickerOnSelect_ = null;
     let guestPickerSearchTimer_ = null;
+    let guestPickerIndex_ = -1;
+    // Every search is numbered, so a slow reply for "th" cannot land on top of
+    // a fast one for "thier" and put the wrong names under the cursor.
+    let guestPickerRequest_ = 0;
 
     function openGuestPicker_(onSelect) {
       guestPickerOnSelect_ = onSelect;
       $('add-to-workspace-search').value = '';
-      $('add-to-workspace-matches').replaceChildren();
-      $('add-to-workspace-create-row').hidden = true;
+      hideGuestPickerSuggestions_();
       $('add-to-workspace-modal').style.display = 'flex';
       $('add-to-workspace-modal').setAttribute('aria-hidden', 'false');
       $('add-to-workspace-search').focus();
     }
 
     function closeGuestPicker_() {
+      hideGuestPickerSuggestions_();
       $('add-to-workspace-modal').style.display = 'none';
       $('add-to-workspace-modal').setAttribute('aria-hidden', 'true');
       guestPickerOnSelect_ = null;
       window.clearTimeout(guestPickerSearchTimer_);
+    }
+
+    function hideGuestPickerSuggestions_() {
+      const list = $('add-to-workspace-suggestions');
+      list.replaceChildren();
+      list.hidden = true;
+      syncSuggestionSpace_(list);
+      $('add-to-workspace-search').setAttribute('aria-expanded', 'false');
+      $('add-to-workspace-search').removeAttribute('aria-activedescendant');
+      guestPickerIndex_ = -1;
     }
 
     function handleGuestPickerSearchInput_() {
@@ -7914,46 +7935,117 @@
 
     function loadGuestPickerMatches_() {
       const query = $('add-to-workspace-search').value.trim();
-      const matchesEl = $('add-to-workspace-matches');
-      const createRow = $('add-to-workspace-create-row');
-      matchesEl.replaceChildren();
       if (!query) {
-        createRow.hidden = true;
+        hideGuestPickerSuggestions_();
         return;
       }
+      const token = ++guestPickerRequest_;
       apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
         .then(page => {
-          const rows = Array.isArray(page.guests) ? page.guests : [];
-          rows.forEach(row => {
-            const item = createElement('div', 'travel-leg-summary');
-            item.style.cursor = 'pointer';
-            const text = createElement('div', 'travel-leg-summary-text');
-            text.appendChild(createElement('span', '', `${row.name} \u00B7 ${row.personType}`));
-            item.appendChild(text);
-            item.addEventListener('click', () => {
-              const callback = guestPickerOnSelect_;
-              closeGuestPicker_();
-              if (callback) callback(row.guestId, false);
-            });
-            matchesEl.appendChild(item);
-          });
-          createRow.hidden = false;
-          $('add-to-workspace-create-name').textContent = query;
+          if (token !== guestPickerRequest_) return;
+          renderGuestPickerSuggestions_(query, Array.isArray(page.guests) ? page.guests : []);
         })
         .catch(error => handleApiError(error, err => showToast(`Search failed: ${getErrorMessage(err)}`, 'error')));
     }
 
-    function createGuestFromPicker_() {
-      const name = $('add-to-workspace-search').value.trim();
-      if (!name) return;
+    function renderGuestPickerSuggestions_(query, rows) {
+      const list = $('add-to-workspace-suggestions');
+      list.replaceChildren();
+      guestPickerIndex_ = -1;
+
+      rows.forEach((row, index) => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.id = `add-to-workspace-option-${index}`;
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', row.name || 'Unnamed guest'));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta',
+          `${row.personType || 'Guest'} \u00B7 Existing guest`));
+        option.addEventListener('click', () => {
+          const callback = guestPickerOnSelect_;
+          closeGuestPicker_();
+          if (callback) callback(row.guestId, false);
+        });
+        list.appendChild(option);
+      });
+
+      // Offered unless one of the matches already carries that exact name, so
+      // the way to add somebody new is the last line of the same list rather
+      // than a button somewhere else on the dialog.
+      const exact = rows.some(row => normalizeSearchText(row.name || '') === normalizeSearchText(query));
+      if (!exact) {
+        const option = createElement('button', 'guest-name-suggestion add-visit-new-option');
+        option.type = 'button';
+        option.id = 'add-to-workspace-new-option';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', `+ Add \u201C${query}\u201D as a new guest`));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta',
+          'Added to the Directory with basic details you can fill in later'));
+        option.addEventListener('click', () => createGuestFromPicker_(query, option));
+        list.appendChild(option);
+      }
+
+      list.hidden = !list.children.length;
+      syncSuggestionSpace_(list);
+      $('add-to-workspace-search').setAttribute('aria-expanded', String(!list.hidden));
+    }
+
+    function setActiveGuestPickerSuggestion_(index) {
+      const options = [...$('add-to-workspace-suggestions').querySelectorAll('.guest-name-suggestion')];
+      if (!options.length) return;
+      guestPickerIndex_ = (index + options.length) % options.length;
+      options.forEach((option, optionIndex) => {
+        const active = optionIndex === guestPickerIndex_;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-selected', String(active));
+      });
+      const activeOption = options[guestPickerIndex_];
+      $('add-to-workspace-search').setAttribute('aria-activedescendant', activeOption.id);
+      activeOption.scrollIntoView({ block: 'nearest' });
+    }
+
+    function handleGuestPickerKeydown_(event) {
+      const list = $('add-to-workspace-suggestions');
+      if (event.key === 'Escape' && !list.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        hideGuestPickerSuggestions_();
+        return;
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+      const options = [...list.querySelectorAll('.guest-name-suggestion')];
+      if (list.hidden || !options.length) return;
+      if (event.key === 'Enter') {
+        if (guestPickerIndex_ < 0) return;
+        event.preventDefault();
+        options[guestPickerIndex_].click();
+        return;
+      }
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const next = guestPickerIndex_ < 0
+        ? (direction > 0 ? 0 : options.length - 1)
+        : guestPickerIndex_ + direction;
+      setActiveGuestPickerSuggestion_(next);
+    }
+
+    function createGuestFromPicker_(name, option) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return;
+      if (option) option.disabled = true;
       const guestId = crypto.randomUUID();
-      apiCall('createGuest', { payload: { guestId, name, personType: 'Invited Guest' } })
+      apiCall('createGuest', { payload: { guestId, name: trimmed, personType: 'Invited Guest' } })
         .then(() => {
           const callback = guestPickerOnSelect_;
           closeGuestPicker_();
           if (callback) callback(guestId, true);
         })
-        .catch(error => handleApiError(error, err => showToast(`Couldn't create guest: ${getErrorMessage(err)}`, 'error')));
+        .catch(error => {
+          if (option) option.disabled = false;
+          handleApiError(error, err => showToast(`Couldn't create guest: ${getErrorMessage(err)}`, 'error'));
+        });
     }
 
     function handleAddVisitClick_() {
