@@ -3281,7 +3281,6 @@
       <div class="modal-section-nav" id="visit-section-nav" aria-label="Jump to section" hidden>
         <button type="button" class="section-nav-pill" data-target="add-visit-basic-details">Basic Details</button>
         <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
-        <button type="button" class="section-nav-pill" data-target="visit-sec-away">Away</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
@@ -3384,7 +3383,7 @@
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
           Away
         </h3>
-        <p class="travel-help">Days within this stay when they are not at the ashram. They come off the meal roster, stop counting as residing, and no meeting with Swamiji can be booked over them. The room stays theirs.</p>
+        <p class="travel-help">Days within this stay when they are not at the ashram. Their room stays theirs.</p>
         <div id="visit-away-list" class="travel-leg-list"></div>
         <div id="visit-away-empty" class="travel-empty">No away periods.</div>
         <div class="travel-section-header" style="margin-top:10px">
@@ -5748,7 +5747,6 @@
           // in the ashram, and in town but staying elsewhere.
           { value: s.accommodation.currentlyResiding || 0, label: 'residing' },
           { value: s.accommodation.nearby || 0, label: 'nearby' },
-          { value: s.accommodation.away || 0, label: 'away' },
           { value: s.accommodation.upcoming || 0, label: 'upcoming' }
         ],
         attention: s => s.accommodation.attentionNeeded,
@@ -7156,6 +7154,11 @@
       const rooms = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
 
       const line = (() => {
+        // Away outranks the rest: they are not residing, not nearby, and
+        // saying when they are back is more use than what they did last.
+        if (record.away) {
+          return describeAwayPeriod_({ from: record.awayFrom, to: record.awayTo });
+        }
         if (record.residingInAshram) {
           return rooms.length ? `Residing \u00B7 ${rooms.join(' & ')}` : 'Residing \u00B7 room not assigned';
         }
@@ -7315,8 +7318,10 @@
       // is today and exactly one is true at a time.
       { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && !visitAwayOn_(v, today) && isVisitPresent_(v, today) },
       // A stay carries on while its guest is elsewhere — the room stays
-      // theirs — so they belong here rather than nowhere. Dropping them out
-      // of Residing without showing them anywhere would read as a bug.
+      // theirs — so they are findable here rather than in no tab at all.
+      // Deliberately not a figure on the homepage: somebody away is simply
+      // not residing, so the residing count falling by one says it already,
+      // and a second number would only invite adding the two together.
       { key: 'away', label: 'Away', shortLabel: 'Away', accent: '#9aa0a6', test: (v, today) => Boolean(visitAwayOn_(v, today)) && (isResidencyStay_(v) || isVisitPresent_(v, today)) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
       { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }

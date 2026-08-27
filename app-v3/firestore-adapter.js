@@ -953,7 +953,7 @@ function homeSummary(canonical, records) {
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
-    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, nearby: 0, away: 0, attentionNeeded: 0 },
+    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, nearby: 0, attentionNeeded: 0 },
     meals: {
       counts: todayMeals.counts,
       mealStats: todayMeals.mealStats,
@@ -982,8 +982,10 @@ function homeSummary(canonical, records) {
     // Here right now, split by where they sleep: residing on campus, nearby
     // anywhere else. Between them they account for everyone actually around.
     const awayToday = awayPeriodOn(awayPeriodsFor(canonical, guest.id), today);
-    if (isAwayFromStay(view, today, guest.personType, now, awayToday)) result.accommodation.away += 1;
-    else if (isAshramResident(view, today, guest.personType, now, awayToday)) result.accommodation.currentlyResiding += 1;
+    // Away is not counted on its own: somebody elsewhere is simply not
+    // residing, so the residing figure falls by one and that is the whole of
+    // it. The away dates themselves are shown on the person, not tallied.
+    if (isAshramResident(view, today, guest.personType, now, awayToday)) result.accommodation.currentlyResiding += 1;
     else if (isNearby(view, today, now, awayToday)) result.accommodation.nearby += 1;
     if (visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), today, now).length) {
       result.accommodation.attentionNeeded += 1;
