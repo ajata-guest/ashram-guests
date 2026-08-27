@@ -2825,6 +2825,12 @@
       overscroll-behavior-x:contain;
     }
     .meal-cal-scroll::-webkit-scrollbar { display:none; }
+    /* Everything in the calendar block except the strip gives the horizontal
+       axis up to the tier swipe. Set on these two rather than on the card,
+       because the card is an ancestor of the strip and touch-action can only
+       be narrowed by a descendant, never widened — pan-y up there would stop
+       the strip being dragged sideways at all. */
+    .meal-cal-bar, .meal-cal-arrow { touch-action:pan-y; }
     .meal-cal-track { display:flex; width:max-content; }
     .meal-cal-day {
       display:flex; width:52px; padding:7px 2px 8px; gap:2px; flex-direction:column; align-items:center;
@@ -5225,8 +5231,21 @@
         gesture = null;
       }
 
+      // The meal calendar is made almost entirely of buttons — the month, the
+      // Today button, the two arrows, and every day in the strip — so the
+      // interactive rule below turned the whole block into a band where no
+      // horizontal gesture did anything at all. Its controls are things you
+      // tap, not things you drag, so dragging across them should move between
+      // tiers like the rest of the page. The strip is the one exception: there
+      // a horizontal drag already means "other days", and it keeps that.
+      const startsTierSwipe_ = target => {
+        if (target.closest('.meal-cal-scroll')) return false;
+        if (!target.closest(interactiveSelector)) return true;
+        return Boolean(target.closest('.meal-calendar'));
+      };
+
       document.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1 || statusSwipeDialogOpen_() || event.target.closest(interactiveSelector)) return;
+        if (event.touches.length !== 1 || statusSwipeDialogOpen_() || !startsTierSwipe_(event.target)) return;
         const config = statusSwipeConfig_();
         if (!config || !config.surface || config.keys.length < 2) return;
         // The gesture belongs to the page, not to the run of cards. Requiring
