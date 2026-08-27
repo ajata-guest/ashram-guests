@@ -2182,21 +2182,6 @@
     .workspace-dock.open,
     .workspace-dock.dragging { height: var(--dock-panel-height); }
 
-    /* Meals only — see updateWorkspaceDockForPage_. Anchored to the bottom
-       rather than nudged down by some number of pixels, so the panel grows
-       upward from a fixed edge and cannot run off the screen on a short one,
-       whatever height it opens to. */
-    .workspace-dock.dock-low {
-      top: auto;
-      bottom: calc(16px + env(safe-area-inset-bottom));
-      transform: none;
-    }
-
-    .workspace-dock.dock-low .workspace-dock-panel {
-      top: auto;
-      bottom: 0;
-      transform: none;
-    }
 
     .workspace-dock-panel {
       position: absolute;
@@ -4915,12 +4900,6 @@
 
       if (!visible) setWorkspaceDockOpen_(false);
       dock.hidden = !visible;
-      // The dock is opened by dragging it sideways, which is the same gesture
-      // that moves the meal calendar's day strip — so wherever the two
-      // overlap, the dock takes the drag and the strip never sees it. They
-      // cannot share the axis, so on Meals the dock gives up the middle of the
-      // edge and sits at the bottom, clear of the strip entirely.
-      dock.classList.toggle('dock-low', pageId === 'page-meals');
       dock.querySelectorAll('.workspace-dock-destination').forEach(button => {
         const active = button.dataset.dockPage === pageId;
         button.classList.toggle('active', active);
@@ -4965,6 +4944,14 @@
         if (!drag) return;
         const dx = event.clientX - drag.startX;
         const moved = drag.isHorizontal && Math.abs(dx) > TAP_SLOP;
+        // The drag scrolled the strip underneath, so it says nothing about
+        // whether the dock should be open. Only the stray click a pointer
+        // drag leaves behind still needs swallowing.
+        if (drag.passthrough && moved) {
+          dragReleaseClick_ = { x: event.clientX, y: event.clientY, expiresAt: event.timeStamp + 120 };
+          drag = null;
+          return;
+        }
         const threshold = Math.min(14, drag.width * 0.2);
         const shouldOpen = cancelled
           ? drag.startedOpen
@@ -4993,8 +4980,29 @@
       // than forcing the user to find the narrow Home ribbon again. The dock
       // lives outside every status-swipe surface, keeping the two gestures
       // isolated by where the touch begins.
+      // What lies under the finger, if it is something that scrolls sideways —
+      // the meal calendar's day strip being the one such thing in the app.
+      // The dock floats over the page, so wherever it lands on that strip the
+      // two want the same gesture: dragging the dock sideways opens it,
+      // dragging the strip sideways moves through the days. Only one can have
+      // a given patch of screen, and the strip is content where the dock is
+      // furniture, so the strip takes the drag there. The dock still opens by
+      // a tap, and by a drag anywhere it is not covering something scrollable.
+      //
+      // Found by asking what actually scrolls rather than by naming the strip,
+      // so anything horizontal added later is handled without knowing of it.
+      function scrollerBeneath_(event) {
+        if (event.pointerType === 'mouse' || workspaceDockOpen_) return null;
+        const stack = document.elementsFromPoint(event.clientX, event.clientY) || [];
+        return stack.find(element => element !== dock
+          && !dock.contains(element)
+          && element.scrollWidth > element.clientWidth + 1
+          && ['auto', 'scroll'].includes(window.getComputedStyle(element).overflowX)) || null;
+      }
+
       dock.addEventListener('pointerdown', event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
+        const passthrough = scrollerBeneath_(event);
         drag = {
           pointerId: event.pointerId,
           startX: event.clientX,
@@ -5004,7 +5012,9 @@
           captured: false,
           tapTarget: event.target.closest('.workspace-dock-destination, #workspace-dock-home, #workspace-dock-toggle'),
           width: panelWidth(),
-          closedInset: closedInsetPercent()
+          closedInset: closedInsetPercent(),
+          passthrough,
+          passthroughFrom: passthrough ? passthrough.scrollLeft : 0
         };
       });
 
@@ -5016,6 +5026,23 @@
           drag.isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.15;
         }
         if (!drag.isHorizontal) return;
+        // Driving the strip by hand, because the browser cannot: the touch
+        // belongs to the dock, and the strip is not one of the dock's scroll
+        // ancestors, so no value of touch-action would hand it over. Setting
+        // scrollLeft is what a native pan does anyway; what is missing is the
+        // fling afterwards, and the strip snaps to a day on release, which
+        // covers most of what the fling was for.
+        if (drag.passthrough) {
+          if (!drag.captured && dock.setPointerCapture) {
+            try {
+              dock.setPointerCapture(event.pointerId);
+              drag.captured = true;
+            } catch (_) {}
+          }
+          event.preventDefault();
+          drag.passthrough.scrollLeft = drag.passthroughFrom - dx;
+          return;
+        }
         // Capture only after this has become an intentional swipe. Immediate
         // capture retargets an ordinary desktop click to the nav container,
         // preventing the icon button underneath from receiving it.
