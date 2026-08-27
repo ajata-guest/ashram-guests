@@ -4057,7 +4057,7 @@
                way to something that has nothing to do with which view you
                happen to be reading. -->
           <button id="add-seva-team-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Seva Team</span><span class="action-label-compact">Team</span></button>
-          <button id="add-individual-task-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Individual Task</span><span class="action-label-compact">Task</span></button>
+          <button id="add-individual-task-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Individual Seva</span><span class="action-label-compact">Seva</span></button>
         </div>
       </div>
       <div id="seva-summary" class="page-summary"></div>
@@ -4068,18 +4068,18 @@
         <div class="travel-section-header">
           <h3 class="travel-section-title">Teams</h3>
         </div>
-        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual tasks.</p>
+        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual seva.</p>
         <div id="seva-teams-list" class="travel-leg-list"></div>
         <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
       </div>
 
       <div id="seva-view-tasks" hidden>
         <div class="travel-section-header">
-          <h3 class="travel-section-title">Individual Tasks</h3>
+          <h3 class="travel-section-title">Individual Seva</h3>
         </div>
         <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
         <div id="individual-tasks-list" class="travel-leg-list"></div>
-        <div id="individual-tasks-empty" class="travel-empty">No individual tasks yet.</div>
+        <div id="individual-tasks-empty" class="travel-empty">No individual seva yet.</div>
       </div>
       </div>
     </div>
@@ -5744,7 +5744,7 @@
         stats: s => [
           { value: s.seva.activeTeams, label: 'active teams' },
           { value: s.seva.activeTeamMembers, label: 'members' },
-          { value: s.seva.activeSpecificSeva, label: 'active tasks' }
+          { value: s.seva.activeSpecificSeva, label: 'active seva' }
         ],
         quiet: s => (s.seva.startingSoon ? `${s.seva.startingSoon} team${s.seva.startingSoon === 1 ? '' : 's'} not started yet` : '')
       },
@@ -5903,7 +5903,7 @@
     // the two views say so rather than one hiding the other.
     const SEVA_VIEWS_ = Object.freeze([
       { key: 'teams', label: 'Seva Teams', shortLabel: 'Teams', accent: '#F3CD97' },
-      { key: 'tasks', label: 'Individual Tasks', shortLabel: 'Tasks', accent: '#F3CD97' }
+      { key: 'tasks', label: 'Individual Seva', shortLabel: 'Seva', accent: '#F3CD97' }
     ]);
 
     let sevaView_ = 'teams';
@@ -5954,7 +5954,7 @@
       renderSummaryTiles_($('seva-summary'), [
         { value: teams.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TEAMS' },
         { value: teams.filter(t => t.status === 'Seva not started').length, label: 'NOT STARTED' },
-        { value: tasks.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TASKS' },
+        { value: tasks.filter(t => t.status === 'Seva active').length, label: 'ACTIVE SEVA' },
         { value: tasks.filter(t => t.status === 'Seva dates TBD').length, label: 'DATES NOT SET', attention: true }
       ]);
 
