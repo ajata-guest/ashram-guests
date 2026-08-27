@@ -4040,7 +4040,7 @@
   </div>
 
   <main id="page-seva" class="page" aria-label="Seva Teams and Tasks">
-    <div class="page-content" style="--accent:#F3CD97;--action-text:#211a10">
+    <div class="page-content" style="--accent:#FFAE70;--action-text:#211a10">
       <div class="page-header">
         <div class="page-title-block">
           <div class="page-title-row">
@@ -4101,7 +4101,7 @@
         <button class="workspace-dock-destination" type="button" data-nav="#meetings" data-dock-page="page-meetings" style="--dock-color:#fa8072" aria-label="Meetings with Swamiji" title="Meetings with Swamiji">
           <svg class="icon" aria-hidden="true"><use href="#icon-lamp"></use></svg>
         </button>
-        <button class="workspace-dock-destination" type="button" data-nav="#seva" data-dock-page="page-seva" style="--dock-color:#F3CD97" aria-label="Seva Teams and Tasks" title="Seva Teams &amp; Tasks">
+        <button class="workspace-dock-destination" type="button" data-nav="#seva" data-dock-page="page-seva" style="--dock-color:#FFAE70" aria-label="Seva Teams and Tasks" title="Seva Teams &amp; Tasks">
           <svg class="icon" aria-hidden="true"><use href="#icon-people"></use></svg>
         </button>
         <button class="workspace-dock-destination" type="button" data-nav="#trips" data-dock-page="page-trips" style="--dock-color:#b878d6" aria-label="Trips" title="Trips">
@@ -5739,7 +5739,7 @@
         attentionLabel: n => `${n} need completion`
       },
       {
-        route: '#seva', accent: '#F3CD97', icon: 'icon-people', title: 'Seva Teams & Tasks',
+        route: '#seva', accent: '#FFAE70', icon: 'icon-people', title: 'Seva Teams & Tasks',
         description: 'Event teams, members and individual seva',
         stats: s => [
           { value: s.seva.activeTeams, label: 'active teams' },
@@ -5902,8 +5902,8 @@
     // that are deliberately independent of them. Somebody can hold both, and
     // the two views say so rather than one hiding the other.
     const SEVA_VIEWS_ = Object.freeze([
-      { key: 'teams', label: 'Seva Teams', shortLabel: 'Teams', accent: '#F3CD97' },
-      { key: 'tasks', label: 'Individual Seva', shortLabel: 'Seva', accent: '#F3CD97' }
+      { key: 'teams', label: 'Seva Teams', shortLabel: 'Teams', accent: '#FFAE70' },
+      { key: 'tasks', label: 'Individual Seva', shortLabel: 'Seva', accent: '#FFAE70' }
     ]);
 
     let sevaView_ = 'teams';
