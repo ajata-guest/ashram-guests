@@ -2665,6 +2665,13 @@
         align-items: stretch;
       }
       .page-actions { width: 100%; }
+      /* Meals carries two actions rather than one, and a search box beside
+         two buttons leaves too little of each on a phone. The search takes
+         the row it needs and the pair sit side by side beneath it, splitting
+         the width evenly so neither is a sliver. */
+      #page-meals .page-actions { flex-wrap: wrap; }
+      #page-meals .page-search { flex: 1 1 100%; }
+      #page-meals .page-actions .primary-btn { flex: 1 1 0; justify-content: center; }
       .page-title-row { gap: 8px; }
       .page-title { flex: 1; }
       .page-back { width: 34px; height: 34px; padding: 0; justify-content: center; }
@@ -3570,7 +3577,13 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="meals-search" placeholder="Search guests..." aria-label="Search guests on this date"></div>
-          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span id="meals-add-label" class="action-label-full">Add Meal Arrangement</span><span class="action-label-compact">Add</span></button>
+          <!-- Both meal actions are offered on both meal tiers. Adding a
+               standing arrangement used to be reachable only after switching
+               to the Meal Schedules tier, which made a tab change a step on
+               the way to a thing that has nothing to do with which tier you
+               are reading. -->
+          <button id="meals-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span id="meals-add-label" class="action-label-full">Add Meal Arrangement</span><span id="meals-add-label-compact" class="action-label-compact">Meal</span></button>
+          <button id="meals-schedule-add-btn" class="primary-btn meals-secondary-action" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Schedule</span><span class="action-label-compact">Schedule</span></button>
         </div>
       </div>
 
@@ -3600,17 +3613,24 @@
                keeps working unchanged. -->
           <input type="date" id="meals-workspace-date" class="meal-cal-jump" aria-label="Jump to a date">
         </div>
-        <div id="meals-overview" class="meal-overview-grid" aria-label="Meal totals"></div>
-        <div id="meals-workspace-list"></div>
-        <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
+        <!-- The swipe surface starts below the calendar rather than around
+             the whole tier. A surface reserves the horizontal axis with
+             touch-action: pan-y, and touch-action can only be narrowed by a
+             descendant, never widened — so enclosing the calendar strip would
+             stop it being dragged sideways at all. -->
+        <div id="meals-daily-swipe" class="status-swipe-surface">
+          <div id="meals-overview" class="meal-overview-grid" aria-label="Meal totals"></div>
+          <div id="meals-workspace-list"></div>
+          <div id="meals-workspace-empty" class="zone-empty" hidden>No guests to show for this date.</div>
+        </div>
       </div>
 
-      <div id="meals-schedules-view" hidden>
+      <div id="meals-schedules-view" class="status-swipe-surface" hidden>
         <div id="meals-schedules-list" class="meal-schedule-groups"></div>
         <div id="meals-schedules-empty" class="zone-empty" hidden>No standing meal arrangements yet.</div>
       </div>
 
-      <div id="meals-residents-view" hidden>
+      <div id="meals-residents-view" class="status-swipe-surface" hidden>
         <div id="meals-residents-list" class="meal-resident-grid"></div>
         <div id="meals-residents-empty" class="zone-empty" hidden>No permanent residents added yet.</div>
       </div>
@@ -4529,6 +4549,7 @@
       }, { passive: true });
       $('meals-search').addEventListener('input', () => renderMealsCurrentView_());
       $('meals-workspace-add-btn').addEventListener('click', handleMealsPrimaryAction_);
+      $('meals-schedule-add-btn').addEventListener('click', handleMealsAddScheduleAction_);
       $('meal-editor-close').addEventListener('click', requestCloseMealEditor_);
       $('meal-editor-discard').addEventListener('click', requestCloseMealEditor_);
       $('meal-editor-modal').addEventListener('click', event => { if (event.target === $('meal-editor-modal')) requestCloseMealEditor_(); });
@@ -5110,6 +5131,18 @@
             activeKey: accommodationSection_,
             surface: $('accommodation-swipe-surface'),
             go: key => navigate(`#accommodation/${key}`)
+          };
+        // Meals is the one workspace whose tiers are not routes — they are
+        // views over the same page, so switching is a re-render rather than a
+        // navigation, and each has its own surface because the daily tier's
+        // has to start below the calendar strip.
+        case 'meals':
+          return {
+            keys: MEALS_VIEWS_.map(def => def.key),
+            activeKey: mealsView_,
+            surface: $(mealsView_ === 'daily' ? 'meals-daily-swipe'
+              : mealsView_ === 'schedules' ? 'meals-schedules-view' : 'meals-residents-view'),
+            go: key => { mealsView_ = key; renderMealsCurrentView_(); }
           };
         case 'meetings':
           return {
@@ -9274,7 +9307,13 @@
       $('meals-daily-view').hidden = mealsView_ !== 'daily';
       $('meals-schedules-view').hidden = mealsView_ !== 'schedules';
       $('meals-residents-view').hidden = mealsView_ !== 'residents';
-      $('meals-add-label').textContent = mealsView_ === 'daily' ? 'Add Meal Arrangement' : mealsView_ === 'schedules' ? 'Add Schedule' : 'Add Resident';
+      // Both meal actions stand on both meal tiers, so neither is somewhere
+      // you have to change tab to reach. Residents is a list of people rather
+      // than of meals, so its own action takes the place of the pair there.
+      const residentsTier = mealsView_ === 'residents';
+      $('meals-add-label').textContent = residentsTier ? 'Add Resident' : 'Add Meal Arrangement';
+      $('meals-add-label-compact').textContent = residentsTier ? 'Resident' : 'Meal';
+      $('meals-schedule-add-btn').hidden = residentsTier;
       $('meals-search').placeholder = mealsView_ === 'daily' ? 'Search today’s schedule...' : mealsView_ === 'schedules' ? 'Search meal schedules...' : 'Search residents...';
       if (mealsView_ === 'daily') renderMealsDaily_();
       else if (mealsView_ === 'schedules') renderMealSchedules_();
@@ -9586,9 +9625,15 @@
       $('meals-residents-empty').hidden = residents.length > 0;
     }
 
+    // The two now say what they do rather than what tier you are on: one adds
+    // a meal for a day, the other a standing arrangement, from either tier.
     function handleMealsPrimaryAction_() {
       if (mealsView_ === 'residents') openMealResidentEditor_();
-      else openMealEditor_('individualGuest', null, mealsView_ === 'schedules');
+      else openMealEditor_('individualGuest', null, false);
+    }
+
+    function handleMealsAddScheduleAction_() {
+      openMealEditor_('individualGuest', null, true);
     }
 
     function ensureMealGuestRecords_() {
