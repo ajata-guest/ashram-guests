@@ -2683,13 +2683,15 @@
         align-items: stretch;
       }
       .page-actions { width: 100%; }
-      /* Meals carries two actions rather than one, and a search box beside
-         two buttons leaves too little of each on a phone. The search takes
-         the row it needs and the pair sit side by side beneath it, splitting
-         the width evenly so neither is a sliver. */
-      #page-meals .page-actions { flex-wrap: wrap; }
-      #page-meals .page-search { flex: 1 1 100%; }
-      #page-meals .page-actions .primary-btn { flex: 1 1 0; justify-content: center; }
+      /* A page carrying two actions rather than one — Meals and Seva — cannot
+         fit a search box beside both on a phone without leaving too little of
+         each. The search takes the row it needs and the pair sit side by side
+         beneath it, splitting the width evenly so neither is a sliver.
+         Keyed on there being two buttons rather than on which page it is, so
+         a third such workspace needs no new rule. */
+      .page-actions:has(.primary-btn + .primary-btn) { flex-wrap: wrap; }
+      .page-actions:has(.primary-btn + .primary-btn) .page-search { flex: 1 1 100%; }
+      .page-actions:has(.primary-btn + .primary-btn) .primary-btn { flex: 1 1 0; justify-content: center; }
       .page-title-row { gap: 8px; }
       .page-title { flex: 1; }
       .page-back { width: 34px; height: 34px; padding: 0; justify-content: center; }
@@ -4049,6 +4051,13 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="seva-search" placeholder="Search seva..." aria-label="Search seva"></div>
+          <!-- Both actions are offered on both views, as in Meals. They used
+               to sit inside their own view's section header, so adding a task
+               meant first switching to the Tasks view — a tab change on the
+               way to something that has nothing to do with which view you
+               happen to be reading. -->
+          <button id="add-seva-team-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Seva Team</span><span class="action-label-compact">Team</span></button>
+          <button id="add-individual-task-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Individual Task</span><span class="action-label-compact">Task</span></button>
         </div>
       </div>
       <div id="seva-summary" class="page-summary"></div>
@@ -4058,7 +4067,6 @@
       <div id="seva-view-teams">
         <div class="travel-section-header">
           <h3 class="travel-section-title">Teams</h3>
-          <button id="add-seva-team-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Seva Team</button>
         </div>
         <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual tasks.</p>
         <div id="seva-teams-list" class="travel-leg-list"></div>
@@ -4068,7 +4076,6 @@
       <div id="seva-view-tasks" hidden>
         <div class="travel-section-header">
           <h3 class="travel-section-title">Individual Tasks</h3>
-          <button id="add-individual-task-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Individual Task</button>
         </div>
         <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
         <div id="individual-tasks-list" class="travel-leg-list"></div>
