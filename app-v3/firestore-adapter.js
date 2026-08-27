@@ -103,6 +103,16 @@ function dateKeyOf(value) {
   return partsInIndia(value)?.date || "";
 }
 
+// A date key moved by whole days. Computed in UTC so no timezone's daylight
+// saving can turn a step of one day into 23 or 25 hours and land on the wrong
+// date; a key carries no time of day, so UTC is the safe arithmetic for it.
+function shiftDateKey(dateKey, days) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ""));
+  if (!match) return "";
+  const at = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return new Date(at + days * 86400000).toISOString().slice(0, 10);
+}
+
 function serializeDate(value, timeConfirmed) {
   const ms = millis(value);
   if (ms === null) return { date: "", time: "", display: "", ms: null };
@@ -1139,11 +1149,35 @@ export function createFirestoreBridge(firebaseApp) {
     return { visits, generatedAt: Date.now() };
   }
 
+  // How long an arrangement keeps its place in the Meal Schedules list after
+  // its last day. A few days is useful — something served yesterday is still
+  // worth glancing at — and after that it is only clutter in a list of what is
+  // in force. Nothing is deleted: the record stays, and the guest's profile
+  // still shows it however old it is.
+  const MEAL_SCHEDULE_LIST_DAYS = 3;
+
+  function mealScheduleStillListed(item, todayKey) {
+    const last = (item.recurrence || "oneTime") === "oneTime"
+      ? clean(item.dateKey, 20)
+      : clean(item.endDateKey, 20);
+    // No last day means it has not ended — an open-ended rule, or one with no
+    // date recorded yet. Neither is history.
+    if (!last) return true;
+    return last >= shiftDateKey(todayKey, -MEAL_SCHEDULE_LIST_DAYS);
+  }
+
   async function mealsWorkspace(filters = {}) {
     const canonical = await loadCanonical();
     const date = clean(filters.date, 20) || dateKeyOf(Date.now());
     const resolved = resolveMealDay(canonical, date);
-    const schedules = canonical.mealSchedules.map(item => mealScheduleView(item, canonical))
+    // Long-finished arrangements drop out of the list, not out of the data:
+    // resolveMealDay above still sees every one of them, so looking back at a
+    // day last month shows the roster that was actually served, and the guest's
+    // own profile lists their arrangements however old.
+    const listTodayKey = dateKeyOf(Date.now());
+    const schedules = canonical.mealSchedules
+      .filter(item => mealScheduleStillListed(item, listTodayKey))
+      .map(item => mealScheduleView(item, canonical))
       .sort((a, b) => a.name.localeCompare(b.name));
     // The tab is a view over two sources while the migration is in flight:
     // residents still held as their own records, and residents who have become

@@ -8975,7 +8975,11 @@
         button.setAttribute('aria-selected', String(mealsView_ === view.key));
         button.appendChild(createElement('span', 'tier-tab-count', view.key === 'daily'
           ? String((mealsData_?.counts || {})[mealsActiveMeal_] || 0)
-          : view.key === 'schedules' ? String((mealsData_?.schedules || []).length) : String((mealsData_?.permanentResidents || []).length)));
+          // Ended arrangements are kept on screen to be looked at or deleted,
+          // but they are not in force, so they are not what the tab counts.
+          : view.key === 'schedules'
+            ? String((mealsData_?.schedules || []).filter(item => !item.ended).length)
+            : String((mealsData_?.permanentResidents || []).length)));
         button.appendChild(createElement('span', 'tier-tab-label', view.label));
         button.addEventListener('click', () => { mealsView_ = view.key; renderMealsCurrentView_(); });
         container.appendChild(button);
