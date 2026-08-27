@@ -180,6 +180,64 @@ function residentMeals(resident) {
 // A guest away for a few days keeps their room, their stay and their standing
 // meal arrangement — they are simply not eating here meanwhile. One record per
 // absence, so it reads back as a single fact and can be undone as one.
+// Away periods started life as a meals concept — hence the collection's name,
+// which is now narrower than what it holds — but "is this person here today"
+// is a question the whole app asks. These three are the shared answer: the
+// meal roster, the accommodation tabs, the homepage counts and the meetings
+// editor all read them, so no two screens can hold different opinions about
+// where somebody is.
+//
+// Keyed on the guest, not the stay: someone with two visits books their away
+// days against themselves, and the dates say which stay it falls in.
+function awayPeriodsFor(canonical, guestId) {
+  const id = clean(guestId, 100);
+  if (!id) return [];
+  return (canonical.mealAbsences || [])
+    .filter(item => item.subjectType !== "permanentResident" && item.subjectId === id)
+    .map(item => ({
+      absenceId: item.id,
+      from: clean(item.fromKey, 20),
+      to: clean(item.toKey, 20),
+      note: item.note || ""
+    }))
+    .filter(item => item.from)
+    .sort((a, b) => a.from.localeCompare(b.from));
+}
+
+// A blank last day runs on until someone says otherwise — the case where
+// nobody yet knows when they are back.
+function awayPeriodOn(periods, dateKey) {
+  return (periods || []).find(item => item.from <= dateKey && (!item.to || item.to >= dateKey)) || null;
+}
+
+function isAwayOn(canonical, guestId, dateKey) {
+  return Boolean(awayPeriodOn(awayPeriodsFor(canonical, guestId), dateKey));
+}
+
+function describeAwaySpan(period) {
+  if (!period) return "";
+  return period.to ? `from ${period.from} to ${period.to}` : `from ${period.from} onwards`;
+}
+
+// The scheduled meetings that fall inside an away period. Returned rather than
+// acted on, so the caller can say what will happen before it happens — an away
+// period quietly cancelling somebody's meeting is exactly the kind of change
+// nobody would think to look for afterwards.
+function meetingsInsideAway(canonical, guestId, from, to) {
+  const id = clean(guestId, 100);
+  const start = clean(from, 20);
+  const end = clean(to, 20);
+  if (!id || !start) return [];
+  return (canonical.meetings || [])
+    .filter(item => item.guestId === id
+      && (item.status || "Scheduled") === "Scheduled"
+      && item.dateKey
+      && item.dateKey >= start
+      && (!end || item.dateKey <= end))
+    .map(item => ({ meetingId: item.id, date: item.dateKey }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function absenceOn(absences, subjectType, subjectId, dateKey) {
   return (absences || []).find(item =>
     item.subjectType === subjectType
@@ -698,21 +756,34 @@ function stillHere(visit, todayKey) {
   return !visit.departureDate || visit.departureDate >= todayKey;
 }
 
-function isAshramResident(visit, todayKey, personType, now) {
-  if (!visit || visit.accommodation !== "Ashram") return false;
-  // A residency has no arrival date to prove itself by — someone who lives
-  // here is residing every day. Without this a resident counted as neither
-  // residing nor nearby, which is what put the homepage tile out of step
-  // with the workspace's own Residing tab.
+// Here at all: turned up and not yet gone. A residency has no arrival date to
+// prove itself by — someone who lives here is present every day — which is
+// why it is answered separately rather than by the dates.
+function isPresent(visit, todayKey, personType, now) {
+  if (!visit) return false;
   if (isResidencyStay(visit, personType)) return true;
   return hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
 }
 
-// Here, but not on campus: arrived, not yet departed, staying anywhere other
-// than the ashram. The counterpart to residing rather than a subset of it —
-// between them they account for everyone currently around.
-function isNearby(visit, todayKey, now) {
-  return Boolean(visit) && visit.accommodation !== "Ashram"
+// Residing, nearby and away are three names for where somebody is today, and
+// exactly one of them is true at a time. Away wins over the other two: a stay
+// continues while its guest is elsewhere — the room stays theirs — but they
+// are not here, and every count that means "here" has to agree about that.
+function isAwayFromStay(visit, todayKey, personType, now, away) {
+  return isPresent(visit, todayKey, personType, now) && Boolean(away);
+}
+
+function isAshramResident(visit, todayKey, personType, now, away) {
+  if (!visit || visit.accommodation !== "Ashram") return false;
+  if (away) return false;
+  return isPresent(visit, todayKey, personType, now);
+}
+
+// Here, but not on campus: present, staying anywhere other than the ashram.
+// The counterpart to residing rather than a subset of it — between them and
+// away they account for everyone whose stay is under way.
+function isNearby(visit, todayKey, now, away) {
+  return Boolean(visit) && visit.accommodation !== "Ashram" && !away
     && hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
 }
 
@@ -865,8 +936,13 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
     };
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });
     record.priorityReasons = priorityReasons(record, now, todayKey);
-    record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType, now);
-    record.nearby = isNearby(record.visit, todayKey, now);
+    record.awayPeriods = awayPeriodsFor(canonical, guest.id);
+    const awayToday = awayPeriodOn(record.awayPeriods, todayKey);
+    record.away = isAwayFromStay(record.visit, todayKey, record.personType, now, awayToday);
+    record.awayFrom = record.away ? awayToday.from : "";
+    record.awayTo = record.away ? awayToday.to : "";
+    record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType, now, awayToday);
+    record.nearby = isNearby(record.visit, todayKey, now, awayToday);
     return record;
   });
 }
@@ -877,7 +953,7 @@ function homeSummary(canonical, records) {
   const result = {
     generatedAt: Date.now(),
     directory: { total: records.length, needsAttention: 0 },
-    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, nearby: 0, attentionNeeded: 0 },
+    accommodation: { today: 0, upcoming: 0, arrivingToday: 0, departingToday: 0, currentlyResiding: 0, nearby: 0, away: 0, attentionNeeded: 0 },
     meals: {
       counts: todayMeals.counts,
       mealStats: todayMeals.mealStats,
@@ -905,8 +981,10 @@ function homeSummary(canonical, records) {
     if (view.arrivalDate && view.arrivalDate > today) result.accommodation.upcoming += 1;
     // Here right now, split by where they sleep: residing on campus, nearby
     // anywhere else. Between them they account for everyone actually around.
-    if (isAshramResident(view, today, guest.personType, now)) result.accommodation.currentlyResiding += 1;
-    else if (isNearby(view, today, now)) result.accommodation.nearby += 1;
+    const awayToday = awayPeriodOn(awayPeriodsFor(canonical, guest.id), today);
+    if (isAwayFromStay(view, today, guest.personType, now, awayToday)) result.accommodation.away += 1;
+    else if (isAshramResident(view, today, guest.personType, now, awayToday)) result.accommodation.currentlyResiding += 1;
+    else if (isNearby(view, today, now, awayToday)) result.accommodation.nearby += 1;
     if (visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), today, now).length) {
       result.accommodation.attentionNeeded += 1;
     }
@@ -1115,6 +1193,9 @@ export function createFirestoreBridge(firebaseApp) {
       mealSchedules,
       meetings,
       trips,
+      // Away periods belong to the person rather than to any one stay, so
+      // the profile carries them and the visit editor reads them from here.
+      awayPeriods: awayPeriodsFor(canonical, id),
       canHardDelete: !hasHistory,
       engagementsOutsideStay: engagementsOutside(liveVisits, { meetings, meals: mealOverrides, specificSeva })
     };
@@ -1143,7 +1224,10 @@ export function createFirestoreBridge(firebaseApp) {
         isForeign: Boolean(guest.foreignNational),
         // Computed here rather than in the workspace, so the Attention tab,
         // its chips and the homepage tile all read one answer.
-        attentionReasons: visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), todayKey, now)
+        attentionReasons: visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), todayKey, now),
+        // Every away period this guest has, so the workspace can say when
+        // somebody is away rather than quietly dropping them from Residing.
+        awayPeriods: awayPeriodsFor(canonical, guest.id)
       };
     }).filter(Boolean);
     return { visits, generatedAt: Date.now() };
@@ -1278,6 +1362,11 @@ export function createFirestoreBridge(firebaseApp) {
       upcoming: meetings.filter(item => item.status === "Scheduled" && item.date > today),
       needsCompletion: meetings.filter(item => item.status === "Scheduled" && item.date && item.date < today),
       completed: meetings.filter(item => item.status === "Completed"),
+      // Cancelled had an accent and a comment in the workspace but no tab
+      // and no bucket, so a cancelled meeting appeared nowhere. That was
+      // survivable while nothing cancelled anything; now an away period
+      // does, and a meeting must not be able to vanish silently.
+      cancelled: meetings.filter(item => item.status === "Cancelled"),
       generatedAt: Date.now()
     };
   }
@@ -2346,6 +2435,15 @@ export function createFirestoreBridge(firebaseApp) {
     if (!canonical.guests.some(item => item.id === guestId && !item.archived)) throw new Error("This guest no longer exists.");
     if (!dateKey) throw new Error("A meeting date is required.");
     validateEngagementDate(canonical, guestId, dateKey, "Meeting with Swamiji");
+    // Somebody who is away is not here to be met. Refused rather than warned
+    // about: the away period was recorded deliberately, so a meeting inside
+    // one is a mistake being made now rather than a consequence to weigh.
+    const awayThen = awayPeriodOn(awayPeriodsFor(canonical, guestId), dateKey);
+    if (awayThen) {
+      const guest = canonical.guests.find(item => item.id === guestId);
+      throw new Error(`${guest?.name || "This guest"} is away ${describeAwaySpan(awayThen)}.`
+        + " Choose a day they are here, or shorten the away period first.");
+    }
     const id = clean(payload.meetingId, 100) || uuid();
     const reference = doc(db, "meetings", id);
     await runTransaction(db, async transaction => {
@@ -2437,7 +2535,21 @@ export function createFirestoreBridge(firebaseApp) {
   }
 
   async function setMeetingStatus(meetingId, status, suppliedVersion) {
-    if (!["Scheduled", "Completed"].includes(status)) throw new Error("Invalid meeting status.");
+    if (!["Scheduled", "Completed", "Cancelled"].includes(status)) throw new Error("Invalid meeting status.");
+    // Putting a meeting back on the schedule is subject to the same rule as
+    // booking one: nobody can be met on a day they are away.
+    if (status === "Scheduled") {
+      const canonical = await loadCanonical();
+      const meeting = (canonical.meetings || []).find(item => item.id === clean(meetingId, 100));
+      const awayThen = meeting && meeting.dateKey
+        ? awayPeriodOn(awayPeriodsFor(canonical, meeting.guestId), meeting.dateKey)
+        : null;
+      if (awayThen) {
+        const guest = canonical.guests.find(item => item.id === meeting.guestId);
+        throw new Error(`${guest?.name || "This guest"} is away ${describeAwaySpan(awayThen)}.`
+          + " Reschedule it to a day they are here.");
+      }
+    }
     const result = await simpleTransaction("meetings", clean(meetingId, 100), suppliedVersion, () => ({ status }), "set-status", ["status"]);
     return { meetingId: result.id, status, version: result.version };
   }
@@ -3277,11 +3389,18 @@ export function createFirestoreBridge(firebaseApp) {
     return { residentId, meals };
   }
 
-  // An away period suspends a person's meals between two dates. It touches
-  // nothing else about the stay — the room stays theirs and the residency
-  // continues either side.
+  // An away period says the person is not here between two dates. It touches
+  // nothing else about the stay — the room stays theirs and the stay continues
+  // either side — but every workspace reads it: they leave the meal roster,
+  // they stop counting as residing, and no meeting can be booked over it.
+  //
+  // Meetings already booked inside it are the one thing it changes elsewhere,
+  // and it will not do that behind anyone's back. The first call reports what
+  // would be cancelled and writes nothing; passing cancelMeetings: true then
+  // saves the period and cancels them in the same batch.
   async function saveMealAbsence(payload) {
     const actor = ensureApproved();
+    const canonical = await loadCanonical();
     const subjectType = payload?.subjectType === "permanentResident" ? "permanentResident" : "guest";
     const subjectId = clean(payload?.subjectId, 100);
     const fromKey = clean(payload?.fromKey, 20);
@@ -3294,17 +3413,33 @@ export function createFirestoreBridge(firebaseApp) {
     // reads an empty toKey that way, so only this gate needed relaxing.
     if (toKey && !dateShape.test(toKey)) throw new Error("That last day away is not a date.");
     if (toKey && toKey < fromKey) throw new Error("The last day away cannot be before the first.");
+
     const id = clean(payload?.absenceId, 100) || `${subjectType}--${subjectId}--${fromKey}`;
+    // Only for a guest: a resident record keyed the old way has no meetings of
+    // its own, since meetings belong to guests.
+    const clashes = subjectType === "guest" ? meetingsInsideAway(canonical, subjectId, fromKey, toKey) : [];
+    if (clashes.length && payload?.cancelMeetings !== true) {
+      return { absenceId: id, fromKey, toKey, saved: false, meetingsToCancel: clashes };
+    }
+
     const batch = writeBatch(db);
     batch.set(doc(db, "mealAbsences", id), {
       subjectType, subjectId, fromKey, toKey,
       note: clean(payload?.note, 300),
       updatedAt: Timestamp.now(), updatedBy: actor
     });
-    await writeAuditBatch(batch, actor, "mealAbsence", id, "set", ["fromKey", "toKey"]);
+    clashes.forEach(item => {
+      batch.update(doc(db, "meetings", item.meetingId), {
+        status: "Cancelled",
+        updatedAt: Timestamp.now(),
+        updatedBy: actor
+      });
+    });
+    await writeAuditBatch(batch, actor, "mealAbsence", id, "set",
+      clashes.length ? ["fromKey", "toKey", "cancelledMeetings"] : ["fromKey", "toKey"]);
     await batch.commit();
     invalidate();
-    return { absenceId: id, fromKey, toKey };
+    return { absenceId: id, fromKey, toKey, saved: true, meetingsCancelled: clashes };
   }
 
   async function deleteMealAbsence(absenceId) {

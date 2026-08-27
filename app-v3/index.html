@@ -836,6 +836,10 @@
       overflow-wrap: anywhere;
     }
 
+    /* An away period running today, as against one still ahead or already
+       over — the difference between "not here" and "will be away". */
+    .detail-line.is-away-now { color: #c9cdd2; font-weight: 600; }
+
     .icon {
       width: 16px;
       height: 16px;
@@ -1842,6 +1846,7 @@
        the browser has no idea a pinned sibling covers the top ~54px. */
     #add-visit-basic-details,
     #visit-sec-stay,
+    #visit-sec-away,
     #visit-sec-accommodation,
     #visit-sec-cabs,
     #visit-sec-travel { scroll-margin-top: 76px; }
@@ -3276,6 +3281,7 @@
       <div class="modal-section-nav" id="visit-section-nav" aria-label="Jump to section" hidden>
         <button type="button" class="section-nav-pill" data-target="add-visit-basic-details">Basic Details</button>
         <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-away">Away</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
@@ -3366,6 +3372,24 @@
             <input type="date" id="edit-departure-date" class="edit-input" aria-label="Departure date">
             <input type="time" id="edit-departure-time" class="edit-input" aria-label="Departure time">
           </div>
+        </div>
+      </section>
+
+      <!-- Away belongs to the person, not to the kitchen: it began as a
+           meals-only idea and is now read by every workspace. Edited here as
+           well as from Meals, through the same dialog, so there is one place
+           the rule about clamping to the stay can live. -->
+      <section class="form-section" id="visit-sec-away">
+        <h3 class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+          Away
+        </h3>
+        <p class="travel-help">Days within this stay when they are not at the ashram. They come off the meal roster, stop counting as residing, and no meeting with Swamiji can be booked over them. The room stays theirs.</p>
+        <div id="visit-away-list" class="travel-leg-list"></div>
+        <div id="visit-away-empty" class="travel-empty">No away periods.</div>
+        <div class="travel-section-header" style="margin-top:10px">
+          <span></span>
+          <button id="visit-add-away-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Away Period</button>
         </div>
       </section>
 
@@ -4573,6 +4597,7 @@
       $('add-visit-guest-name').addEventListener('focus', renderAddVisitGuestSuggestions_);
       $('add-visit-guest-name').addEventListener('keydown', handleAddVisitGuestNameKeydown_);
       $('add-visit-new-visit-btn').addEventListener('click', openBlankVisitForSelectedGuest_);
+      $('visit-add-away-btn').addEventListener('click', () => openAwayEditorForVisit_(null));
       $('add-visit-manager-discard-btn').addEventListener('click', requestCloseVisitEditor_);
       $('add-visit-person-type').addEventListener('change', handleAddVisitBasicTypeChange_);
       $('add-visit-foreign').addEventListener('change', syncNewGuestBasicsToVisitEditor_);
@@ -5723,6 +5748,7 @@
           // in the ashram, and in town but staying elsewhere.
           { value: s.accommodation.currentlyResiding || 0, label: 'residing' },
           { value: s.accommodation.nearby || 0, label: 'nearby' },
+          { value: s.accommodation.away || 0, label: 'away' },
           { value: s.accommodation.upcoming || 0, label: 'upcoming' }
         ],
         attention: s => s.accommodation.attentionNeeded,
@@ -7283,11 +7309,15 @@
       { key: 'attention', label: 'Needs Attention', shortLabel: 'Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
       { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
       // A resident is residing every day, with no arrival date to prove it.
-      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) || (v.accommodation === 'Ashram' && isVisitPresent_(v, today)) },
-      // Here but not housed here: arrived, not yet gone, staying anywhere
-      // other than the ashram. The other half of who is currently around,
-      // and the tab the homepage's Nearby count leads to.
-      { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && isVisitPresent_(v, today) },
+      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => !visitAwayOn_(v, today) && (isResidencyStay_(v) || (v.accommodation === 'Ashram' && isVisitPresent_(v, today))) },
+      // Here but not housed here: present, staying anywhere other than the
+      // ashram. Residing, Nearby and Away are three names for where someone
+      // is today and exactly one is true at a time.
+      { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && !visitAwayOn_(v, today) && isVisitPresent_(v, today) },
+      // A stay carries on while its guest is elsewhere — the room stays
+      // theirs — so they belong here rather than nowhere. Dropping them out
+      // of Residing without showing them anywhere would read as a bug.
+      { key: 'away', label: 'Away', shortLabel: 'Away', accent: '#9aa0a6', test: (v, today) => Boolean(visitAwayOn_(v, today)) && (isResidencyStay_(v) || isVisitPresent_(v, today)) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
       { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
     ]);
@@ -7336,6 +7366,13 @@
     // the only difference between those two tabs is where the guest sleeps.
     function isVisitPresent_(visit, today) {
       return hasVisitArrived_(visit) && (!visit.departureDate || visit.departureDate >= today);
+    }
+
+    // The away period covering a given day, or null. Mirrors awayPeriodOn in
+    // the adapter: a blank last day runs on until somebody says otherwise.
+    function visitAwayOn_(visit, dateKey) {
+      return ((visit && visit.awayPeriods) || []).find(period => period.from
+        && period.from <= dateKey && (!period.to || period.to >= dateKey)) || null;
     }
 
     let accommodationLoaded_ = false;
@@ -7743,6 +7780,15 @@
         card.appendChild(createDetailLine('icon-calendar',
           `${status === 'departed' ? 'Departed' : 'Departs'} ${withTime(dateFormat(visit.departureMs), visit.departureTime)}`));
       }
+
+      // Said on the card rather than left to the tab, so somebody missing
+      // from Residing can be found and understood in one place.
+      (visit.awayPeriods || []).forEach(period => {
+        const current = visitAwayOn_(visit, todayDateKey_());
+        const line = createDetailLine('icon-flight', describeAwayPeriod_(period));
+        if (current && current.from === period.from) line.classList.add('is-away-now');
+        card.appendChild(line);
+      });
 
       if (!residency) {
         if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
@@ -8678,9 +8724,16 @@
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'Add Visit';
       modalDirty = false;
       syncVisitSectionNav_();
-      setActiveVisitSection_(initialTarget);
+      // Scrolling to a section that is not there leaves the dialog at the top
+      // with nothing selected. A resident has no Stay, so the editor opens on
+      // the first section they do have — Accommodation.
+      const opening = $(initialTarget) && !$(initialTarget).hidden
+        ? initialTarget
+        : ([...$('visit-section-nav').querySelectorAll('.section-nav-pill')]
+          .find(pill => !pill.hidden) || {}).dataset?.target || initialTarget;
+      setActiveVisitSection_(opening);
       window.setTimeout(() => {
-        const target = $(initialTarget);
+        const target = $(opening);
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
     }
@@ -8750,10 +8803,94 @@
       closeVisitEditor();
     }
 
+    // The guest whose visit is open, held because the away list is rebuilt
+    // after every change and because the editor dialog is shared with Meals —
+    // this is what tells that dialog where to come back to.
+    let visitEditorAwaySubject_ = null;
+
+    function renderVisitAwayList_(profile, visit) {
+      visitEditorAwaySubject_ = profile
+        ? { guestId: profile.guestId, name: profile.name || '', visit: visit || null }
+        : null;
+      const list = $('visit-away-list');
+      list.replaceChildren();
+      const periods = (profile && profile.awayPeriods) || [];
+      $('visit-away-empty').hidden = periods.length > 0;
+
+      periods.forEach(period => {
+        const row = createElement('div', 'travel-leg-summary');
+        const text = createElement('div', 'travel-leg-summary-text');
+        text.appendChild(createElement('span', '', describeAwayPeriod_(period)));
+        row.appendChild(text);
+
+        const actions = createElement('div', 'travel-leg-summary-actions');
+        const edit = createElement('button', 'row-btn', 'Edit');
+        edit.type = 'button';
+        edit.addEventListener('click', () => openAwayEditorForVisit_(period));
+        const remove = createElement('button', 'row-btn danger', 'Remove');
+        remove.type = 'button';
+        remove.addEventListener('click', () => removeAwayPeriodFromVisit_(period));
+        actions.append(edit, remove);
+        row.appendChild(actions);
+        list.appendChild(row);
+      });
+    }
+
+    // Opens the same dialog Meals uses, clamped to this stay: you cannot be
+    // away from somewhere before you arrive or after you leave. A residency
+    // has no dates, so nothing clamps it — somebody who lives here can be away
+    // on any day at all.
+    function openAwayEditorForVisit_(period) {
+      const subject = visitEditorAwaySubject_;
+      if (!subject) return;
+      const visit = subject.visit;
+      const resident = visitEditorGuestPersonType_ === 'Permanent Resident';
+      const bounds = visit && !resident
+        ? { from: visit.arrivalDate || '', to: visit.departureDate || '' }
+        : null;
+      openMealAwayEditor_(period || null, bounds,
+        { subjectType: 'guest', subjectId: subject.guestId },
+        () => refreshVisitAwayAfterChange_());
+    }
+
+    function removeAwayPeriodFromVisit_(period) {
+      const subject = visitEditorAwaySubject_;
+      if (!subject) return;
+      if (!window.confirm(`Remove the away period ${describeAwayPeriod_(period)}?`
+        + `\n\n${subject.name || 'They'} count as here again on those days. Any meeting`
+        + ' already cancelled by it stays cancelled.')) return;
+      apiCall('deleteMealAbsence', { absenceId: period.absenceId })
+        .then(() => {
+          showToast('Away period removed.', 'success');
+          return refreshVisitAwayAfterChange_();
+        })
+        .catch(error => handleApiError(error, err => showToast(`Couldn't remove it: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    // Re-reads the guest so the list, and the counts that depend on it, follow
+    // the change without closing the editor.
+    function refreshVisitAwayAfterChange_() {
+      const subject = visitEditorAwaySubject_;
+      if (!subject) return Promise.resolve();
+      return apiCall('getGuestProfile', { guestId: subject.guestId })
+        .then(profile => {
+          renderVisitAwayList_(profile, subject.visit);
+          accommodationLoaded_ = false;
+          return loadHomeSummary_().then(renderHome_);
+        })
+        .catch(() => {});
+    }
+
     function toggleVisitCabTravelSections_() {
       const eligible = isCabTravelEligible(visitEditorGuestPersonType_);
       $('visit-sec-cabs').hidden = !eligible;
       $('visit-sec-travel').hidden = !eligible;
+      // A permanent resident's stay has no dates by design — they live here,
+      // so there is no arrival to record and no departure to plan. Asking for
+      // them was asking a question with no answer, and the editor starts at
+      // Accommodation instead. Cabs and Travel stay: a resident needs a car to
+      // the station as rarely, and as really, as anybody else.
+      $('visit-sec-stay').hidden = visitEditorGuestPersonType_ === 'Permanent Resident';
       syncVisitSectionNav_();
     }
 
@@ -8904,6 +9041,7 @@
         travelOrder: leg.order
       })));
 
+      renderVisitAwayList_(profile, visit);
       toggleVisitCabTravelSections_();
       toggleVisitCForm_();
       toggleAccommodationFields();
@@ -10089,8 +10227,12 @@
     // staying is not a thing the roster can express.
     // `subject` is supplied when the caller is not the guest editor — a
     // permanent resident's plan, for instance.
-    function openMealAwayEditor_(absence, residency, subject = null) {
+    // onSaved is how the dialog serves two callers: Meals refreshes its
+    // roster, the visit editor refreshes its own list and the counts. The
+    // dialog itself does not need to know which one opened it.
+    function openMealAwayEditor_(absence, residency, subject = null, onSaved = null) {
       mealAwayEditing_ = absence;
+      mealAwayOnSaved_ = onSaved;
       mealAwaySubject_ = subject || { subjectType: 'guest', subjectId: currentMealSourceId_() };
       $('meal-away-title').textContent = absence ? 'Edit Away Period' : 'Add Away Period';
       $('meal-away-subtitle').textContent = residency ? describeResidencyWindow_(residency) : '';
@@ -10106,10 +10248,44 @@
       window.setTimeout(() => $('meal-away-from').focus(), 0);
     }
 
+    let mealAwayOnSaved_ = null;
+
     function closeMealAwayEditor_() {
       $('meal-away-modal').style.display = 'none';
       $('meal-away-modal').setAttribute('aria-hidden', 'true');
       mealAwayEditing_ = null;
+      mealAwayOnSaved_ = null;
+    }
+
+    // Saving an away period is two calls when it would cancel a meeting: the
+    // first reports what it would take away and writes nothing, and only after
+    // the answer is yes does the second save the period and cancel the
+    // meetings in one batch. A meeting disappearing as a side effect of typing
+    // two dates is exactly the kind of change nobody would think to look for
+    // afterwards, so it is never done silently.
+    //
+    // Returns true when the period was saved, false when the warning was
+    // declined — so callers can tell "done" from "changed my mind".
+    function saveAwayPeriod_(payload) {
+      return apiCall('saveMealAbsence', { payload })
+        .then(result => {
+          if (!result || result.saved !== false) return true;
+          const list = (result.meetingsToCancel || [])
+            .map(item => formatDateKeyDisplay(item.date))
+            .join(', ');
+          const count = (result.meetingsToCancel || []).length;
+          const ok = window.confirm(
+            `${count === 1 ? 'A meeting with Swamiji is' : count + ' meetings with Swamiji are'}`
+            + ` booked while they are away: ${list}.\n\nSaving this away period cancels`
+            + `${count === 1 ? ' it' : ' them'}. Cancelled meetings stay on record under the`
+            + ' Cancelled tab and can be reopened.');
+          if (!ok) return false;
+          return apiCall('saveMealAbsence', { payload: { ...payload, cancelMeetings: true } })
+            .then(() => {
+              showToast(count === 1 ? 'Meeting cancelled.' : `${count} meetings cancelled.`, 'success');
+              return true;
+            });
+        });
     }
 
     function saveMealAway_() {
@@ -10119,16 +10295,18 @@
       // Leaving the last day blank is how you say "back date unknown".
       if (to && to < from) { showToast('The last day away cannot be before the first.', 'error'); return; }
       $('meal-away-save').disabled = true;
-      apiCall('saveMealAbsence', { payload: {
+      saveAwayPeriod_({
         absenceId: mealAwayEditing_?.absenceId || '',
         subjectType: mealAwaySubject_.subjectType,
         subjectId: mealAwaySubject_.subjectId,
         fromKey: from, toKey: to, note: $('meal-away-note').value.trim()
-      } })
-        .then(() => {
+      })
+        .then(saved => {
+          if (!saved) return null;
           showToast('Away period saved.', 'success');
+          const done = mealAwayOnSaved_;
           closeMealAwayEditor_();
-          return reloadMeals_().then(refreshMealListsAfterAwayChange_);
+          return done ? done() : reloadMeals_().then(refreshMealListsAfterAwayChange_);
         })
         .catch(error => handleApiError(error, err => showToast(`Couldn't save the away period: ${getErrorMessage(err)}`, 'error')))
         .finally(() => { $('meal-away-save').disabled = false; });
@@ -10423,7 +10601,8 @@
       { key: 'today', label: 'Today', shortLabel: 'Today' },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming' },
       { key: 'needsCompletion', label: 'Past – Needs Completion', shortLabel: 'To Complete' },
-      { key: 'completed', label: 'Completed', shortLabel: 'Completed' }
+      { key: 'completed', label: 'Completed', shortLabel: 'Completed' },
+      { key: 'cancelled', label: 'Cancelled', shortLabel: 'Cancelled' }
     ];
 
     // Completed and Cancelled sit behind their own tabs rather than being
@@ -10512,7 +10691,7 @@
         actions: [
           { label: 'Reschedule', run: () => openMeetingEditor_(meeting.guestId, meeting) },
           live && { label: 'Mark Completed', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Completed') },
-          sectionKey === 'completed' && { label: 'Reopen', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled') },
+          (sectionKey === 'completed' || sectionKey === 'cancelled') && { label: 'Reopen', run: () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Scheduled') },
           { label: 'Delete permanently', destructive: true, run: () => deleteMeetingAction_(meeting) }
         ]
       };
@@ -10540,7 +10719,7 @@
         completeBtn.addEventListener('click', () => setMeetingStatusAction_(meeting.meetingId, meeting.version, 'Completed'));
         actions.appendChild(completeBtn);
 
-      } else if (sectionKey === 'completed') {
+      } else if (sectionKey === 'completed' || sectionKey === 'cancelled') {
         // Reopening puts a meeting back on the schedule; nothing is lost.
         const reopenBtn = createElement('button', 'row-btn', 'Reopen');
         reopenBtn.type = 'button';
