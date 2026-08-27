@@ -1555,6 +1555,31 @@
       line-height: 1.45;
     }
 
+    /* travel-help is written for a line that introduces a list. This one
+       follows its list instead, so the space it carries moves to the top. */
+    .away-hint { margin: 10px 0 0; }
+
+    /* The row's field. Shaped like the room select beside it — same box, same
+       height — because it does the same job: it names what is in the row and
+       opens it for editing. A button rather than a div so it is reachable by
+       keyboard without inventing roles. */
+    .away-row-label {
+      flex: 1;
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background: #292929;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    .away-row-label:hover,
+    .away-row-label:focus-visible { border-color: #5a5a5a; outline: none; background: #303030; }
+
     .travel-leg-list {
       display: flex;
       gap: 12px;
@@ -3383,12 +3408,19 @@
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
           Away
         </h3>
-        <p class="travel-help">Days within this stay when they are not at the ashram. Their room stays theirs.</p>
-        <div id="visit-away-list" class="travel-leg-list"></div>
-        <div id="visit-away-empty" class="travel-empty">No away periods.</div>
-        <div class="travel-section-header" style="margin-top:10px">
-          <span></span>
-          <button id="visit-add-away-btn" class="travel-add-btn workspace-action-btn" type="button">+ Add Away Period</button>
+        <!-- Built like Room Allocation above it: a labelled group whose
+             Add button sits on its own header row, the list beneath, and a
+             dashed placeholder when there is nothing in it. The section was
+             assembled from the Trips markup at first and read as a visitor
+             from another page. -->
+        <div class="input-group" id="visit-away-group">
+          <div class="room-group-header">
+            <label class="input-label">Away periods</label>
+            <button id="visit-add-away-btn" class="travel-add-btn" type="button">+ Add away</button>
+          </div>
+          <div id="visit-away-list" class="room-list"></div>
+          <div id="visit-away-empty" class="travel-empty">-- None --</div>
+          <p class="travel-help away-hint">Days within this stay when they are not at the ashram. Their room stays theirs.</p>
         </div>
       </section>
 
@@ -8823,20 +8855,24 @@
       $('visit-away-empty').hidden = periods.length > 0;
 
       periods.forEach(period => {
-        const row = createElement('div', 'travel-leg-summary');
-        const text = createElement('div', 'travel-leg-summary-text');
-        text.appendChild(createElement('span', '', describeAwayPeriod_(period)));
-        row.appendChild(text);
+        // Shaped like a room row: the thing itself fills the line, and a bin
+        // at the end removes it — the same gesture in the same place as the
+        // section below. The whole row opens the editor, so Edit needs no
+        // button of its own.
+        const row = createElement('div', 'room-row away-row');
+        const label = createElement('button', 'away-row-label', describeAwayPeriod_(period));
+        label.type = 'button';
+        label.title = 'Edit this away period';
+        label.addEventListener('click', () => openAwayEditorForVisit_(period));
+        row.appendChild(label);
 
-        const actions = createElement('div', 'travel-leg-summary-actions');
-        const edit = createElement('button', 'row-btn', 'Edit');
-        edit.type = 'button';
-        edit.addEventListener('click', () => openAwayEditorForVisit_(period));
-        const remove = createElement('button', 'row-btn danger', 'Remove');
+        const remove = createElement('button', 'travel-remove-btn room-remove-btn');
         remove.type = 'button';
+        remove.setAttribute('aria-label', `Remove the away period ${describeAwayPeriod_(period)}`);
+        remove.title = 'Remove this away period';
+        remove.appendChild(createIcon_('icon-trash'));
         remove.addEventListener('click', () => removeAwayPeriodFromVisit_(period));
-        actions.append(edit, remove);
-        row.appendChild(actions);
+        row.appendChild(remove);
         list.appendChild(row);
       });
     }
