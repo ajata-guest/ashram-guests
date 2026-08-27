@@ -2182,6 +2182,23 @@
     .workspace-dock.open,
     .workspace-dock.dragging { height: var(--dock-panel-height); }
 
+    /* Meals' calendar has a day strip that is dragged sideways, and halfway
+       down the right edge is roughly where it sits — two things wanting the
+       same gesture in the same place is a fight nobody wins. Dropping the dock
+       120px clears it, and it drops on every page rather than only that one so
+       the dock is in the same place wherever you are: somewhere a control
+       moves about is somewhere you have to look for it.
+       A constant offset genuinely clears the strip rather than moving which
+       screens collide, because the strip's distance from the top of the page
+       is fixed while the dock's is a share of the viewport.
+       Only where there is room to land, though. Below about 680px the lowered
+       dock would push its open panel off the bottom, and clamping it back up
+       to fit lands it on the strip — worse than leaving it alone, since at
+       those heights the centred dock sits above the strip anyway. */
+    @media (min-height: 680px) {
+      .workspace-dock { top: calc(50% + 120px); }
+    }
+
 
     .workspace-dock-panel {
       position: absolute;
