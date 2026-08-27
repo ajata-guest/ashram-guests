@@ -5194,7 +5194,22 @@
       const SWIPE_THRESHOLD = 60;
       const RUBBER_BAND_MAX = 44;
 
-      const interactiveSelector = 'input, textarea, select, button, a, [contenteditable="true"], .tier-tabs, .quick-filters, .segmented, .page-toolbar';
+      // What a swipe must not start on: things operated by dragging or typing,
+      // and the rails that scroll sideways on their own.
+      //
+      // A plain button is deliberately not among them. It used to be, and that
+      // one word turned every button-shaped surface in the app into a band
+      // where no swipe worked — the whole meal calendar, and the Breakfast,
+      // Lunch and Dinner cards, which are buttons and span most of the tier.
+      // Cards elsewhere are articles with a button role, which is why the
+      // accommodation list always swiped and these did not. Nothing is lost by
+      // allowing them: a tap still clicks, because a swipe has to travel 60px
+      // before it counts as one.
+      const interactiveSelector = 'input, textarea, select, a, [contenteditable="true"],'
+        + ' .tier-tabs, .quick-filters, .segmented, .page-toolbar,'
+        // The meal calendar's strip: a horizontal drag there already means
+        // "other days", and that reading wins over changing tier.
+        + ' .meal-cal-scroll';
 
       function applyPendingTransform() {
         frame = null;
@@ -5231,21 +5246,8 @@
         gesture = null;
       }
 
-      // The meal calendar is made almost entirely of buttons — the month, the
-      // Today button, the two arrows, and every day in the strip — so the
-      // interactive rule below turned the whole block into a band where no
-      // horizontal gesture did anything at all. Its controls are things you
-      // tap, not things you drag, so dragging across them should move between
-      // tiers like the rest of the page. The strip is the one exception: there
-      // a horizontal drag already means "other days", and it keeps that.
-      const startsTierSwipe_ = target => {
-        if (target.closest('.meal-cal-scroll')) return false;
-        if (!target.closest(interactiveSelector)) return true;
-        return Boolean(target.closest('.meal-calendar'));
-      };
-
       document.addEventListener('touchstart', event => {
-        if (event.touches.length !== 1 || statusSwipeDialogOpen_() || !startsTierSwipe_(event.target)) return;
+        if (event.touches.length !== 1 || statusSwipeDialogOpen_() || event.target.closest(interactiveSelector)) return;
         const config = statusSwipeConfig_();
         if (!config || !config.surface || config.keys.length < 2) return;
         // The gesture belongs to the page, not to the run of cards. Requiring
