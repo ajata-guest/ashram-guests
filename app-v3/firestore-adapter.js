@@ -2383,6 +2383,59 @@ export function createFirestoreBridge(firebaseApp) {
     return { visitId: result.id, cformComplete: done, version: result.version };
   }
 
+  // Push subscriptions are keyed by device, not by token. V2 keyed them by
+  // token, and because an FCM token rotates — on a browser update, a cleared
+  // cache, a long gap between visits — every rotation left the old row behind
+  // as a dead entry and needed a fresh one. With the device as the key a
+  // rotated token simply overwrites the row it already owns.
+  //
+  // Deliberately not in COLLECTIONS: these are device tokens, they are of no
+  // use to anything the app renders, and there is no reason for every client
+  // to hold a copy of everyone else's.
+  async function savePushSubscription(payload) {
+    const actor = ensureApproved();
+    const deviceId = clean(payload?.deviceId, 100);
+    const token = clean(payload?.token, 400);
+    if (!deviceId || !token) throw new Error("This device could not be registered for notifications.");
+    await setDoc(doc(db, "pushSubscriptions", deviceId), {
+      email: actor,
+      token,
+      // What tells a live device from one that stopped opening the app
+      // months ago, without waiting for FCM to say so.
+      lastSeenAt: Timestamp.now(),
+      userAgent: clean(payload?.userAgent, 300),
+      updatedAt: Timestamp.now(),
+      updatedBy: actor,
+      schemaVersion: 1
+    }, { merge: true });
+    // No audit entry and no invalidate: registering a device changes nothing
+    // anyone is looking at, and tripping every open client's cache each time
+    // an app is opened would be a great deal of re-reading for nothing.
+    return { deviceId, registered: true };
+  }
+
+  async function removePushSubscription(deviceId) {
+    ensureApproved();
+    const id = clean(deviceId, 100);
+    if (!id) return { deviceId: "", removed: false };
+    await deleteDoc(doc(db, "pushSubscriptions", id));
+    return { deviceId: id, removed: true };
+  }
+
+  // What the bell reads, so its state comes from what is actually registered
+  // rather than from a flag left in this browser's storage. That flag was how
+  // V2 came to show notifications as on for a device FCM had long since
+  // forgotten, with nothing anywhere reporting a problem.
+  async function getPushSubscription(deviceId) {
+    ensureApproved();
+    const id = clean(deviceId, 100);
+    if (!id) return { registered: false };
+    const snapshot = await getDoc(doc(db, "pushSubscriptions", id));
+    if (!snapshot.exists()) return { registered: false };
+    const data = snapshot.data() || {};
+    return { registered: true, token: data.token || "", email: data.email || "" };
+  }
+
   async function setMeetingStatus(meetingId, status, suppliedVersion) {
     if (!["Scheduled", "Completed"].includes(status)) throw new Error("Invalid meeting status.");
     const result = await simpleTransaction("meetings", clean(meetingId, 100), suppliedVersion, () => ({ status }), "set-status", ["status"]);
@@ -3359,6 +3412,9 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "savePermanentResident") return savePermanentResident(extra.payload || {});
       if (action === "deletePermanentResident") return deletePermanentResident(extra.residentId);
       if (action === "upsertMeeting") return upsertMeeting(extra.payload || {});
+      if (action === "savePushSubscription") return savePushSubscription(extra.payload || {});
+      if (action === "removePushSubscription") return removePushSubscription(extra.deviceId);
+      if (action === "getPushSubscription") return getPushSubscription(extra.deviceId);
       if (action === "setCformComplete") return setCformComplete(extra.visitId, extra.complete, extra.version);
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);
       if (action === "saveSevaTeam") return saveSevaTeam(extra.payload || {});

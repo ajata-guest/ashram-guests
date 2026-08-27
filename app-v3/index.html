@@ -14,6 +14,8 @@
   <link rel="manifest" href="manifest.json">
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import { getMessaging, getToken, deleteToken, onMessage, isSupported }
+      from "https://www.gstatic.com/firebasejs/12.16.0/firebase-messaging.js";
     import { createFirestoreBridge } from "./firestore-adapter.js?v=20260816-meals-workspace-v1";
 
     const firebaseConfig = {
@@ -24,8 +26,50 @@
       messagingSenderId: "454945412675",
       appId: "1:454945412675:web:94346f94135fac70f366f6"
     };
+    const VAPID_KEY = "BBtOjiuUgy_GhG3_KzfIIhloppn0im6NqCwo_lqegKXCIqMkArU1B4Rek6WAYFrVXI9bW7WpPZFVT_-5P-n9Xd4";
+
     const firebaseApp = initializeApp(firebaseConfig);
     window.__firestoreBridge = createFirestoreBridge(firebaseApp);
+
+    // Messaging is not available everywhere — an unsupported browser, or a
+    // page not served over https — so it is resolved once and the rest of the
+    // app asks rather than assumes.
+    let messaging = null;
+    window.__pushSupported = isSupported().then(supported => {
+      if (!supported) return false;
+      try {
+        messaging = getMessaging(firebaseApp);
+        // A message arriving while this tab is open and in front never
+        // reaches the service worker's background handler — standard FCM
+        // behaviour — so the app shows something for it itself.
+        onMessage(messaging, payload => {
+          if (window.handleForegroundPush) window.handleForegroundPush(payload);
+        });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }).catch(() => false);
+
+    // Exposed to the classic script below, which cannot use imports itself.
+    window.__firebaseGetToken = async () => {
+      if (!messaging) return '';
+      const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      // Waiting for the registration to be active matters on a first visit:
+      // getToken against an installing worker fails, and the failure looks
+      // exactly like "this browser cannot do notifications".
+      await navigator.serviceWorker.ready;
+      return getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    };
+
+    // Turning notifications off properly means telling FCM too, not only
+    // forgetting the token locally — otherwise this device keeps receiving
+    // them until the token happens to rotate.
+    window.__firebaseDeleteToken = async () => {
+      if (!messaging) return false;
+      try { return await deleteToken(messaging); } catch (error) { return false; }
+    };
+
     window.dispatchEvent(new Event('firestore-bridge-ready'));
   </script>
 
@@ -4105,6 +4149,148 @@
     // replaces only the Apps Script request/session layer underneath it.
     let currentUserEmail = '';
     let appInitialized = false;
+
+    // ============================================================
+    // PUSH NOTIFICATIONS
+    // V2 had this working and then it quietly stopped: the token was saved
+    // once, on the tap that granted permission, and never again. FCM tokens
+    // rotate — a browser update, cleared site data, a long gap between
+    // visits — and when one did, the send failed, the server pruned the dead
+    // subscription, and nothing ever re-registered it. Meanwhile the bell
+    // read its on/off state from localStorage, so it went on saying
+    // notifications were enabled for a device FCM had forgotten. Silence,
+    // with nothing anywhere reporting a fault.
+    //
+    // Both halves of that are fixed here. The token is re-fetched and
+    // re-saved on every load once permission is granted, so a rotation
+    // repairs itself the next time the app is opened; and the bell is drawn
+    // from what the server actually holds, so it can never claim to be on
+    // when nothing is registered.
+    // ============================================================
+
+    // Identifies this browser, not this token. Subscriptions are keyed by it,
+    // so a rotated token overwrites the row this device already owns instead
+    // of leaving a dead one behind and adding a new one.
+    const PUSH_DEVICE_KEY_ = 'ashram-app-v3-push-device';
+    let pushRegistered_ = false;
+    let pushBusy_ = false;
+
+    function pushDeviceId_() {
+      let id = '';
+      try { id = localStorage.getItem(PUSH_DEVICE_KEY_) || ''; } catch (error) { id = ''; }
+      if (!id) {
+        id = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        try { localStorage.setItem(PUSH_DEVICE_KEY_, id); } catch (error) { /* private mode */ }
+      }
+      return id;
+    }
+
+    async function initPushNotifications_() {
+      const button = $('notif-btn');
+      const supported = await (window.__pushSupported || Promise.resolve(false));
+      if (!supported || !('Notification' in window)) {
+        // Nothing to offer, so nothing is shown — better than a button that
+        // can only ever fail.
+        button.hidden = true;
+        return;
+      }
+      button.hidden = false;
+      button.disabled = false;
+      button.addEventListener('click', togglePushNotifications_);
+
+      // The server is asked first, so the button tells the truth even before
+      // anything is re-registered.
+      try {
+        const state = await apiCall('getPushSubscription', { deviceId: pushDeviceId_() });
+        pushRegistered_ = Boolean(state && state.registered);
+      } catch (error) {
+        pushRegistered_ = false;
+      }
+      updatePushButton_();
+
+      // The repair. Permission is a browser-level grant that survives token
+      // rotation, so if it is still granted this device should be registered
+      // — whatever the server currently thinks.
+      if (Notification.permission === 'granted') refreshPushRegistration_();
+    }
+
+    // Quiet by design: this runs on every load, and a failure here is not
+    // something to interrupt anyone about. It leaves the button showing
+    // whatever the server last confirmed.
+    async function refreshPushRegistration_() {
+      try {
+        const token = await window.__firebaseGetToken();
+        if (!token) return;
+        await apiCall('savePushSubscription', {
+          payload: { deviceId: pushDeviceId_(), token, userAgent: navigator.userAgent }
+        });
+        pushRegistered_ = true;
+        updatePushButton_();
+      } catch (error) {
+        // Left alone deliberately — see above.
+      }
+    }
+
+    async function togglePushNotifications_() {
+      if (pushBusy_) return;
+      pushBusy_ = true;
+      const button = $('notif-btn');
+      button.disabled = true;
+      try {
+        if (pushRegistered_) {
+          // Telling FCM as well as the server: forgetting the token here
+          // alone would leave this device receiving notifications until it
+          // happened to rotate.
+          await window.__firebaseDeleteToken();
+          await apiCall('removePushSubscription', { deviceId: pushDeviceId_() });
+          pushRegistered_ = false;
+          showToast('Notifications turned off for this device.', 'success');
+        } else {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            showToast(permission === 'denied'
+              ? 'Notifications are blocked for this site in your browser settings.'
+              : 'Notification permission was not granted.', 'error');
+            return;
+          }
+          const token = await window.__firebaseGetToken();
+          if (!token) throw new Error('This browser did not return a notification token.');
+          await apiCall('savePushSubscription', {
+            payload: { deviceId: pushDeviceId_(), token, userAgent: navigator.userAgent }
+          });
+          pushRegistered_ = true;
+          showToast('Notifications turned on for this device.', 'success');
+        }
+      } catch (error) {
+        handleApiError(error, err => showToast(`Couldn't change notifications: ${getErrorMessage(err)}`, 'error'));
+      } finally {
+        pushBusy_ = false;
+        button.disabled = false;
+        updatePushButton_();
+      }
+    }
+
+    function updatePushButton_() {
+      const button = $('notif-btn');
+      const blocked = 'Notification' in window && Notification.permission === 'denied';
+      const label = blocked
+        ? 'Notifications are blocked in your browser settings'
+        : pushRegistered_ ? 'Notifications are on for this device' : 'Notifications are off for this device';
+      button.classList.toggle('active', pushRegistered_ && !blocked);
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-pressed', String(pushRegistered_ && !blocked));
+      button.title = label;
+    }
+
+    // A message that arrives while this tab is open and in front never
+    // reaches the service worker's background handler — standard FCM
+    // behaviour — so this stands in for it.
+    window.handleForegroundPush = payload => {
+      const title = (payload && payload.notification && payload.notification.title) || 'New notification';
+      const body = (payload && payload.notification && payload.notification.body) || '';
+      showToast(body ? `${title} — ${body}` : title, 'success');
+      if (appInitialized) refreshCurrentPage_({ silent: true, force: true });
+    };
     let remoteListenerStarted_ = false;
     let remoteRefreshTimer_ = null;
     let remoteRefreshPending_ = false;
@@ -4231,6 +4417,7 @@
     // Realtime collaboration is provided by Firestore's audit-log listener.
 
     function initializeApp() {
+      initPushNotifications_();
       window.addEventListener('hashchange', handleRouteChange_);
       $('directory-ribbon').addEventListener('click', () => navigate('#directory'));
       // One delegated handler for every page's Back button, so adding a page
