@@ -230,8 +230,18 @@ function mealScheduleView(schedule, canonical) {
     guestId = guest?.id || "";
     personType = guest?.personType || "";
   }
+  // Over and done with: a one-off whose day has passed, or a recurring rule
+  // that has run past its last day. Decided here rather than in the workspace
+  // so the same answer reaches every reader of a schedule.
+  const todayKey = dateKeyOf(Date.now());
+  const recurrence = schedule.recurrence || "oneTime";
+  const endKey = schedule.endDateKey || "";
+  const ended = recurrence === "oneTime"
+    ? Boolean(schedule.dateKey) && schedule.dateKey < todayKey
+    : Boolean(endKey) && endKey < todayKey;
   return {
     scheduleId: schedule.id,
+    ended,
     sourceType: schedule.sourceType || "individualGuest",
     sourceId: schedule.sourceId || "",
     name,
@@ -2327,6 +2337,18 @@ export function createFirestoreBridge(firebaseApp) {
 
   // Cancelled is gone: a meeting that was called off is deleted, not parked in
   // a status nobody revisits. Scheduled and Completed are the only outcomes.
+  // The one field on a visit somebody needs to change on its own — the
+  // registration is done, and that is the whole of it. Its own action rather
+  // than a round trip through the visit editor, and a field-level update
+  // rather than a whole-document write, so nothing else on the stay can be
+  // caught by it.
+  async function setCformComplete(visitId, complete, suppliedVersion) {
+    const done = complete === true;
+    const result = await simpleTransaction("visits", clean(visitId, 100), suppliedVersion,
+      () => ({ cFormComplete: done }), "c-form", ["cFormComplete"]);
+    return { visitId: result.id, cformComplete: done, version: result.version };
+  }
+
   async function setMeetingStatus(meetingId, status, suppliedVersion) {
     if (!["Scheduled", "Completed"].includes(status)) throw new Error("Invalid meeting status.");
     const result = await simpleTransaction("meetings", clean(meetingId, 100), suppliedVersion, () => ({ status }), "set-status", ["status"]);
@@ -3303,6 +3325,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "savePermanentResident") return savePermanentResident(extra.payload || {});
       if (action === "deletePermanentResident") return deletePermanentResident(extra.residentId);
       if (action === "upsertMeeting") return upsertMeeting(extra.payload || {});
+      if (action === "setCformComplete") return setCformComplete(extra.visitId, extra.complete, extra.version);
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);
       if (action === "saveSevaTeam") return saveSevaTeam(extra.payload || {});
       if (action === "deleteSevaTeam") return deleteSevaTeam(extra.teamId);

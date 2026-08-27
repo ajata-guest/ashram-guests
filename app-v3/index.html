@@ -704,6 +704,37 @@
        and from the green/orange/red operational-state families. */
     .badge-teal { border: 1px solid rgba(26, 188, 156, 0.35); background: rgba(26, 188, 156, 0.16); color: var(--teal); }
     .badge-pink { border: 1px solid rgba(255, 118, 117, 0.3); background: rgba(255, 118, 117, 0.14); color: var(--pink); }
+
+    /* The badge and its tick read as one control: the tick is joined to the
+       badge's right edge and carries the same colour, so it is plainly the
+       answer to that badge rather than a stray button on the card. */
+    .cform-group { display: inline-flex; align-items: stretch; }
+    .cform-group .badge { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+    .cform-done {
+      display: flex;
+      width: 26px;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 1px solid rgba(255, 118, 117, 0.3);
+      border-left: 0;
+      border-radius: 0 4px 4px 0;
+      background: rgba(255, 118, 117, 0.14);
+      color: var(--pink);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .cform-done .icon { width: 13px; height: 13px; margin: 0; }
+    .cform-done:hover,
+    .cform-done:focus-visible {
+      outline: none;
+      background: rgba(113, 217, 157, 0.2);
+      border-color: rgba(113, 217, 157, 0.45);
+      color: #71d99d;
+    }
+    .cform-done:disabled { cursor: wait; opacity: 0.5; }
     /* Room tiers share --purple with the Visitor identity badge — see the
        --purple-light/deep comment in :root for why that's fine now. */
     /* On a dark theme, dimming a color mutes it further — the top tier
@@ -2820,6 +2851,10 @@
     .meal-schedule-groups { display:flex; gap:22px; flex-direction:column; }
     .meal-management-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 14px; border:1px solid #373737; border-radius:9px; background:#222; align-items:center; }
     .meal-management-row + .meal-management-row { margin-top:8px; }
+    /* Finished arrangements stay legible but plainly not in force. */
+    .meal-schedules-ended { margin-top:20px; }
+    .meal-schedules-ended .meal-management-row { border-color:#2f2f2f; background:#1c1c1c; }
+    .meal-schedules-ended .meal-management-title { color:var(--subtle); font-weight:600; }
     .meal-management-title { color:var(--text); font-weight:700; }
     .meal-management-meta { margin-top:5px; color:var(--subtle); font-size:.78rem; line-height:1.45; }
     .meal-manager-source-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:16px; }
@@ -4038,6 +4073,7 @@
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
     <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
     <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></symbol>
   </svg>
@@ -4571,6 +4607,13 @@
       }
 
       const route = ROUTES_[next.name];
+      // Arriving at Meals — rather than refreshing it, or coming back from a
+      // dialog — is when the meal to show is decided from the clock. Done
+      // here so an ordinary refresh cannot pull the tab out from under a
+      // choice somebody has just made.
+      if (next.name === 'meals' && currentRoute_.name !== 'meals') {
+        mealsActiveMeal_ = mealForHour_(appHourNow_());
+      }
       const token = ++routeToken_;
       setNavBusy_(true);
 
@@ -6442,9 +6485,16 @@
     // Only facts about the person. What still needs arranging for a stay, who
     // is on a team and who is on a trip are their own workspaces' questions,
     // asked there against data this list does not carry.
+    // Nationality is the same shape as person type — two names for one field,
+    // so they are alternatives too. Picking both is the same as picking
+    // neither, which is better than the empty list two contradictory
+    // conditions would otherwise produce.
+    const DIRECTORY_NATIONALITY_CHIPS_ = Object.freeze(['Foreign national', 'Indian']);
+    const nationalityOf_ = record => (record.isForeign ? 'Foreign national' : 'Indian');
+
     const DIRECTORY_CHIPS_ = Object.freeze([
       ...DIRECTORY_TYPE_CHIPS_.map(label => ({ label, test: record => record.personType === label })),
-      { label: 'Foreign national', test: record => Boolean(record.isForeign) }
+      ...DIRECTORY_NATIONALITY_CHIPS_.map(label => ({ label, test: record => nationalityOf_(record) === label }))
     ]);
 
     const directoryActiveChips_ = new Set();
@@ -6483,11 +6533,13 @@
       // Person types are alternatives to each other; anything else is an
       // additional condition. Same rule the Accommodation chips follow.
       const activeTypes = [...directoryActiveChips_].filter(label => DIRECTORY_TYPE_CHIPS_.includes(label));
-      const activeTests = DIRECTORY_CHIPS_.filter(chip => directoryActiveChips_.has(chip.label)
-        && !DIRECTORY_TYPE_CHIPS_.includes(chip.label));
+      const activeNationalities = [...directoryActiveChips_].filter(label => DIRECTORY_NATIONALITY_CHIPS_.includes(label));
+      const grouped = label => DIRECTORY_TYPE_CHIPS_.includes(label) || DIRECTORY_NATIONALITY_CHIPS_.includes(label);
+      const activeTests = DIRECTORY_CHIPS_.filter(chip => directoryActiveChips_.has(chip.label) && !grouped(chip.label));
       return directoryRecords_.filter(record => {
         if (!directoryShowArchived_ && record.archived) return false;
         if (activeTypes.length && !activeTypes.includes(record.personType)) return false;
+        if (activeNationalities.length && !activeNationalities.includes(nationalityOf_(record))) return false;
         if (!activeTests.every(chip => chip.test(record))) return false;
         return queryTerms.every(term => record.searchText.includes(term));
       });
@@ -6913,6 +6965,13 @@
       'Invited Guest', 'Friend', 'Visitor', 'Event Staff', 'Other', 'Permanent Resident'
     ]);
 
+    // Also about the person rather than the stay, but a plain condition here:
+    // this workspace has no Foreign national chip to be an alternative to —
+    // C-form pending already answers that question from the other side.
+    const ACCOMMODATION_NATIONALITY_CHIPS_ = Object.freeze([
+      { label: 'Indian', test: visit => !visit.isForeign }
+    ]);
+
     let accommodationVisits_ = [];
     let accommodationSection_ = 'attention';
     const accommodationActiveChips_ = new Set();
@@ -6980,6 +7039,7 @@
 
       ACCOMMODATION_CHIPS_.forEach(def => addAccommodationChip_(container, def.label));
       ACCOMMODATION_TYPE_CHIPS_.forEach(label => addAccommodationChip_(container, label));
+      ACCOMMODATION_NATIONALITY_CHIPS_.forEach(def => addAccommodationChip_(container, def.label));
       // Building chips come from the Rooms sheet, so renaming or adding a
       // building updates this row with no code change.
       accommodationBuildings_().forEach(building => addAccommodationChip_(container, building));
@@ -7028,7 +7088,8 @@
     }
 
     function accommodationChipTest_(visit, label) {
-      const known = ACCOMMODATION_CHIPS_.find(c => c.label === label);
+      const known = ACCOMMODATION_CHIPS_.find(c => c.label === label)
+        || ACCOMMODATION_NATIONALITY_CHIPS_.find(c => c.label === label);
       if (known) return known.test(visit);
       // Otherwise it's a building chip: does this visit hold a room there?
       return (visit.rooms || []).some(room => {
@@ -7141,6 +7202,23 @@
         .catch(error => handleApiError(error, err => showToast(`Couldn't delete visit: ${getErrorMessage(err)}`, 'error')));
     }
 
+    // Marked from the card, and the version goes with it: if somebody else has
+    // edited this stay meanwhile the write is refused rather than landing on
+    // top of their change, and the message says to refresh.
+    function resolveCform_(visit, button) {
+      button.disabled = true;
+      apiCall('setCformComplete', { visitId: visit.visitId, complete: true, version: visit.version })
+        .then(() => {
+          showToast(`C-form marked complete for ${visit.name || 'this guest'}.`, 'success');
+          loadAccommodationPage_();
+          loadHomeSummary_().then(renderHome_);
+        })
+        .catch(error => {
+          button.disabled = false;
+          handleApiError(error, err => showToast(`Couldn't update the C-form: ${getErrorMessage(err)}`, 'error'));
+        });
+    }
+
     function visitRoomWindow_(visit) {
       const start = visit && visit.arrivalMs !== null && visit.arrivalMs !== undefined
         ? Number(visit.arrivalMs)
@@ -7244,9 +7322,25 @@
       const badges = createElement('div', 'badge-row');
       badges.appendChild(createPersonTypeBadge(visit.personType));
       // C-form sits with the identity badges, as in V2 — it is a fact about
-      // this guest's paperwork rather than a step in arranging the stay.
+      // this guest's paperwork rather than a step in arranging the stay. The
+      // tick beside it is the whole of resolving one: there is nothing to fill
+      // in, so opening the visit editor to move a checkbox was the long way
+      // round to a yes.
       if (isCformPending_(visit)) {
-        badges.appendChild(createBadge('C-form pending', 'badge-pink'));
+        const group = createElement('span', 'cform-group');
+        group.appendChild(createBadge('C-form pending', 'badge-pink'));
+        const done = createElement('button', 'cform-done');
+        done.type = 'button';
+        done.title = 'Mark C-form complete';
+        done.setAttribute('aria-label', `Mark ${visit.name || 'this guest'}'s C-form complete`);
+        done.appendChild(createIcon_('icon-check'));
+        done.addEventListener('click', event => {
+          // The card itself opens the visit editor.
+          event.stopPropagation();
+          resolveCform_(visit, done);
+        });
+        group.appendChild(done);
+        badges.appendChild(group);
       }
       card.appendChild(badges);
 
@@ -8608,7 +8702,40 @@
     const MEAL_WEEKDAY_LABELS_ = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     let mealsData_ = null;
     let mealsView_ = 'daily';
-    let mealsActiveMeal_ = 'Lunch';
+    // Meals are served at 8am, 1pm and 8pm. Opening the workspace mid-morning
+    // to find Lunch selected meant a step before every task, so the meal in
+    // question is chosen from the clock: whichever is next to be served, or
+    // being served now. Read in the ashram's timezone rather than the
+    // device's, so the answer does not change with where the phone thinks it
+    // is. A tap still selects any meal, and holds while the page is open.
+    const MEAL_BY_HOUR_ = Object.freeze([
+      { until: 10, meal: 'Breakfast' },
+      { until: 15, meal: 'Lunch' }
+    ]);
+
+    function mealForHour_(hour) {
+      const match = MEAL_BY_HOUR_.find(entry => hour < entry.until);
+      return match ? match.meal : 'Dinner';
+    }
+
+    function appHourNow_() {
+      const now = new Date();
+      if (appTimezone) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: appTimezone, hour: '2-digit', hour12: false
+          }).formatToParts(now);
+          const hour = Number((parts.find(part => part.type === 'hour') || {}).value);
+          // "24" is midnight in some locales' 24-hour formatting.
+          if (Number.isFinite(hour)) return hour % 24;
+        } catch (error) {
+          // Fall back to the device clock, same as getAppDateKey does.
+        }
+      }
+      return now.getHours();
+    }
+
+    let mealsActiveMeal_ = mealForHour_(appHourNow_());
     let mealGuestRecords_ = [];
     let mealEditorSource_ = 'individualGuest';
     let mealSelectedGuest_ = null;
@@ -9072,8 +9199,12 @@
       ];
       const list = $('meals-schedules-list');
       list.replaceChildren();
+      // An invitation for a day that has passed is not an arrangement any
+      // more, and reading as one alongside the standing rules was the whole
+      // problem. It keeps its own section at the end — still there to look at
+      // or delete, but plainly finished rather than in force.
       groups.forEach(group => {
-        const rows = schedules.filter(item => item.sourceType === group.type);
+        const rows = schedules.filter(item => item.sourceType === group.type && !item.ended);
         if (!rows.length) return;
         const zone = createElement('section', 'zone zone-upcoming');
         const header = createElement('div', 'zone-header');
@@ -9083,6 +9214,18 @@
         rows.forEach(item => zone.appendChild(createMealScheduleRow_(item)));
         list.appendChild(zone);
       });
+
+      const ended = schedules.filter(item => item.ended);
+      if (ended.length) {
+        const zone = createElement('section', 'zone zone-past meal-schedules-ended');
+        const header = createElement('div', 'zone-header');
+        header.appendChild(createElement('span', 'zone-title', 'Ended'));
+        header.appendChild(createElement('span', 'zone-count', String(ended.length)));
+        header.appendChild(createElement('span', 'zone-description', 'Past dates — no longer in force'));
+        zone.appendChild(header);
+        ended.forEach(item => zone.appendChild(createMealScheduleRow_(item)));
+        list.appendChild(zone);
+      }
       $('meals-schedules-empty').hidden = schedules.length > 0;
     }
 
