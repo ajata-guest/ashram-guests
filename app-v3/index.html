@@ -4980,29 +4980,44 @@
       // than forcing the user to find the narrow Home ribbon again. The dock
       // lives outside every status-swipe surface, keeping the two gestures
       // isolated by where the touch begins.
-      // What lies under the finger, if it is something that scrolls sideways —
-      // the meal calendar's day strip being the one such thing in the app.
-      // The dock floats over the page, so wherever it lands on that strip the
-      // two want the same gesture: dragging the dock sideways opens it,
-      // dragging the strip sideways moves through the days. Only one can have
-      // a given patch of screen, and the strip is content where the dock is
-      // furniture, so the strip takes the drag there. The dock still opens by
-      // a tap, and by a drag anywhere it is not covering something scrollable.
+      // Whether the dock is currently sitting on something that scrolls
+      // sideways — the meal calendar's day strip being the one such thing in
+      // the app. The dock floats over the page, so where it lands on that
+      // strip the two want the same gesture: dragging the dock sideways opens
+      // it, dragging the strip sideways moves through the days. Only one can
+      // have a patch of screen, and the strip is content where the dock is
+      // furniture, so the strip takes the drag. The dock still opens with a
+      // tap, and by dragging it anywhere it is not covering a scroller.
+      //
+      // The whole of the dock's box is tested, not the point under the finger.
+      // Testing the point was the first attempt and it barely helped: the dock
+      // is 64px tall and typically only its bottom edge reaches the strip, so
+      // a drag starting anywhere higher found nothing beneath and opened the
+      // dock as before. If any part of the dock is over the strip the two have
+      // collided, wherever on the dock the finger happens to land.
       //
       // Found by asking what actually scrolls rather than by naming the strip,
       // so anything horizontal added later is handled without knowing of it.
-      function scrollerBeneath_(event) {
+      function scrollerBehindDock_(event) {
         if (event.pointerType === 'mouse' || workspaceDockOpen_) return null;
-        const stack = document.elementsFromPoint(event.clientX, event.clientY) || [];
-        return stack.find(element => element !== dock
-          && !dock.contains(element)
-          && element.scrollWidth > element.clientWidth + 1
-          && ['auto', 'scroll'].includes(window.getComputedStyle(element).overflowX)) || null;
+        const box = dock.getBoundingClientRect();
+        const xs = [box.left + 2, (box.left + box.right) / 2, box.right - 2];
+        const ys = [box.top + 2, (box.top + box.bottom) / 2, box.bottom - 2];
+        for (const y of ys) {
+          for (const x of xs) {
+            const found = (document.elementsFromPoint(x, y) || []).find(element => element !== dock
+              && !dock.contains(element)
+              && element.scrollWidth > element.clientWidth + 1
+              && ['auto', 'scroll'].includes(window.getComputedStyle(element).overflowX));
+            if (found) return found;
+          }
+        }
+        return null;
       }
 
       dock.addEventListener('pointerdown', event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
-        const passthrough = scrollerBeneath_(event);
+        const passthrough = scrollerBehindDock_(event);
         drag = {
           pointerId: event.pointerId,
           startX: event.clientX,
