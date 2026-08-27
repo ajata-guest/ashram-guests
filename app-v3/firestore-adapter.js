@@ -661,24 +661,75 @@ function engagementsOutside(visits, engagements) {
   return result;
 }
 
-function isAshramResident(visit, todayKey, personType) {
+// Arrived means the arrival moment has actually passed, not merely that the
+// day has come round. Where a time was recorded, that is the moment — a guest
+// due at 7am is not here at 6.30, and counting them as residing all morning
+// before they turned up is what this exists to prevent. Where only a date was
+// given, the start of that day is the whole of what the record supports.
+function hasArrived(visit, todayKey, now) {
+  if (!visit) return false;
+  if (visit.arrivalTimeConfirmed && visit.arrivalMs !== null && visit.arrivalMs !== undefined) {
+    return visit.arrivalMs <= now;
+  }
+  return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey;
+}
+
+function stillHere(visit, todayKey) {
+  return !visit.departureDate || visit.departureDate >= todayKey;
+}
+
+function isAshramResident(visit, todayKey, personType, now) {
   if (!visit || visit.accommodation !== "Ashram") return false;
   // A residency has no arrival date to prove itself by — someone who lives
   // here is residing every day. Without this a resident counted as neither
   // residing nor nearby, which is what put the homepage tile out of step
   // with the workspace's own Residing tab.
   if (isResidencyStay(visit, personType)) return true;
-  return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey
-    && (!visit.departureDate || visit.departureDate >= todayKey);
+  return hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
 }
 
 // Here, but not on campus: arrived, not yet departed, staying anywhere other
 // than the ashram. The counterpart to residing rather than a subset of it —
 // between them they account for everyone currently around.
-function isNearby(visit, todayKey) {
+function isNearby(visit, todayKey, now) {
   return Boolean(visit) && visit.accommodation !== "Ashram"
-    && Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey
-    && (!visit.departureDate || visit.departureDate >= todayKey);
+    && hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
+}
+
+// One definition of "this stay still needs something doing", shared by the
+// homepage tile, the workspace's Attention tab and its filter chips. The two
+// used to be computed separately — the tile from the guest's priority reasons,
+// the tab from the workspace's own chip tests — and drifted apart: a stay with
+// no arrival date counted on the homepage and not in the workspace. The labels
+// below are the chips' labels, so the workspace filters by matching them.
+function visitAttentionReasons(view, personType, isForeign, todayKey, now) {
+  if (view.cancelled) return [];
+  if (view.departureDate && view.departureDate < todayKey) return [];
+  const reasons = [];
+  // Someone who lives here did not turn up on a date, so no arrival is
+  // missing. Their room is ordinary inventory, so one of those still is.
+  if (!view.arrivalDate && !isResidencyStay(view, personType)) reasons.push("Arrival date not set");
+  if (view.accommodation === "Ashram" && !view.rooms.length) reasons.push("Room not assigned");
+  if (view.accommodation === "TBD") reasons.push("Accommodation TBD");
+  if (view.accommodation === "Outside - Arranged by Ashram" && !view.outsideAccommodationConfirmed) {
+    reasons.push("Outside not confirmed");
+  }
+  // A police registration for a foreign national staying on the premises: it
+  // applies once they are actually here, and only when the ashram is housing
+  // them — not for a guest booked into a hotel, and not before they arrive.
+  if (isForeign && !view.cformComplete && view.accommodation === "Ashram" && hasArrived(view, todayKey, now)) {
+    reasons.push("C-form pending");
+  }
+  if (view.pickupRequired && view.pickupBookingState !== "Confirmed") reasons.push("Pickup to arrange");
+  if (view.dropoffRequired && view.dropoffBookingState !== "Confirmed") reasons.push("Drop-off to arrange");
+  if (view.pickupBookingState === "Needs Reconfirmation" || view.dropoffBookingState === "Needs Reconfirmation") {
+    reasons.push("Needs reconfirmation");
+  }
+  if (view.pickupBookingState === "Needs Rescheduling" || view.dropoffBookingState === "Needs Rescheduling") {
+    reasons.push("Needs rescheduling");
+  }
+  if ((view.travelLegs || []).some(leg => leg.status === "Required")) reasons.push("Personal travel to arrange");
+  return reasons;
 }
 
 function priorityReasons(record, now, todayKey) {
@@ -709,7 +760,7 @@ function priorityReasons(record, now, todayKey) {
   // only applies once they are actually here and only when the ashram itself
   // is housing them — not for a guest the ashram booked into a hotel.
   if (record.isForeign && !visit.cformComplete && visit.accommodation === "Ashram"
-      && visit.arrivalMs !== null && visit.arrivalMs <= now) reasons.push("C-form pending");
+      && hasArrived(visit, todayKey, now)) reasons.push("C-form pending");
   if (cabEligible) {
     [["pickup", "Pickup"], ["dropoff", "Drop-off"]].forEach(([key, label]) => {
       if (!visit[`${key}Required`]) return;
@@ -794,8 +845,8 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
     };
     record.engagementsOutsideStay = engagementsOutside(allVisits, { meetings, meals, specificSeva: tasks });
     record.priorityReasons = priorityReasons(record, now, todayKey);
-    record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType);
-    record.nearby = isNearby(record.visit, todayKey);
+    record.residingInAshram = isAshramResident(record.visit, todayKey, record.personType, now);
+    record.nearby = isNearby(record.visit, todayKey, now);
     return record;
   });
 }
@@ -817,26 +868,27 @@ function homeSummary(canonical, records) {
     seva: { activeTeams: 0, activeTeamMembers: 0, activeSpecificSeva: 0, startingSoon: 0 },
     trips: { active: 0, upcoming: 0, needingTravel: 0 }
   };
-  // Counted over every live visit, not one per guest. A record exposes only
-  // its current-or-nearest visit, so counting from records undercounted any
-  // guest with more than one visit booked — and the homepage tile has to agree
-  // with the workspace, which lists them all. The two tests below are the same
-  // ones ACCOMMODATION_SECTIONS_ uses for its Today and Upcoming tabs.
-  const personTypeByGuest = Object.fromEntries(canonical.guests.map(guest => [guest.id, guest.personType]));
+  // Counted over every live visit, not one per guest, and from the same visit
+  // views the workspace itself renders — a record exposes only its current-or-
+  // nearest visit, so counting from records undercounted any guest with more
+  // than one booked. Every test below is the one that workspace's own tab or
+  // chip uses, so the tile and the tabs cannot report different totals.
+  const now = Date.now();
+  const guestsById = Object.fromEntries(canonical.guests.map(guest => [guest.id, guest]));
+  const homeRooms = groupBy(canonical.visitRooms, "visitId");
+  const homeLegs = groupBy(canonical.visitTravelLegs, "visitId");
   canonical.visits.filter(visit => !visit.isCancelled).forEach(visit => {
-    const arrival = visit.arrivalDateKey || "";
-    const departure = visit.departureDateKey || "";
-    if (arrival === today || departure === today) result.accommodation.today += 1;
-    if (arrival && arrival > today) result.accommodation.upcoming += 1;
-    // Here right now, split by where they sleep. Residing counts a residency
-    // outright, since it has no arrival date to fall inside; nearby is
-    // everyone else who has arrived and not yet left, wherever they are
-    // staying. Both use the same tests as the workspace's own tabs.
-    const present = Boolean(arrival) && arrival <= today && (!departure || departure >= today);
-    if (visit.accommodation === "Ashram") {
-      if (isResidencyStay(visit, personTypeByGuest[visit.guestId]) || present) result.accommodation.currentlyResiding += 1;
-    } else if (present) {
-      result.accommodation.nearby += 1;
+    const guest = guestsById[visit.guestId];
+    if (!guest || guest.archived) return;
+    const view = visitView(visit, homeRooms, homeLegs);
+    if (view.arrivalDate === today || view.departureDate === today) result.accommodation.today += 1;
+    if (view.arrivalDate && view.arrivalDate > today) result.accommodation.upcoming += 1;
+    // Here right now, split by where they sleep: residing on campus, nearby
+    // anywhere else. Between them they account for everyone actually around.
+    if (isAshramResident(view, today, guest.personType, now)) result.accommodation.currentlyResiding += 1;
+    else if (isNearby(view, today, now)) result.accommodation.nearby += 1;
+    if (visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), today, now).length) {
+      result.accommodation.attentionNeeded += 1;
     }
   });
 
@@ -847,7 +899,6 @@ function homeSummary(canonical, records) {
     if (visit) {
       if (visit.arrivalDate === today) result.accommodation.arrivingToday += 1;
       if (visit.departureDate === today) result.accommodation.departingToday += 1;
-      if (record.priorityReasons.some(reason => /arrival|accommodation|room|c-form|pickup|drop-off|required/i.test(reason))) result.accommodation.attentionNeeded += 1;
     }
     record.upcomingMeetings.forEach(meeting => {
       if (meeting.date === today) result.meetings.today += 1;
@@ -1054,6 +1105,8 @@ export function createFirestoreBridge(firebaseApp) {
     const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
     const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
     const legsByVisit = groupBy(canonical.visitTravelLegs, "visitId");
+    const todayKey = dateKeyOf(Date.now());
+    const now = Date.now();
     const visits = canonical.visits.filter(item => !item.isCancelled).map(item => {
       const guest = guestsById[item.guestId];
       if (!guest) return null;
@@ -1067,7 +1120,10 @@ export function createFirestoreBridge(firebaseApp) {
         ...view,
         name: guest.name,
         personType: guest.personType,
-        isForeign: Boolean(guest.foreignNational)
+        isForeign: Boolean(guest.foreignNational),
+        // Computed here rather than in the workspace, so the Attention tab,
+        // its chips and the homepage tile all read one answer.
+        attentionReasons: visitAttentionReasons(view, guest.personType, Boolean(guest.foreignNational), todayKey, now)
       };
     }).filter(Boolean);
     return { visits, generatedAt: Date.now() };

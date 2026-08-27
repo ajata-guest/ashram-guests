@@ -6875,26 +6875,31 @@
       { key: 'attention', label: 'Needs Attention', shortLabel: 'Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
       { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
       // A resident is residing every day, with no arrival date to prove it.
-      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) || (v.accommodation === 'Ashram' && v.arrivalDate && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today)) },
+      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) || (v.accommodation === 'Ashram' && isVisitPresent_(v, today)) },
       // Here but not housed here: arrived, not yet gone, staying anywhere
       // other than the ashram. The other half of who is currently around,
       // and the tab the homepage's Nearby count leads to.
-      { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && Boolean(v.arrivalDate) && v.arrivalDate <= today && (!v.departureDate || v.departureDate >= today) },
+      { key: 'nearby', label: 'Nearby', shortLabel: 'Nearby', accent: '#e0a458', test: (v, today) => v.accommodation !== 'Ashram' && isVisitPresent_(v, today) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
       { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
     ]);
 
+    // The reasons themselves are decided by the adapter (visitAttentionReasons)
+    // and arrive on each visit, so a chip is only a name to match. They used to
+    // be tested here as well as counted there, and the two drifted: a stay with
+    // no arrival date was attention on the homepage and not in this workspace.
     const ACCOMMODATION_CHIPS_ = Object.freeze([
-      { label: 'Room not assigned', test: v => v.accommodation === 'Ashram' && !(v.rooms || []).length },
-      { label: 'Accommodation TBD', test: v => v.accommodation === 'TBD' },
-      { label: 'Outside not confirmed', test: v => v.accommodation === 'Outside - Arranged by Ashram' && !v.outsideAccommodationConfirmed },
-      { label: 'C-form pending', test: v => isCformPending_(v) },
-      { label: 'Pickup to arrange', test: v => v.pickupRequired && v.pickupBookingState !== 'Confirmed' },
-      { label: 'Drop-off to arrange', test: v => v.dropoffRequired && v.dropoffBookingState !== 'Confirmed' },
-      { label: 'Needs reconfirmation', test: v => v.pickupBookingState === 'Needs Reconfirmation' || v.dropoffBookingState === 'Needs Reconfirmation' },
-      { label: 'Needs rescheduling', test: v => v.pickupBookingState === 'Needs Rescheduling' || v.dropoffBookingState === 'Needs Rescheduling' },
-      { label: 'Personal travel to arrange', test: v => (v.travelLegs || []).some(leg => leg.status === 'Required') }
-    ]);
+      'Arrival date not set',
+      'Room not assigned',
+      'Accommodation TBD',
+      'Outside not confirmed',
+      'C-form pending',
+      'Pickup to arrange',
+      'Drop-off to arrange',
+      'Needs reconfirmation',
+      'Needs rescheduling',
+      'Personal travel to arrange'
+    ].map(label => ({ label, test: visit => visitAttentionReasons_(visit).includes(label) })));
 
     // Who the guest is, rather than what still needs doing. Kept as its own
     // group because these are alternatives, not additional conditions: picking
@@ -6909,10 +6914,13 @@
     const accommodationActiveChips_ = new Set();
 
     function visitAttentionReasons_(visit) {
-      if (visit.cancelled) return [];
-      const today = todayDateKey_();
-      if (visit.departureDate && visit.departureDate < today) return [];
-      return ACCOMMODATION_CHIPS_.filter(chip => chip.test(visit)).map(chip => chip.label);
+      return Array.isArray(visit.attentionReasons) ? visit.attentionReasons : [];
+    }
+
+    // Here now: turned up and not yet gone. Shared by Residing and Nearby so
+    // the only difference between those two tabs is where the guest sleeps.
+    function isVisitPresent_(visit, today) {
+      return hasVisitArrived_(visit) && (!visit.departureDate || visit.departureDate >= today);
     }
 
     let accommodationLoaded_ = false;
@@ -7356,22 +7364,33 @@
       return Boolean(visit) && visit.personType === 'Permanent Resident' && visit.accommodation === 'Ashram';
     }
 
+    // Mirrors hasArrived in the adapter. Where a time was recorded, that is
+    // the moment they arrive — a guest due at 7am is not here at 6.30, and
+    // counting them as residing all morning before they turned up is exactly
+    // what this prevents. Where only a date was given, the start of that day
+    // is the whole of what the record supports.
     function hasVisitArrived_(visit) {
-      if (visit.arrivalMs !== null && visit.arrivalMs !== undefined) return visit.arrivalMs <= Date.now();
+      if (!visit) return false;
+      if (visit.arrivalTimeConfirmed && visit.arrivalMs !== null && visit.arrivalMs !== undefined) {
+        return visit.arrivalMs <= Date.now();
+      }
       return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayDateKey_();
     }
 
-    // Where a stay stands right now. Compared by date key rather than by the
-    // millisecond timestamp so that the day someone arrives counts as arrived
-    // from midnight, not from the hour written on the card — otherwise a guest
-    // due at 3pm reads as "arrives" all morning while they are already here.
+    // Where a stay stands right now. This used to compare date keys only, so
+    // that the day someone arrives counted from midnight rather than from the
+    // hour on the card — the worry being a guest due at 3pm reading as
+    // "arrives" all morning when they were already here. hasVisitArrived_ now
+    // draws that line properly: with no time recorded the day still counts
+    // from midnight, exactly as before, and only where somebody actually wrote
+    // a time is that time honoured. Without this the card said Arrived and
+    // Staying for a guest the Residing tab rightly had not counted yet.
     function visitStayStatus_(visit) {
       const today = todayDateKey_();
       const arrival = visit.arrivalDate || '';
       const departure = visit.departureDate || '';
       if (departure && departure < today) return 'departed';
-      if (arrival && arrival <= today) return 'staying';
-      if (arrival) return 'upcoming';
+      if (arrival) return hasVisitArrived_(visit) ? 'staying' : 'upcoming';
       return departure ? 'staying' : 'unknown';
     }
 
