@@ -2028,14 +2028,29 @@
       margin: 0 auto;
     }
 
+    /* Wraps rather than dividing a fixed number of columns. As a two-column
+       grid the actions column sized itself to its contents — on Meals that is
+       a search box and two buttons, some 600px — and the title took whatever
+       was left, which in landscape on a phone was a hundred-odd pixels with
+       the name of the workspace stacked one word per line beside it. Wrapping
+       lets the pair sit side by side wherever they both fit and drop to their
+       own rows where they do not, at whatever width that turns out to be for
+       the page in question. */
     .page-header {
-      display: grid;
+      display: flex;
       max-width: 1200px;
       margin: 0 auto 18px;
-      grid-template-columns: minmax(0, 1fr) auto;
       gap: 16px 24px;
       align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
     }
+
+    /* The basis is what decides when the header wraps: below this much room
+       for the title, the actions take a row of their own instead. */
+    .page-title-block { flex: 1 1 360px; }
+
+    .page-actions { flex: 0 1 auto; }
 
     .page-back {
       display: inline-flex;
@@ -2678,10 +2693,10 @@
 
     @media (max-width: 760px) {
       .page-header {
-        grid-template-columns: minmax(0, 1fr);
         gap: 12px;
         align-items: stretch;
       }
+      .page-title-block { flex: 1 1 100%; }
       .page-actions { width: 100%; }
       /* A page carrying two actions rather than one — Meals and Seva — cannot
          fit a search box beside both on a phone without leaving too little of
