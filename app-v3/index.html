@@ -938,6 +938,16 @@
        narrowing a name never pushes the remaining basic fields around. */
     .guest-name-lookup { position: relative; }
 
+    /* The suggestion list is absolutely positioned inside its dialog, and the
+       dialog is its own scroll container — so where the lookup is the last
+       thing in a short dialog the list was cut off at the dialog's edge and
+       typing spawned a scrollbar. Reserving room underneath while the list is
+       open lets the dialog grow and the list open into empty space. Written
+       once for every dialog carrying a guest lookup (Add Guest, Add Visit and
+       the meal editor) rather than per dialog, which is how the meal editor
+       came to be the only one that behaved. */
+    .modal-content:has(.guest-name-suggestions:not([hidden])) { padding-bottom: 250px; }
+
     .guest-name-suggestions {
       position: absolute;
       z-index: 12;
@@ -2834,12 +2844,6 @@
     }
     #meal-editor-modal .modal-header, #meal-resident-modal .modal-header, #meal-away-modal .modal-header, #meal-resident-plan-modal .modal-header { margin-bottom:0; }
     #meal-editor-modal .meal-manager-source-tabs { margin-bottom:0; }
-    /* The suggestion list is absolutely positioned inside the dialog, and the
-       dialog is its own scroll container. With only the guest section showing,
-       the dialog is barely taller than the input, so the list was cut off at
-       its edge and typing spawned a scrollbar. Reserving room underneath while
-       the list is open lets it open into empty space instead. */
-    #meal-editor-modal .modal-content:has(#meal-guest-suggestions:not([hidden])) { padding-bottom:250px; }
     #meal-editor-modal .dialog-primary-btn, #meal-resident-modal .dialog-primary-btn, #meal-away-modal .dialog-primary-btn, #meal-resident-plan-modal .dialog-primary-btn { background:#71d99d; color:#10261a; }
     #meal-editor-modal .dialog-primary-btn:hover, #meal-resident-modal .dialog-primary-btn:hover, #meal-away-modal .dialog-primary-btn:hover, #meal-resident-plan-modal .dialog-primary-btn:hover { background:#83e3aa; }
     .meal-editor-existing-list { display:flex; gap:8px; flex-direction:column; }
