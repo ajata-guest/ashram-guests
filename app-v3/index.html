@@ -1702,6 +1702,35 @@
     .travel-leg-grid .input-group { margin-bottom: 2px; }
     .travel-leg-grid .span-two { grid-column: 1 / -1; }
 
+    /* Who else is on this journey. Chips rather than a list, because the
+       answer is usually one name and occasionally four, and it has to sit in
+       the tightest part of the dialog without taking a row per person. */
+    .travel-companions { margin-top: 4px; }
+    .companion-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .companion-list:empty { display: none; }
+    .companion-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.78rem;
+    }
+    .companion-remove {
+      display: flex;
+      padding: 2px;
+      border: 0;
+      border-radius: 999px;
+      background: none;
+      color: var(--subtle);
+      cursor: pointer;
+    }
+    .companion-remove:hover { color: var(--text); }
+    .companion-remove .icon { width: 12px; height: 12px; flex-basis: 12px; margin-top: 0; }
+
     .travel-leg-optional {
       margin-top: 10px;
       padding-top: 10px;
@@ -8318,9 +8347,14 @@
       const route = [leg.from, leg.to].filter(Boolean).join(' → ');
       const dateText = leg.travelDisplay || 'Date not set';
       const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
+      // A shared journey says so on the card. Otherwise the same train shows
+      // on two people's cards looking like two separate bookings, which is
+      // exactly the confusion this feature exists to end.
+      const names = (leg.companions || []).map(item => item.name).filter(Boolean);
+      const withWhom = names.length ? ` · with ${listPeople_(names)}` : '';
       return createDetailLine(
         getTravelIconId(leg.transportType),
-        `${route || leg.transportType} · ${dateText}${service}`
+        `${route || leg.transportType} · ${dateText}${service}${withWhom}`
       );
     }
 
@@ -12308,6 +12342,81 @@
       updateTravelDateConstraints(listId);
     }
 
+    // "A", "A and B", "A, B and C". Travelling groups can be any size, and
+    // "A and B and C" reads like a mistake.
+    function listPeople_(names) {
+      if (names.length <= 1) return names[0] || '';
+      return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    }
+
+    // Companions are held as chips in the DOM rather than in a parallel array,
+    // so what is on screen and what gets saved cannot drift apart.
+    function companionChipsIn_(editor) {
+      return [...editor.querySelectorAll('.companion-chip')];
+    }
+
+    function companionVisitIdsIn_(editor) {
+      return companionChipsIn_(editor).map(chip => chip.dataset.visitId).filter(Boolean);
+    }
+
+    function addCompanionChip_(editor, visitId, name) {
+      const list = editor.querySelector('.companion-list');
+      if (!list || !visitId) return;
+      if (companionVisitIdsIn_(editor).includes(visitId)) return;
+      const chip = createElement('span', 'companion-chip', name || 'Guest');
+      chip.dataset.visitId = visitId;
+      chip.dataset.name = name || 'Guest';
+      const remove = createElement('button', 'companion-remove');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove ${name || 'this companion'}`);
+      remove.appendChild(createIcon_('icon-x'));
+      remove.addEventListener('click', () => {
+        chip.remove();
+        markModalDirty();
+      });
+      chip.appendChild(remove);
+      list.appendChild(chip);
+      markModalDirty();
+    }
+
+    // The picker hands back a guest; a journey attaches to a stay, so their
+    // visit is what actually rides the leg. Refused here for the same reasons
+    // the backend refuses, but with the name in the message.
+    function addCompanionToLeg_(editor) {
+      openGuestPicker_(guestId => {
+        closeGuestPicker_();
+        const ownVisitId = $('visit-editor-visit-id').value;
+        const ownGuestId = $('visit-editor-guest-id').value;
+        if (guestId === ownGuestId) {
+          showToast('That is this guest. Add somebody else travelling with them.', 'error');
+          return;
+        }
+        apiCall('getGuestProfile', { guestId })
+          .then(profile => {
+            if (profile.personType === 'Visitor') {
+              showToast(`${profile.name} is a Visitor, and Visitors do not use personal travel planning. Add them to a shared Trip instead.`, 'error');
+              return;
+            }
+            const visit = profile.currentVisit;
+            if (!visit || !visit.visitId) {
+              showToast(`${profile.name} has no visit for this journey to belong to. Add their visit first.`, 'error');
+              return;
+            }
+            if (visit.visitId === ownVisitId) {
+              showToast('That is this same visit.', 'error');
+              return;
+            }
+            if (companionVisitIdsIn_(editor).includes(visit.visitId)) {
+              showToast(`${profile.name} is already on this journey.`);
+              return;
+            }
+            addCompanionChip_(editor, visit.visitId, profile.name);
+          })
+          .catch(error => handleApiError(error, err =>
+            showToast(`Couldn't add that companion: ${getErrorMessage(err)}`, 'error')));
+      });
+    }
+
     function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty') {
       const list = $(listId);
       const isExistingLeg = Boolean(leg.travelId);
@@ -12385,6 +12494,14 @@
                 <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
               </div>
             </div>
+            <div class="input-group travel-companions" hidden>
+              <div class="room-group-header">
+                <label class="input-label">Travelling with</label>
+                <button class="travel-add-btn companion-add-btn" type="button">+ Add</button>
+              </div>
+              <div class="companion-list"></div>
+              <p class="travel-help companion-help">One journey, however many people are on it. Editing it here edits it for all of them.</p>
+            </div>
           </div>
         </div>`;
 
@@ -12403,11 +12520,25 @@
       setValue('bookingReference', leg.bookingReference);
       setValue('notes', leg.notes);
 
+      const companions = editor.querySelector('.travel-companions');
+      if (listId === 'travel-leg-list') {
+        companions.hidden = false;
+        (leg.companions || []).forEach(item => addCompanionChip_(editor, item.visitId, item.name));
+        companions.querySelector('.companion-add-btn')
+          .addEventListener('click', () => addCompanionToLeg_(editor));
+      }
+
       editor.querySelector('.travel-remove-btn').addEventListener('click', () => {
+        // Removing a shared journey here only takes this guest off it. Say so
+        // plainly: from this dialog it looks like deleting the leg outright.
+        const others = companionChipsIn_(editor).map(chip => chip.dataset.name);
+        if (others.length && !window.confirm(
+          `Take this guest off the journey? It stays for ${listPeople_(others)}.`)) return;
         editor.remove();
         refreshAllLegSummaries(listId);
         updateTravelEmptyState(listId, emptyId);
         updateTravelDateConstraints(listId);
+        markModalDirty();
       });
       editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => updateTravelDateConstraints(listId));
       ['direction', 'transportType', 'from', 'to', 'travelDate'].forEach(field => {
@@ -12509,7 +12640,8 @@
           status: value('status'),
           serviceNumber: value('serviceNumber'),
           bookingReference: value('bookingReference'),
-          notes: value('notes')
+          notes: value('notes'),
+          companionVisitIds: companionVisitIdsIn_(editor)
         };
       });
     }

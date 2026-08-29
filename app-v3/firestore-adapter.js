@@ -150,6 +150,61 @@ function groupBy(rows, key) {
   return grouped;
 }
 
+// Same as groupBy for a row that belongs to several keys at once, which is
+// what a shared journey is: one leg, filed under every visit riding it. The
+// row appears in each of its groups; there is still only one of it.
+function groupByEach(rows, idsOf) {
+  const grouped = {};
+  rows.forEach(row => idsOf(row).forEach(id => { (grouped[id] = grouped[id] || []).push(row); }));
+  return grouped;
+}
+
+// Legs written before shared journeys existed carry a single visitId, so
+// reading through this means the app behaves correctly either side of the
+// migration rather than needing it to have run first.
+function legVisitIds(leg) {
+  if (Array.isArray(leg.visitIds) && leg.visitIds.length) return leg.visitIds;
+  return leg.visitId ? [leg.visitId] : [];
+}
+
+// Which guest each visit belongs to, by name, so a shared leg can say who
+// else is on it without every caller joining guests to visits itself.
+function visitOwnerNames(canonical) {
+  const byGuest = Object.fromEntries(canonical.guests.map(guest => [guest.id, guest.name || ""]));
+  return Object.fromEntries(canonical.visits.map(visit => [visit.id, byGuest[visit.guestId] || ""]));
+}
+
+// Chronological, because a shared leg has no single position in a list: the
+// same train can be a guest's first leg and another's second. An undated leg
+// has no place in the order, so it goes last rather than to the top.
+// Who rides a leg once this visit's save lands. A client that sends no
+// companion list at all leaves the existing riders alone; an empty list is a
+// deliberate "nobody else". The visit doing the saving is always aboard.
+function ridersAfterSave(visitId, leg, existingLeg) {
+  const supplied = Array.isArray(leg.companionVisitIds)
+    ? leg.companionVisitIds.map(id => clean(id, 100)).filter(Boolean)
+    : null;
+  const riders = supplied
+    ? [visitId, ...supplied]
+    : (existingLeg ? legVisitIds(existingLeg) : [visitId]);
+  return [...new Set([visitId, ...riders])];
+}
+
+// Dropping a shared leg means stepping off it rather than deleting it: a
+// save for one guest must never take another guest's train away. Only the
+// last rider off removes the record.
+function legAfterLeaving(leg, visitId) {
+  const remaining = legVisitIds(leg).filter(id => id !== visitId);
+  return remaining.length ? { action: "update", visitIds: remaining } : { action: "delete" };
+}
+
+function compareLegs(a, b) {
+  if (a.travelMs === null && b.travelMs === null) return a.order - b.order;
+  if (a.travelMs === null) return 1;
+  if (b.travelMs === null) return -1;
+  return a.travelMs - b.travelMs || a.order - b.order;
+}
+
 function mealSeating(value, fallback = "Floor") {
   const seating = clean(value, 40);
   return MEAL_SEATING.has(seating) ? seating : fallback;
@@ -549,10 +604,20 @@ function sevaStatus(item, allowDateless, now = Date.now()) {
   return "Seva active";
 }
 
-function travelView(leg) {
+// forVisitId is whose list this leg is being rendered into, so the companions
+// it reports are everyone else on the journey rather than including the
+// reader. A leg with one rider reports none, which is how it looked before
+// shared journeys existed.
+function travelView(leg, forVisitId = "", ownerNames = {}) {
   const info = serializeDate(leg.travelAt, leg.timeConfirmed);
+  const riders = legVisitIds(leg);
   return {
     legId: leg.id,
+    companions: riders
+      .filter(id => id !== forVisitId)
+      .map(id => ({ visitId: id, name: ownerNames[id] || "" }))
+      .filter(item => item.name),
+    riderCount: riders.length,
     order: Number(leg.order) || 1,
     direction: leg.direction || "Inbound",
     transportType: leg.transportType || "Other",
@@ -590,7 +655,7 @@ function cabState(visit, type) {
   return "Confirmed";
 }
 
-function visitView(visit, roomsByVisit, legsByVisit) {
+function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}) {
   const arrival = serializeDate(visit.arrivalAt, visit.arrivalTimeConfirmed);
   const departure = serializeDate(visit.departureAt, visit.departureTimeConfirmed);
   const pickup = serializeDate(visit.pickupAt, visit.pickupTimeConfirmed);
@@ -648,7 +713,9 @@ function visitView(visit, roomsByVisit, legsByVisit) {
       room: row.roomLabelSnapshot,
       sharedOk: Boolean(row.sharedOk)
     })),
-    travelLegs: (legsByVisit[visit.id] || []).map(travelView).sort((a, b) => a.order - b.order)
+    travelLegs: (legsByVisit[visit.id] || [])
+      .map(leg => travelView(leg, visit.id, ownerNames))
+      .sort(compareLegs)
   };
 }
 
@@ -894,7 +961,8 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
   const todayKey = dateKeyOf(now);
   const visitsByGuest = groupBy(canonical.visits, "guestId");
   const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
-  const legsByVisit = groupBy(canonical.visitTravelLegs, "visitId");
+  const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
+  const ownerNames = visitOwnerNames(canonical);
   const mealsByGuest = groupBy(canonical.mealOverrides, "guestId");
   const meetingsByGuest = groupBy(canonical.meetings, "guestId");
   const tasksByGuest = groupBy(canonical.specificSeva, "guestId");
@@ -904,7 +972,7 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
   const tripsById = Object.fromEntries(canonical.trips.map(trip => [trip.id, trip]));
 
   return canonical.guests.filter(guest => includeArchived || !guest.archived).map(guest => {
-    const allVisits = (visitsByGuest[guest.id] || []).filter(visit => !visit.isCancelled).map(visit => visitView(visit, roomsByVisit, legsByVisit));
+    const allVisits = (visitsByGuest[guest.id] || []).filter(visit => !visit.isCancelled).map(visit => visitView(visit, roomsByVisit, legsByVisit, ownerNames));
     const meetings = (meetingsByGuest[guest.id] || []).map(meetingView);
     const tasks = (tasksByGuest[guest.id] || []).map(taskView);
     const meals = (mealsByGuest[guest.id] || []).map(item => ({ overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included) }));
@@ -972,11 +1040,12 @@ function homeSummary(canonical, records) {
   const now = Date.now();
   const guestsById = Object.fromEntries(canonical.guests.map(guest => [guest.id, guest]));
   const homeRooms = groupBy(canonical.visitRooms, "visitId");
-  const homeLegs = groupBy(canonical.visitTravelLegs, "visitId");
+  const homeLegs = groupByEach(canonical.visitTravelLegs, legVisitIds);
+  const homeOwners = visitOwnerNames(canonical);
   canonical.visits.filter(visit => !visit.isCancelled).forEach(visit => {
     const guest = guestsById[visit.guestId];
     if (!guest || guest.archived) return;
-    const view = visitView(visit, homeRooms, homeLegs);
+    const view = visitView(visit, homeRooms, homeLegs, homeOwners);
     if (view.arrivalDate === today || view.departureDate === today) result.accommodation.today += 1;
     if (view.arrivalDate && view.arrivalDate > today) result.accommodation.upcoming += 1;
     // Here right now, split by where they sleep: residing on campus, nearby
@@ -1157,8 +1226,9 @@ export function createFirestoreBridge(firebaseApp) {
     const guest = canonical.guests.find(item => item.id === id);
     if (!guest) throw new Error("This guest no longer exists.");
     const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
-    const legsByVisit = groupBy(canonical.visitTravelLegs, "visitId");
-    const visits = canonical.visits.filter(item => item.guestId === id).map(item => visitView(item, roomsByVisit, legsByVisit));
+    const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
+  const ownerNames = visitOwnerNames(canonical);
+    const visits = canonical.visits.filter(item => item.guestId === id).map(item => visitView(item, roomsByVisit, legsByVisit, ownerNames));
     const liveVisits = visits.filter(item => !item.cancelled);
     const mealOverrides = canonical.mealOverrides.filter(item => item.guestId === id).map(item => ({
       overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included),
@@ -1207,13 +1277,14 @@ export function createFirestoreBridge(firebaseApp) {
     const canonical = await loadCanonical();
     const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
     const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
-    const legsByVisit = groupBy(canonical.visitTravelLegs, "visitId");
+    const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
+  const ownerNames = visitOwnerNames(canonical);
     const todayKey = dateKeyOf(Date.now());
     const now = Date.now();
     const visits = canonical.visits.filter(item => !item.isCancelled).map(item => {
       const guest = guestsById[item.guestId];
       if (!guest) return null;
-      const view = visitView(item, roomsByVisit, legsByVisit);
+      const view = visitView(item, roomsByVisit, legsByVisit, ownerNames);
       // A residency reads its room the same way every other stay does. It
       // used to need a free-text fallback, because a resident's room was
       // held out of inventory and so could never be allocated; now the room
@@ -2001,6 +2072,28 @@ export function createFirestoreBridge(firebaseApp) {
     ? payload.travelLegs
     : [];
 
+  // Every companion named on any leg, checked once before anything is
+  // written. A journey is attached to a stay, so a companion needs a visit
+  // to attach it to, and the standing rule that Visitors get no personal
+  // travel holds however they were added.
+  travelPayloads.forEach(leg => {
+    (Array.isArray(leg.companionVisitIds) ? leg.companionVisitIds : []).forEach(raw => {
+      const companionId = clean(raw, 100);
+      if (!companionId || companionId === visitId) return;
+      const companion = canonical.visits.find(item => item.id === companionId);
+      if (!companion || companion.isCancelled) {
+        throw new Error("One of the travelling companions no longer has this visit. Remove them and try again.");
+      }
+      const companionGuest = canonical.guests.find(item => item.id === companion.guestId);
+      if (!companionGuest || companionGuest.archived) {
+        throw new Error("One of the travelling companions is no longer an active guest. Remove them and try again.");
+      }
+      if (companionGuest.personType === "Visitor") {
+        throw new Error(companionGuest.name + " is a Visitor, and Visitors do not use personal travel planning. Add them to a shared Trip instead.");
+      }
+    });
+  });
+
   let previousTravelMs = null;
 
   travelPayloads.forEach((leg, index) => {
@@ -2029,7 +2122,7 @@ export function createFirestoreBridge(firebaseApp) {
   const visitRef = doc(db, "visits", visitId);
 
   const oldLegs = canonical.visitTravelLegs.filter(
-    item => item.visitId === visitId
+    item => legVisitIds(item).includes(visitId)
   );
 
   await runTransaction(db, async transaction => {
@@ -2149,7 +2242,7 @@ export function createFirestoreBridge(firebaseApp) {
       transaction.set(
         doc(db, "visitTravelLegs", legId),
         {
-          visitId,
+          visitIds: ridersAfterSave(visitId, leg, old),
 
           direction:
             clean(leg.direction, 100) || "Inbound",
@@ -2202,13 +2295,25 @@ export function createFirestoreBridge(firebaseApp) {
       );
     });
 
+    // A leg dropped from this visit's list is only deleted when nobody else
+    // is on it. With companions still aboard, this visit steps off and the
+    // journey carries on without it — saving one guest must never be able to
+    // delete another guest's train.
     oldLegs
       .filter(item => !newLegIds.has(item.id))
-      .forEach(item =>
-        transaction.delete(
-          doc(db, "visitTravelLegs", item.id)
-        )
-      );
+      .forEach(item => {
+        const outcome = legAfterLeaving(item, visitId);
+        const reference = doc(db, "visitTravelLegs", item.id);
+        if (outcome.action === "update") {
+          transaction.update(reference, {
+            visitIds: outcome.visitIds,
+            updatedAt: serverTimestamp(),
+            updatedBy: actor
+          });
+        } else {
+          transaction.delete(reference);
+        }
+      });
 
     transaction.set(
       doc(collection(db, "auditLogs")),
@@ -2795,6 +2900,40 @@ export function createFirestoreBridge(firebaseApp) {
     return snapshot.size;
   }
 
+  // Deleting a visit must not delete a journey other people are still on.
+  // Its rooms are its own and go with it; a travel leg may not be, so this
+  // takes the visit off each leg and deletes only the ones nobody else rides.
+  //
+  // Two queries because a leg written before shared journeys names its visit
+  // in visitId rather than visitIds, and both kinds have to be found — a
+  // single-field query would quietly leave the other kind behind.
+  async function detachVisitFromLegs_(batch, actor, visitId) {
+    const [shared, legacy] = await Promise.all([
+      getDocs(query(collection(db, "visitTravelLegs"), where("visitIds", "array-contains", visitId))),
+      getDocs(query(collection(db, "visitTravelLegs"), where("visitId", "==", visitId)))
+    ]);
+    const seen = new Set();
+    let deleted = 0;
+    let leftBehind = 0;
+    [...shared.docs, ...legacy.docs].forEach(item => {
+      if (seen.has(item.id)) return;
+      seen.add(item.id);
+      const outcome = legAfterLeaving({ id: item.id, ...item.data() }, visitId);
+      if (outcome.action === "update") {
+        batch.update(item.ref, {
+          visitIds: outcome.visitIds,
+          updatedAt: Timestamp.now(),
+          updatedBy: actor
+        });
+        leftBehind += 1;
+      } else {
+        batch.delete(item.ref);
+        deleted += 1;
+      }
+    });
+    return { deleted, leftBehind };
+  }
+
   async function deleteVisit(visitId) {
     const actor = ensureApproved();
     const id = clean(visitId, 100);
@@ -2802,12 +2941,19 @@ export function createFirestoreBridge(firebaseApp) {
     if (!(await getDoc(reference)).exists()) throw new Error("This visit no longer exists.");
     const batch = writeBatch(db);
     const rooms = await deleteChildDocs_(batch, "visitRooms", "visitId", id);
-    const legs = await deleteChildDocs_(batch, "visitTravelLegs", "visitId", id);
+    const legs = await detachVisitFromLegs_(batch, actor, id);
     batch.delete(reference);
-    await writeAuditBatch(batch, actor, "visit", id, "delete", ["document", `rooms:${rooms}`, `travelLegs:${legs}`]);
+    await writeAuditBatch(batch, actor, "visit", id, "delete",
+      ["document", `rooms:${rooms}`, `travelLegs:${legs.deleted}`, `sharedLegsKept:${legs.leftBehind}`]);
     await batch.commit();
     invalidate();
-    return { visitId: id, deleted: true, roomsDeleted: rooms, travelLegsDeleted: legs };
+    return {
+      visitId: id,
+      deleted: true,
+      roomsDeleted: rooms,
+      travelLegsDeleted: legs.deleted,
+      sharedLegsKept: legs.leftBehind
+    };
   }
 
   async function deleteTrip(tripId) {
@@ -3524,6 +3670,75 @@ export function createFirestoreBridge(firebaseApp) {
     return result;
   }
 
+  // Legs written before shared journeys existed name a single visitId. Reading
+  // tolerates that (see legVisitIds), so nothing is broken while this has not
+  // run; this makes the data uniform so the fallback can eventually go.
+  //
+  // Nothing is merged automatically. Two guests who arrived together on the
+  // same train still have a leg each, because only a person can say those two
+  // legs are one journey rather than a coincidence of dates. Joining them is a
+  // one-time edit in the visit editor.
+  async function migrateSharedJourneys(options) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const commit = options?.commit === true;
+
+    const writes = [];
+    const alreadyShared = [];
+    const orphaned = [];
+
+    canonical.visitTravelLegs.forEach(leg => {
+      if (Array.isArray(leg.visitIds) && leg.visitIds.length) {
+        alreadyShared.push(leg.id);
+        return;
+      }
+      const owner = clean(leg.visitId, 100);
+      if (!owner) {
+        orphaned.push({ legId: leg.id, reason: "Names no visit at all. Look at it by hand." });
+        return;
+      }
+      writes.push({ id: leg.id, visitIds: [owner] });
+    });
+
+    const result = {
+      generatedAt: new Date().toISOString(),
+      committed: false,
+      legsSeen: canonical.visitTravelLegs.length,
+      legsToConvert: writes.length,
+      alreadyConverted: alreadyShared.length,
+      orphaned,
+      documentsToWrite: writes.length
+    };
+
+    if (!commit) {
+      result.summary = [
+        "DRY RUN — nothing was written.",
+        result.legsToConvert + " travel leg(s) would gain a rider list.",
+        result.alreadyConverted + " already have one.",
+        orphaned.length ? orphaned.length + " leg(s) name no visit — resolve before committing." : "Every leg names a visit."
+      ];
+      return result;
+    }
+    if (orphaned.length) throw new Error(orphaned.length + " leg(s) name no visit. Resolve them before committing.");
+
+    if (writes.length) {
+      const batch = writeBatch(db);
+      writes.forEach(item => batch.update(doc(db, "visitTravelLegs", item.id), {
+        visitIds: item.visitIds,
+        updatedAt: Timestamp.now(),
+        updatedBy: actor
+      }));
+      await writeAuditBatch(batch, actor, "sharedJourneys", "all", "migrate", ["visitTravelLegs"]);
+      await batch.commit();
+      invalidate();
+    }
+    result.committed = true;
+    result.summary = [writes.length
+      ? "Committed. " + writes.length + " travel leg(s) now carry a rider list."
+      : "Nothing to do — every leg already carries one."];
+    return result;
+  }
+
   // A permanent resident's meal plan, edited from the Meals workspace. Narrow
   // in the same way the residency plan is: which meals, the seating they start
   // from, and a note. Never touches the resident's name or active dates.
@@ -3699,6 +3914,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "migrateResidentRooms") return migrateResidentRooms(extra.options || {});
       if (action === "addResidentRoom") return addResidentRoom(extra.options || {});
       if (action === "migrateRoomWings") return migrateRoomWings(extra.options || {});
+      if (action === "migrateSharedJourneys") return migrateSharedJourneys(extra.options || {});
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
