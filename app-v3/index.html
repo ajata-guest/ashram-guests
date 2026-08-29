@@ -927,6 +927,10 @@
       max-height: 92vh;
       padding: 24px;
       overflow-y: auto;
+      /* A dialog scrolls down, never sideways. Naming the axis also stops
+         overflow-y from quietly turning the x axis into a scroller of its
+         own, which is how a few stray pixels became a horizontal scrollbar. */
+      overflow-x: hidden;
       border: 1px solid var(--border);
       border-radius: 10px;
       background: var(--surface);
@@ -1879,23 +1883,21 @@
       padding: 10px 0;
       background: var(--surface);
       border-bottom: 1px solid #2c2c2c;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-      flex-wrap: wrap;
+      /* The first two spread the bar's own background out to the dialog's
+         padding edge, where it is clipped exactly. A shadow does this without
+         taking part in layout, unlike the offset pseudo-element that used to
+         and left the dialog a few pixels wider than the screen. */
+      box-shadow: -24px 0 0 var(--surface), 24px 0 0 var(--surface), 0 6px 12px rgba(0, 0, 0, 0.3);
+      /* One row, always. Wrapping put Travel on a line of its own the moment
+         Away made it five pills; on a narrow phone the row slides instead. */
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
 
-    /* Lets the sticky bar's background reach the dialog's edges without
-       negative margins on the sticky element itself — negative margins plus
-       position:sticky is a known source of inconsistent behaviour. */
-    .modal-section-nav::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: -24px;
-      right: -24px;
-      z-index: -1;
-      background: inherit;
-    }
+    .modal-section-nav::-webkit-scrollbar { display: none; }
+
+
 
     .section-nav-pill {
       padding: 6px 12px;
@@ -2848,6 +2850,11 @@
       .workspace-card.has-four-stats .ws-stat { gap: 4px; }
       .workspace-card.has-four-stats .ws-stat-label { font-size: 0.72rem; }
       .modal-content { padding: 20px 16px; }
+      /* Tight enough that a visit's five pills fit a phone outright, so the
+         row only has to slide in the add-a-guest flow, where a sixth joins
+         them. This has to sit after the base pill rule to beat it. */
+      .modal-section-nav { gap: 3px; }
+      .section-nav-pill { padding: 6px 8px; font-size: 0.72rem; }
       .add-visit-manager-section { padding: 14px; }
       .upcoming-visit-row { gap: 8px; padding: 10px; }
       .upcoming-visit-row .row-btn { padding: 7px 9px; white-space: nowrap; }
