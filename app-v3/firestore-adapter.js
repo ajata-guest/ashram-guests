@@ -1748,6 +1748,17 @@ export function createFirestoreBridge(firebaseApp) {
     );
   }
 
+  // The editor locks this field for a resident; this is the same rule where
+  // it cannot be bypassed. It matters more than it looks: isResidencyStay
+  // recognises a residency only while its accommodation says Ashram, so a
+  // resident saved as anything else does not move out — they stop counting
+  // as a resident at all, silently.
+  if (guest.personType === "Permanent Resident" && accommodation !== "Ashram") {
+    throw new Error(
+      "A permanent resident is housed at the ashram. Change their Person Type first if they are moving out."
+    );
+  }
+
   const requestedRoomList = (
     Array.isArray(payload.rooms)
       ? payload.rooms

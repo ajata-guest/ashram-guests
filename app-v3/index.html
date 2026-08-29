@@ -709,6 +709,20 @@
       font-weight: 700;
     }
 
+    /* The two person-level actions sit with the name they act on rather
+       than dropping to the bottom of the card among the actions that act
+       on the record. A long name pushes them onto their own line instead
+       of being squeezed by them. */
+    .guest-name-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+    }
+    .guest-name-row > .guest-name { flex: 1 1 auto; }
+    .guest-name-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+    .guest-name-actions .row-btn { padding: 3px 9px; font-size: 0.72rem; }
+
     .badge-row {
       display: flex;
       margin-top: 3px;
@@ -3307,6 +3321,7 @@
         <button type="button" class="section-nav-pill" data-target="add-visit-basic-details">Basic Details</button>
         <button type="button" class="section-nav-pill active" data-target="visit-sec-stay">Stay</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-accommodation">Accommodation</button>
+        <button type="button" class="section-nav-pill" data-target="visit-sec-away">Away</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-cabs">Cabs</button>
         <button type="button" class="section-nav-pill" data-target="visit-sec-travel">Travel</button>
       </div>
@@ -3403,27 +3418,6 @@
            meals-only idea and is now read by every workspace. Edited here as
            well as from Meals, through the same dialog, so there is one place
            the rule about clamping to the stay can live. -->
-      <section class="form-section" id="visit-sec-away">
-        <h3 class="form-section-title">
-          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
-          Away
-        </h3>
-        <!-- Built like Room Allocation above it: a labelled group whose
-             Add button sits on its own header row, the list beneath, and a
-             dashed placeholder when there is nothing in it. The section was
-             assembled from the Trips markup at first and read as a visitor
-             from another page. -->
-        <div class="input-group" id="visit-away-group">
-          <div class="room-group-header">
-            <label class="input-label">Away periods</label>
-            <button id="visit-add-away-btn" class="travel-add-btn" type="button">+ Add away</button>
-          </div>
-          <div id="visit-away-list" class="room-list"></div>
-          <div id="visit-away-empty" class="travel-empty">-- None --</div>
-          <p class="travel-help away-hint">Days within this stay when they are not at the ashram. Their room stays theirs.</p>
-        </div>
-      </section>
-
       <section class="form-section" id="visit-sec-accommodation">
         <h3 class="form-section-title">
           <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-bed"></use></svg>
@@ -3504,6 +3498,27 @@
           </div>
         </div>
 
+      </section>
+
+      <section class="form-section" id="visit-sec-away">
+        <h3 class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
+          Away
+        </h3>
+        <!-- Built like Room Allocation above it: a labelled group whose
+             Add button sits on its own header row, the list beneath, and a
+             dashed placeholder when there is nothing in it. The section was
+             assembled from the Trips markup at first and read as a visitor
+             from another page. -->
+        <div class="input-group" id="visit-away-group">
+          <div class="room-group-header">
+            <label class="input-label">Away periods</label>
+            <button id="visit-add-away-btn" class="travel-add-btn" type="button">+ Add away</button>
+          </div>
+          <div id="visit-away-list" class="room-list"></div>
+          <div id="visit-away-empty" class="travel-empty">-- None --</div>
+          <p class="travel-help away-hint" id="visit-away-hint">Days within this stay when they are away. No meals or meetings are arranged on these days.</p>
+        </div>
       </section>
 
       <section class="form-section" id="visit-sec-cabs">
@@ -6486,7 +6501,7 @@
           { label: 'Delete permanently', destructive: true, run: () => deleteIndividualTaskAction_(task.sevaId) }
         ]
       }));
-      row.appendChild(createElement('div', 'guest-name', task.name || 'Unnamed Guest'));
+      row.appendChild(createGuestNameRow_(task.name, task.guestId));
       row.appendChild(createDetailLine('icon-people', `${task.description}${dateRange ? ` \u00B7 ${dateRange}` : ' \u00B7 dates TBD'} \u00B7 ${task.status}`));
 
       const actions = createElement('div', 'seva-team-row-actions');
@@ -7727,6 +7742,42 @@
       return phrases.join(' · ');
     }
 
+    // Edit details and View profile belong to the person, not to the record
+    // the card happens to be about, so they are built once here and sit with
+    // the name on every surface that shows one.
+    //
+    // Not every card in a workspace stands for a guest: a Seva team, a Trip,
+    // a meal arrangement sourced from a team, a roster row for a
+    // permanent-resident record. None of those has a guestId, and without
+    // one this hands back the plain name with no buttons on it, so the rule
+    // is carried by the data rather than by remembering which callers are
+    // allowed to ask.
+    function createGuestNameRow_(name, guestId, nameClass = 'guest-name') {
+      const label = name || 'Unnamed Guest';
+      const nameEl = createElement('div', nameClass, label);
+      if (!guestId) return nameEl;
+
+      const row = createElement('div', 'guest-name-row');
+      row.appendChild(nameEl);
+      const actions = createElement('div', 'guest-name-actions');
+      const add = (text, title, run) => {
+        const button = createElement('button', 'row-btn quiet', text);
+        button.type = 'button';
+        button.title = title;
+        button.addEventListener('click', event => {
+          // The card underneath opens its own editor on a click.
+          event.stopPropagation();
+          run();
+        });
+        actions.appendChild(button);
+      };
+      add('Edit details', 'Edit ' + label + ' basic details', () => openModal('edit', guestId));
+      add('View profile', 'Open ' + label + ' profile',
+        () => navigate('#guest/' + encodeURIComponent(guestId)));
+      row.appendChild(actions);
+      return row;
+    }
+
     function createAccommodationVisitCard(visit) {
       const card = createElement('article', 'card');
       card.tabIndex = 0;
@@ -7744,7 +7795,7 @@
       });
       attachLongPress_(card, () => visitCardSheet_(visit));
 
-      card.appendChild(createElement('div', 'guest-name', visit.name || 'Unnamed Guest'));
+      card.appendChild(createGuestNameRow_(visit.name, visit.guestId));
       const badges = createElement('div', 'badge-row');
       badges.appendChild(createPersonTypeBadge(visit.personType));
       // C-form sits with the identity badges, as in V2 — it is a fact about
@@ -8939,7 +8990,21 @@
       // them was asking a question with no answer, and the editor starts at
       // Accommodation instead. Cabs and Travel stay: a resident needs a car to
       // the station as rarely, and as really, as anybody else.
-      $('visit-sec-stay').hidden = visitEditorGuestPersonType_ === 'Permanent Resident';
+      const resident = visitEditorGuestPersonType_ === 'Permanent Resident';
+      $('visit-sec-stay').hidden = resident;
+      // A resident lives here — that is what the word means — so Ashram is
+      // the only answer the field can take. Locked rather than hidden,
+      // because where they are housed is worth seeing and the room picker
+      // under it is the whole point of the section for a resident. Saving
+      // any other value would not move them out: isResidencyStay only
+      // recognises a residency housed at the ashram, so it would quietly
+      // stop them counting as a resident at all.
+      const accommodation = $('edit-accommodation');
+      accommodation.disabled = resident;
+      if (resident && accommodation.value !== 'Ashram') {
+        accommodation.value = 'Ashram';
+        toggleAccommodationFields();
+      }
       syncVisitSectionNav_();
     }
 
@@ -9707,8 +9772,11 @@
     function createMealRosterRow_(row) {
       const wrapper = createElement('article', 'meal-roster-row');
       const info = createElement('div');
-      const name = createElement('div', `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`, row.name || 'Unnamed person');
-      info.appendChild(name);
+      // A roster row can be a permanent-resident record rather than a guest,
+      // and that one has no guest to edit or profile to open — the missing
+      // guestId is what leaves the buttons off it.
+      info.appendChild(createGuestNameRow_(row.name || 'Unnamed person', row.guestId,
+        `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`));
       const meta = createElement('div', 'meal-roster-meta');
       meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? seatingLabel_(row.seating) : 'Not attending'));
       // A "residence" source means two different things depending on the
@@ -10749,7 +10817,7 @@
     function createMeetingWorkspaceCard(meeting, sectionKey) {
       const card = createElement('article', 'card');
       attachLongPress_(card, () => meetingCardSheet_(meeting, sectionKey));
-      card.appendChild(createElement('div', 'guest-name', meeting.name || 'Unnamed Guest'));
+      card.appendChild(createGuestNameRow_(meeting.name, meeting.guestId));
       const dateText = meeting.time ? `${formatDateKeyDisplay(meeting.date)} \u00B7 ${meeting.time}` : formatDateKeyDisplay(meeting.date);
       card.appendChild(createDetailLine('icon-calendar', dateText));
       if (meeting.notes) card.appendChild(createDetailLine('icon-user', meeting.notes));
@@ -12466,6 +12534,13 @@
 
       $('outside-arranged-fields').hidden = !isOutsideArranged;
       $('self-arranged-fields').hidden = !isSelfArranged;
+
+      // Their room stays theirs is only true of a guest the ashram is
+      // housing. For anyone else it promises a room that does not exist, so
+      // the sentence arrives with the room and leaves with it.
+      $('visit-away-hint').textContent = requiresRoom
+        ? 'Days within this stay when they are away. No meals or meetings are arranged on these days, and their room stays theirs.'
+        : 'Days within this stay when they are away. No meals or meetings are arranged on these days.';
     }
 
     function isInvitedGuestPurposeApplicable(personType) {
