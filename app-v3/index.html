@@ -709,17 +709,42 @@
       font-weight: 700;
     }
 
-    /* The two person-level actions sit with the name they act on rather
-       than dropping to the bottom of the card among the actions that act
-       on the record. A long name pushes them onto their own line instead
-       of being squeezed by them. */
-    .guest-name-row {
+    /* The two person-level actions sit on the dialog's heading row, across
+       from the name: they act on the guest, not on the record the dialog is
+       editing. A long name pushes them onto their own line rather than
+       being crushed by them. */
+    .dialog-subtitle.has-guest-actions {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
+      justify-content: space-between;
       gap: 6px 10px;
     }
-    .guest-name-row > .guest-name { flex: 1 1 auto; }
+    .dialog-subtitle-name { overflow-wrap: anywhere; }
+
+    /* On a card the control is pinned to the corner and the name wraps
+       underneath it, so a long name cannot push it onto a second line and
+       leave that card's badges sitting lower than its neighbours'. */
+    .guest-name-row {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      gap: 6px 10px;
+    }
+    .guest-name-row > .guest-name { flex: 1 1 auto; min-width: 0; }
+    .guest-name-icons { display: flex; flex: 0 0 auto; gap: 2px; margin-left: auto; }
+    /* Same 30px borderless treatment as the Directory's pencil, but bordered
+       here: a card is busier than a list row and it would otherwise read as
+       decoration rather than something to press. */
+    .guest-name-icons .dir-edit {
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--muted);
+    }
+    .guest-name-icons .dir-edit:hover { border-color: #4a4a4a; color: var(--text); }
+    /* The card glyph carries more detail than a pencil or a silhouette, so
+       it needs the extra two pixels to stay readable at button size. */
+    .guest-name-icons .dir-edit .icon { width: 18px; height: 18px; flex-basis: 18px; }
     .guest-name-actions { display: flex; flex: 0 0 auto; gap: 6px; }
     .guest-name-actions .row-btn { padding: 3px 9px; font-size: 0.72rem; }
 
@@ -3178,6 +3203,10 @@
                said whether a delete is possible at all — an interface that
                offers Delete and then answers "archive instead" is worse than
                one that never offered it. -->
+          <!-- Only in edit mode: in add mode there is no guest to have a
+               profile yet. This is the single onward door to the profile
+               from anywhere that is not the Directory. -->
+          <button id="modal-view-profile-btn" class="row-btn quiet" type="button" hidden>View profile</button>
           <button id="close-btn" class="close-btn" type="button" aria-label="Close dialog">
             <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
           </button>
@@ -4237,6 +4266,7 @@
     <symbol id="icon-taxi" viewBox="0 0 24 24"><path d="M18.92 6.01A1.5 1.5 0 0 0 17.5 5H15l-1-2h-4L9 5H6.5a1.5 1.5 0 0 0-1.42 1.01L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8l-2.08-5.99zM6.5 16A1.5 1.5 0 1 1 6.5 13a1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 11l1.5-4.5h11L19 11H5z"/></symbol>
     <symbol id="icon-other" viewBox="0 0 24 24"><path d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 6H14a4 4 0 0 1 4 4v2h-2v-2a2 2 0 0 0-2-2H8.5V6zM15.5 18H10a4 4 0 0 1-4-4v-2h2v2a2 2 0 0 0 2 2h5.5v2z"/></symbol>
     <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.09 0-7.19 3.72-6.39 7.69L3 9v7h7l-2.87-2.87C6.4 10.04 8.74 7 12 7c1.38 0 2.63.56 3.54 1.46L13 11h7V4l-2.35 2.35zM6.35 17.65C7.8 19.1 9.79 20 12 20c4.09 0 7.19-3.72 6.39-7.69L21 15V8h-7l2.87 2.87C17.6 13.96 15.26 17 12 17c-1.38 0-2.63-.56-3.54-1.46L11 13H4v7l2.35-2.35z"/></symbol>
+    <symbol id="icon-id-card" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM8.5 12.2c1.05 0 1.9-.85 1.9-1.9s-.85-1.9-1.9-1.9-1.9.85-1.9 1.9.85 1.9 1.9 1.9zM12 15.4c0-1.27-2.33-1.9-3.5-1.9s-3.5.63-3.5 1.9v.6h7v-.6zM13.6 8.9H19v1.4h-5.4zM13.6 11.9H19v1.4h-5.4z"/></symbol>
     <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></symbol>
     <symbol id="icon-people" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></symbol>
     <symbol id="icon-meal" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></symbol>
@@ -4595,6 +4625,15 @@
       $('attribute-action-dismiss-btn').addEventListener('click', closeActionSheet_);
       $('add-btn').addEventListener('click', () => openModal('add', '', { smartLookup: true }));
       $('close-btn').addEventListener('click', handleCloseButtonClick);
+      // Leaves for the profile rather than opening it behind the dialog, and
+      // the unsaved-changes guard gets to object before it does.
+      $('modal-view-profile-btn').addEventListener('click', () => {
+        const guestId = $('edit-guest-id').value;
+        if (!guestId) return;
+        if (modalDirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
+        closeModal();
+        navigate('#guest/' + encodeURIComponent(guestId));
+      });
       $('modal').addEventListener('input', markModalDirty);
       $('modal').addEventListener('change', markModalDirty);
       $('save-btn').addEventListener('click', saveGuestFromModal);
@@ -6524,7 +6563,7 @@
     // split openVisitEditor/openMeetingEditor_ use.
     function openSpecificSevaForm_(guestId, guestName, task) {
       $('edit-task-guest-id').value = guestId;
-      $('edit-task-guest-name').textContent = guestName || '';
+      setEditorGuestHeader_('edit-task-guest-name', guestName, guestId, closeSpecificSevaForm_);
       $('edit-task-seva-id').value = task ? task.sevaId : '';
       $('edit-task-version').value = task ? task.version : '';
       $('edit-task-description').value = task ? task.description : '';
@@ -7742,38 +7781,74 @@
       return phrases.join(' · ');
     }
 
-    // Edit details and View profile belong to the person, not to the record
-    // the card happens to be about, so they are built once here and sit with
-    // the name on every surface that shows one.
+    // A dialog's heading names the person; these two act on that person
+    // rather than on the record being edited, so they belong up there with
+    // the name and not among the dialog's own save and discard buttons.
     //
-    // Not every card in a workspace stands for a guest: a Seva team, a Trip,
-    // a meal arrangement sourced from a team, a roster row for a
-    // permanent-resident record. None of those has a guestId, and without
-    // one this hands back the plain name with no buttons on it, so the rule
-    // is carried by the data rather than by remembering which callers are
-    // allowed to ask.
-    function createGuestNameRow_(name, guestId, nameClass = 'guest-name') {
-      const label = name || 'Unnamed Guest';
-      const nameEl = createElement('div', nameClass, label);
-      if (!guestId) return nameEl;
+    // It replaces the dialog rather than opening on top of it, so it leaves
+    // first — and where the dialog guards unsaved changes, that guard gets to
+    // refuse, in which case nothing happens at all.
+    //
+    // A dialog whose subject is not one guest passes no guestId and gets a
+    // plain heading: a Trip is a group, a Seva team is a group, and a meal
+    // arrangement can be sourced from either. Carrying the rule in the data
+    // means a new dialog cannot acquire the buttons by forgetting about it.
+    function setEditorGuestHeader_(hostId, name, guestId, closeSelf) {
+      const host = $(hostId);
+      host.replaceChildren();
+      host.classList.toggle('has-guest-actions', Boolean(guestId));
+      host.appendChild(createElement('span', 'dialog-subtitle-name', name || ''));
+      if (!guestId) return;
 
-      const row = createElement('div', 'guest-name-row');
-      row.appendChild(nameEl);
       const actions = createElement('div', 'guest-name-actions');
       const add = (text, title, run) => {
         const button = createElement('button', 'row-btn quiet', text);
         button.type = 'button';
         button.title = title;
-        button.addEventListener('click', event => {
-          // The card underneath opens its own editor on a click.
-          event.stopPropagation();
+        button.addEventListener('click', () => {
+          if (closeSelf && closeSelf() === false) return;
           run();
         });
         actions.appendChild(button);
       };
-      add('Edit details', 'Edit ' + label + ' basic details', () => openModal('edit', guestId));
-      add('View profile', 'Open ' + label + ' profile',
-        () => navigate('#guest/' + encodeURIComponent(guestId)));
+      // Only the one door. The profile is a step further on from basic
+      // details and is offered there, so putting it here as well would give
+      // this heading two ways out of a dialog that is about neither.
+      add('Basic details', 'Edit basic details', () => openModal('edit', guestId));
+      host.appendChild(actions);
+    }
+
+    // A card stands for a record — a visit, a meeting, a seva task, a place
+    // at a meal — so a verb on it belongs to that record: a pencil beside a
+    // visit card can only read as edit the visit, which is what tapping the
+    // card already does. This names a noun instead. The card is the record,
+    // the icon is the person, and the profile behind it holds everything
+    // person-level there is: basic details, archive, delete.
+    //
+    // Not every card in a workspace stands for one guest: a Seva team, a
+    // Trip, a meal arrangement sourced from a team, a roster row for a
+    // permanent-resident record. None of those carries a guestId, and
+    // without one this hands back the plain name. Carrying the rule in the
+    // data means a new card cannot acquire the control by forgetting it.
+    function createGuestNameRow_(name, guestId) {
+      const label = name || 'Unnamed Guest';
+      const nameEl = createElement('div', 'guest-name', label);
+      if (!guestId) return nameEl;
+
+      const row = createElement('div', 'guest-name-row');
+      row.appendChild(nameEl);
+      const actions = createElement('div', 'guest-name-icons');
+      const open = createElement('button', 'dir-edit');
+      open.type = 'button';
+      open.title = label + ' · basic details';
+      open.setAttribute('aria-label', 'Basic details for ' + label);
+      open.appendChild(createIcon_('icon-id-card'));
+      open.addEventListener('click', event => {
+        // The card underneath opens its own editor on a click.
+        event.stopPropagation();
+        openModal('edit', guestId);
+      });
+      actions.appendChild(open);
       row.appendChild(actions);
       return row;
     }
@@ -8894,9 +8969,13 @@
 
     // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
     // visit by clicking the backdrop should not silently discard it.
+    // Reports whether it actually closed, so a caller that meant to leave
+    // the dialog can stop when the guard refuses. Callers that only want it
+    // shut ignore the answer.
     function requestCloseVisitEditor_() {
-      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return;
+      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return false;
       closeVisitEditor();
+      return true;
     }
 
     // The guest whose visit is open, held because the away list is rebuilt
@@ -9088,7 +9167,7 @@
       $('visit-editor-guest-id').value = profile.guestId;
       $('visit-editor-visit-id').value = visit ? visit.visitId : '';
       $('visit-editor-version').value = visit ? visit.version : '';
-      $('visit-editor-guest-name').textContent = profile.name || '';
+      setEditorGuestHeader_('visit-editor-guest-name', profile.name, profile.guestId, requestCloseVisitEditor_);
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'New Visit';
 
       $('edit-accommodation').value = (visit && visit.accommodation) || 'TBD';
@@ -9772,11 +9851,13 @@
     function createMealRosterRow_(row) {
       const wrapper = createElement('article', 'meal-roster-row');
       const info = createElement('div');
-      // A roster row can be a permanent-resident record rather than a guest,
-      // and that one has no guest to edit or profile to open — the missing
-      // guestId is what leaves the buttons off it.
-      info.appendChild(createGuestNameRow_(row.name || 'Unnamed person', row.guestId,
-        `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`));
+      // No person-level control here. Half these rows are permanent-resident
+      // records with no guest behind them, so the icon would appear on some
+      // rows and not others with nothing on screen to explain the difference
+      // — and this is the one workspace with a fast repetitive rhythm to it,
+      // include, absent, seating, which a detour to a person does not belong in.
+      const name = createElement('div', `meal-roster-name${isSwamijiName_(row.name) ? ' is-swamiji' : ''}`, row.name || 'Unnamed person');
+      info.appendChild(name);
       const meta = createElement('div', 'meal-roster-meta');
       meta.appendChild(createElement('span', 'meal-seat-pill', row.included ? seatingLabel_(row.seating) : 'Not attending'));
       // A "residence" source means two different things depending on the
@@ -10931,7 +11012,7 @@
       apiCall('getGuestProfile', { guestId })
         .then(profile => {
           $('meeting-editor-guest-id').value = profile.guestId;
-          $('meeting-editor-guest-name').textContent = profile.name || '';
+          setEditorGuestHeader_('meeting-editor-guest-name', profile.name, profile.guestId, closeMeetingEditor_);
           $('meeting-editor-meeting-id').value = meeting ? meeting.meetingId : '';
           $('meeting-editor-version').value = meeting ? meeting.version : '';
           $('meeting-editor-date').value = meeting ? meeting.date : '';
@@ -12102,6 +12183,8 @@
       $('modal-mode').value = mode;
       $('edit-guest-id').value = guestId;
       $('edit-version').value = '';
+      // A guest being added has no profile to look at yet.
+      $('modal-view-profile-btn').hidden = !(mode === 'edit' && guestId);
 
       if (mode === 'edit') {
         const guest = directoryRecords_.find(item => item.guestId === guestId)
