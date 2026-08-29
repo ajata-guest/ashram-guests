@@ -3367,6 +3367,152 @@ export function createFirestoreBridge(firebaseApp) {
     return result;
   }
 
+  // The wing plan is written as the finished state, not as a list of moves:
+  // what building and grade each of these rooms should have once this has run.
+  // A room not named here is not touched at all, and a second run compares
+  // against the same target, so re-running is a no-op rather than a second
+  // move.
+  const ROOM_WING_PLAN = Object.freeze([
+    { room: "Room 20", building: "Abhishiktananda Sadan", category: "VIP" },
+    { room: "Room 21", building: "Abhishiktananda Sadan", category: "VIP" },
+    { room: "Room 22", building: "Abhishiktananda Sadan", category: "VIP" },
+    { room: "Room 23", building: "Sadhu Sadan", category: "VIP" },
+    { room: "Room 24", building: "Sadhu Sadan", category: "VIP" },
+    { room: "Room 25", building: "Sadhu Sadan", category: "VIP" },
+    { room: "Room 26", building: "Sadhu Sadan", category: "Normal" },
+    { room: "Room 27", building: "Sadhu Sadan", category: "Normal" },
+    { room: "Room 28", building: "Sadhu Sadan", category: "VVIP" }
+  ]);
+
+  // Corrects the wing and grade of the rooms above, which is also what opens
+  // Sadhu Sadan as a building: the building list is nowhere in the app, it is
+  // derived from the rooms themselves, so moving a room is the whole of it.
+  //
+  // The part that is not obvious: an allocation stores the room's label as
+  // plain text, and that text is the key the picker, the badges and the
+  // building filter all look the room up by. Renaming a room without
+  // rewriting its allocations would leave every guest who has ever held it
+  // pointing at a label that no longer exists, so the two move together in
+  // one batch or not at all.
+  async function migrateRoomWings(options) {
+    const actor = ensureApproved();
+    const canonical = await loadCanonical(true);
+    const commit = options?.commit === true;
+
+    const labelOf = room => room.displayName
+      || (clean(room.building, 100) + " - " + clean(room.room, 100));
+
+    const plan = [];
+    const blocked = [];
+    const writes = [];
+
+    ROOM_WING_PLAN.forEach(target => {
+      const matches = canonical.rooms.filter(room => clean(room.room, 100) === target.room);
+      if (!matches.length) {
+        blocked.push({ room: target.room, reason: "No room by this name is in the inventory." });
+        return;
+      }
+      // Room names are unique across buildings today, which is the only reason
+      // a name alone identifies one. If that ever stops being true, say so
+      // rather than moving whichever copy happened to come back first.
+      if (matches.length > 1) {
+        blocked.push({ room: target.room, reason: matches.length + " rooms share this name ("
+          + matches.map(labelOf).join(", ") + "). Move it by hand." });
+        return;
+      }
+
+      const room = matches[0];
+      const from = labelOf(room);
+      const to = target.building + " - " + target.room;
+      const collision = canonical.rooms.find(other => other.id !== room.id && labelOf(other) === to);
+      if (collision) {
+        blocked.push({ room: target.room, reason: to + " already exists as a separate room." });
+        return;
+      }
+
+      const allocations = canonical.visitRooms.filter(item =>
+        (item.roomId && item.roomId === room.id) || item.roomLabelSnapshot === from);
+      const stale = allocations.filter(item => item.roomLabelSnapshot !== to);
+
+      if (from === to && clean(room.category, 100) === target.category && !stale.length) {
+        plan.push({ room: target.room, action: "already-correct", label: to, category: target.category });
+        return;
+      }
+
+      writes.push({ type: "update", collection: "rooms", id: room.id, data: {
+        building: target.building,
+        room: target.room,
+        displayName: to,
+        category: target.category,
+        updatedAt: Timestamp.now(), updatedBy: actor
+      } });
+      stale.forEach(item => {
+        writes.push({ type: "update", collection: "visitRooms", id: item.id, data: {
+          roomLabelSnapshot: to,
+          updatedAt: Timestamp.now(), updatedBy: actor
+        } });
+      });
+
+      plan.push({
+        room: target.room,
+        action: "update",
+        building: from === to
+          ? target.building
+          : clean(room.building, 100) + " -> " + target.building,
+        category: clean(room.category, 100) === target.category
+          ? target.category
+          : clean(room.category, 100) + " -> " + target.category,
+        allocationsRelabelled: stale.length
+      });
+    });
+
+    const moves = plan.filter(item => item.action === "update");
+    // What the room picker and the building chips would show afterwards, which
+    // is the thing actually worth checking in a dry run.
+    const buildingsAfter = [...new Set(roomInventory(canonical).map(item => {
+      const target = ROOM_WING_PLAN.find(entry => entry.room === item.room);
+      return target ? target.building : item.building;
+    }).filter(Boolean))].sort();
+
+    const result = {
+      generatedAt: new Date().toISOString(),
+      committed: false,
+      roomsToUpdate: moves.length,
+      alreadyCorrect: plan.filter(item => item.action === "already-correct").length,
+      allocationsToRelabel: moves.reduce((total, item) => total + item.allocationsRelabelled, 0),
+      buildingsAfter,
+      blocked,
+      documentsToWrite: writes.length,
+      plan
+    };
+
+    if (!commit) {
+      result.summary = [
+        "DRY RUN — nothing was written.",
+        result.roomsToUpdate + " room(s) would change building or grade.",
+        result.allocationsToRelabel + " existing allocation(s) would be relabelled to match.",
+        "Buildings afterwards: " + buildingsAfter.join(", ") + ".",
+        blocked.length ? blocked.length + " blocked — resolve before committing." : "Nothing is blocking a commit."
+      ];
+      return result;
+    }
+    if (blocked.length) throw new Error(blocked.length + " item(s) are blocked. Resolve them before committing.");
+
+    if (writes.length) {
+      const batch = writeBatch(db);
+      writes.forEach(item => batch.update(doc(db, item.collection, item.id), item.data));
+      await writeAuditBatch(batch, actor, "roomWings", "all", "migrate", ["rooms", "visitRooms"]);
+      await batch.commit();
+      invalidate();
+    }
+    result.committed = true;
+    result.summary = [writes.length
+      ? "Committed. " + result.roomsToUpdate + " room(s) updated, "
+        + result.allocationsToRelabel + " allocation(s) relabelled."
+      : "Nothing to do — every room is already in the right wing."];
+    return result;
+  }
+
   // A permanent resident's meal plan, edited from the Meals workspace. Narrow
   // in the same way the residency plan is: which meals, the seating they start
   // from, and a note. Never touches the resident's name or active dates.
@@ -3541,6 +3687,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "migrateResidentsToGuests") return migrateResidentsToGuests(extra.options || {});
       if (action === "migrateResidentRooms") return migrateResidentRooms(extra.options || {});
       if (action === "addResidentRoom") return addResidentRoom(extra.options || {});
+      if (action === "migrateRoomWings") return migrateRoomWings(extra.options || {});
       if (action === "saveResidentMealPlan") return saveResidentMealPlan(extra.payload || {});
       if (action === "saveMealAbsence") return saveMealAbsence(extra.payload || {});
       if (action === "deleteMealAbsence") return deleteMealAbsence(extra.absenceId);
