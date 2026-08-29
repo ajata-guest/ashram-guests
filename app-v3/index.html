@@ -1912,13 +1912,17 @@
     .section-nav-pill.active { background: rgba(250, 128, 114, 0.15); color: var(--salmon); }
 
     /* So a jump lands a section below the sticky bar rather than behind it —
-       the browser has no idea a pinned sibling covers the top ~54px. */
+       the browser has no idea a pinned sibling covers the top. The bar wraps
+       to a second row once there are enough pills for the dialog's width, so
+       how much it covers is measured at render rather than assumed: a fixed
+       offset left the heading half-hidden the moment a sixth pill made it
+       wrap. The fallback matches one unwrapped row. */
     #add-visit-basic-details,
     #visit-sec-stay,
     #visit-sec-away,
     #visit-sec-accommodation,
     #visit-sec-cabs,
-    #visit-sec-travel { scroll-margin-top: 76px; }
+    #visit-sec-travel { scroll-margin-top: calc(var(--section-nav-h, 54px) + 22px); }
     /* The row of actions that closes a dialog. Separated from the content
        above by a rule and real space — previously the buttons sat flush
        against whatever the last field happened to be. */
@@ -8952,6 +8956,9 @@
           .find(pill => !pill.hidden) || {}).dataset?.target || initialTarget;
       setActiveVisitSection_(opening);
       window.setTimeout(() => {
+        // Re-measured here because the bar has only just been unhidden: the
+        // height read during sync was taken while it was still display:none.
+        syncSectionNavOffset_();
         const target = $(opening);
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
@@ -9145,6 +9152,16 @@
         visible.forEach(p => p.classList.remove('active'));
         visible[0].classList.add('active');
       }
+      syncSectionNavOffset_();
+    }
+
+    // How far the pinned bar reaches down the dialog, published for the
+    // sections to offset their scroll target by. Measured because it wraps:
+    // the same six pills are one row on a wide dialog and two on a phone.
+    function syncSectionNavOffset_() {
+      const nav = $('visit-section-nav');
+      const height = nav.hidden ? 0 : nav.offsetHeight;
+      $('visit-editor-modal').style.setProperty('--section-nav-h', height + 'px');
     }
 
     function initVisitSectionNav_() {
@@ -9211,7 +9228,14 @@
       $('visit-editor-guest-id').value = profile.guestId;
       $('visit-editor-visit-id').value = visit ? visit.visitId : '';
       $('visit-editor-version').value = visit ? visit.version : '';
-      setEditorGuestHeader_('visit-editor-guest-name', profile.name, profile.guestId, applyBasicsToVisitEditor_);
+      // While a new guest is being drafted, their basic details are a section
+      // in this very dialog, a few lines above. A button opening a dialog for
+      // the same fields would be a second route to what is already on screen,
+      // and it would be editing a guest who has not been saved yet. No
+      // guestId, no button — the heading is just their name.
+      const basicsAreInline = !$('add-visit-basic-details').hidden;
+      setEditorGuestHeader_('visit-editor-guest-name', profile.name,
+        basicsAreInline ? '' : profile.guestId, applyBasicsToVisitEditor_);
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'New Visit';
 
       $('edit-accommodation').value = (visit && visit.accommodation) || 'TBD';
