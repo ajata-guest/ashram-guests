@@ -7798,8 +7798,16 @@
       // the guest is in it, so the standing is a badge instead — it keeps the
       // date line to one short row. Upcoming needs no badge: that is what a
       // future date already means.
+      //
+      // Staying means staying here. On a guest the ashram is not housing, the
+      // line below already says where they are — "Outside · Self-arranged" —
+      // and a Staying badge above it only argues with it. Away is the same
+      // case a day later: the badge would claim they are here while the away
+      // line underneath says they are not. Departed keeps no such condition;
+      // gone is gone wherever they were sleeping.
+      const stayingHere = visit.accommodation === 'Ashram' && !visitAwayOn_(visit, todayDateKey_());
       if (!residency && visit.arrivalMs && visit.departureMs) {
-        if (status === 'staying') badges.appendChild(createBadge('Staying', 'badge-confirmed'));
+        if (status === 'staying' && stayingHere) badges.appendChild(createBadge('Staying', 'badge-confirmed'));
         else if (status === 'departed') badges.appendChild(createBadge('Departed', 'badge-gray'));
       }
       if (residency) { /* the line above already says it */ }
@@ -11361,7 +11369,7 @@
       [...$('room-list').querySelectorAll('.room-row')].forEach(row => populateRoomRowOptions(row));
     }
 
-    // The row's real <select> stays the source of truth for every existing
+    // The row's real select element stays the source of truth for every
     // behavior (availability checks, save-time validation, payload
     // collection) — the custom dropdown next to it is purely a visual
     // mirror, same pattern as the original single-room picker.
@@ -11462,8 +11470,8 @@
         const realOption = [...select.options].find(opt => opt.value === value);
         const occupied = Boolean(realOption && realOption.disabled);
         const shareable = Boolean(realOption && !realOption.disabled && realOption.dataset.shareWith);
-        // The real <select> is never the thing on screen, so hiding an option
-        // on it hides nothing — this list is what the user actually opens.
+        // The real select element is never the thing on screen, so hiding
+        // an option on it hides nothing — this list is what the user actually opens.
         // A room somebody lives in has to leave the list here too, or it sits
         // there struck through as dead clutter.
         optionEl.hidden = Boolean(realOption && realOption.hidden);
