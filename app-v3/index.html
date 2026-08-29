@@ -722,6 +722,11 @@
     }
     .dialog-subtitle-name { overflow-wrap: anywhere; }
 
+    /* Every dialog shares one z-index and stacks by document order, which
+       puts the basic-details dialog underneath the editors that open it.
+       While it is the one on top it needs to say so. */
+    #modal.is-stacked { z-index: 130; }
+
     /* On a card the control is pinned to the corner and the name wraps
        underneath it, so a long name cannot push it onto a second line and
        leave that card's badges sitting lower than its neighbours'. */
@@ -4309,6 +4314,14 @@
 
     let modalIsOpen = false;
     let modalDirty = false;
+    // Basic details can open over an editor rather than replacing it. These
+    // hold what that editor needs when it comes back to the front: what to
+    // run, the saved basics to fold in (null if the dialog was discarded),
+    // and its own unsaved-changes state — dialogs share one dirty flag, so
+    // the child resetting it would otherwise tell the parent it is clean.
+    let basicsReturn_ = null;
+    let basicsSaved_ = null;
+    let dirtyBeforeBasics_ = false;
     let closeConfirmArmed = false;
     let closeConfirmTimeout = null;
     let searchTimer = null;
@@ -4819,6 +4832,10 @@
           closeActionSheet_();
           return;
         }
+        // Basic details can sit on top of an editor. While it does, it is
+        // the dialog Escape belongs to — before the editor beneath it and
+        // before that editor's own open dropdowns.
+        if (modalIsOpen && basicsReturn_) { requestCloseModal(); return; }
         if ($('room-list').querySelector('.room-custom-list:not([hidden])')) {
           closeAllRoomRowLists();
           return;
@@ -6563,7 +6580,8 @@
     // split openVisitEditor/openMeetingEditor_ use.
     function openSpecificSevaForm_(guestId, guestName, task) {
       $('edit-task-guest-id').value = guestId;
-      setEditorGuestHeader_('edit-task-guest-name', guestName, guestId, closeSpecificSevaForm_);
+      setEditorGuestHeader_('edit-task-guest-name', guestName, guestId,
+        saved => applyBasicsToHeading_('edit-task-guest-name', saved));
       $('edit-task-seva-id').value = task ? task.sevaId : '';
       $('edit-task-version').value = task ? task.version : '';
       $('edit-task-description').value = task ? task.description : '';
@@ -7793,7 +7811,34 @@
     // plain heading: a Trip is a group, a Seva team is a group, and a meal
     // arrangement can be sourced from either. Carrying the rule in the data
     // means a new dialog cannot acquire the buttons by forgetting about it.
-    function setEditorGuestHeader_(hostId, name, guestId, closeSelf) {
+    // Coming back to an editor after basic details closed over it. The
+    // editor was never torn down, so everything typed into it is still
+    // there; only what came from the guest record is refreshed.
+    //
+    // For the visit editor that is more than the name: person type decides
+    // whether Cabs, Travel and Stay are shown at all and whether
+    // accommodation is locked to Ashram, so a change to it has to be
+    // re-applied or the dialog would go on showing sections the guest is no
+    // longer entitled to.
+    function applyBasicsToVisitEditor_(saved) {
+      if (!saved || !visitEditorOpen_) return;
+      visitEditorGuestPersonType_ = saved.personType || visitEditorGuestPersonType_;
+      visitEditorGuestIsForeign_ = Boolean(saved.isForeign);
+      setEditorGuestHeader_('visit-editor-guest-name', saved.name, saved.guestId,
+        applyBasicsToVisitEditor_);
+      toggleVisitCabTravelSections_();
+    }
+
+    // Nothing in the meeting or seva dialogs derives from the guest record
+    // beyond the name they are headed with, so that is all there is to put
+    // back.
+    function applyBasicsToHeading_(hostId, saved) {
+      if (!saved) return;
+      setEditorGuestHeader_(hostId, saved.name, saved.guestId,
+        next => applyBasicsToHeading_(hostId, next));
+    }
+
+    function setEditorGuestHeader_(hostId, name, guestId, onBasicsClosed) {
       const host = $(hostId);
       host.replaceChildren();
       host.classList.toggle('has-guest-actions', Boolean(guestId));
@@ -7801,20 +7846,23 @@
       if (!guestId) return;
 
       const actions = createElement('div', 'guest-name-actions');
-      const add = (text, title, run) => {
-        const button = createElement('button', 'row-btn quiet', text);
-        button.type = 'button';
-        button.title = title;
-        button.addEventListener('click', () => {
-          if (closeSelf && closeSelf() === false) return;
-          run();
-        });
-        actions.appendChild(button);
-      };
       // Only the one door. The profile is a step further on from basic
       // details and is offered there, so putting it here as well would give
       // this heading two ways out of a dialog that is about neither.
-      add('Basic details', 'Edit basic details', () => openModal('edit', guestId));
+      const button = createElement('button', 'row-btn quiet', 'Basic details');
+      button.type = 'button';
+      button.title = 'Edit basic details';
+      button.addEventListener('click', () => {
+        // Opens over this dialog instead of replacing it. Whatever has been
+        // typed here is still here afterwards, so its dirty state is put
+        // aside rather than being reset by the dialog opening on top.
+        dirtyBeforeBasics_ = modalDirty;
+        basicsReturn_ = onBasicsClosed || null;
+        basicsSaved_ = null;
+        $('modal').classList.add('is-stacked');
+        openModal('edit', guestId);
+      });
+      actions.appendChild(button);
       host.appendChild(actions);
     }
 
@@ -8969,13 +9017,9 @@
 
     // Same unsaved-changes guard the guest dialog uses — leaving a half-filled
     // visit by clicking the backdrop should not silently discard it.
-    // Reports whether it actually closed, so a caller that meant to leave
-    // the dialog can stop when the guard refuses. Callers that only want it
-    // shut ignore the answer.
     function requestCloseVisitEditor_() {
-      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return false;
+      if (modalDirty && !window.confirm('You have unsaved changes. Close without saving?')) return;
       closeVisitEditor();
-      return true;
     }
 
     // The guest whose visit is open, held because the away list is rebuilt
@@ -9167,7 +9211,7 @@
       $('visit-editor-guest-id').value = profile.guestId;
       $('visit-editor-visit-id').value = visit ? visit.visitId : '';
       $('visit-editor-version').value = visit ? visit.version : '';
-      setEditorGuestHeader_('visit-editor-guest-name', profile.name, profile.guestId, requestCloseVisitEditor_);
+      setEditorGuestHeader_('visit-editor-guest-name', profile.name, profile.guestId, applyBasicsToVisitEditor_);
       $('visit-editor-modal-title').textContent = visit ? 'Edit Visit' : 'New Visit';
 
       $('edit-accommodation').value = (visit && visit.accommodation) || 'TBD';
@@ -11012,7 +11056,8 @@
       apiCall('getGuestProfile', { guestId })
         .then(profile => {
           $('meeting-editor-guest-id').value = profile.guestId;
-          setEditorGuestHeader_('meeting-editor-guest-name', profile.name, profile.guestId, closeMeetingEditor_);
+          setEditorGuestHeader_('meeting-editor-guest-name', profile.name, profile.guestId,
+            saved => applyBasicsToHeading_('meeting-editor-guest-name', saved));
           $('meeting-editor-meeting-id').value = meeting ? meeting.meetingId : '';
           $('meeting-editor-version').value = meeting ? meeting.version : '';
           $('meeting-editor-date').value = meeting ? meeting.date : '';
@@ -12515,6 +12560,21 @@
       resetExistingGuestSelection_();
       $('modal').style.display = 'none';
       $('modal').setAttribute('aria-hidden', 'true');
+      $('modal').classList.remove('is-stacked');
+
+      // Opened over an editor: hand that editor back the front, whatever it
+      // had typed in it, and the saved basics if there were any. Every close
+      // funnels through here — save, discard, Escape, the backdrop — so
+      // there is no way back out that skips this.
+      const back = basicsReturn_;
+      const saved = basicsSaved_;
+      basicsReturn_ = null;
+      basicsSaved_ = null;
+      if (back) {
+        modalDirty = dirtyBeforeBasics_;
+        dirtyBeforeBasics_ = false;
+        back(saved);
+      }
     }
 
     function markModalDirty() {
@@ -13240,6 +13300,10 @@
       const pendingKey = mode === 'add' ? `temporary-${Date.now()}` : payload.guestId;
 
       pendingGuestIds.add(pendingKey);
+      // What was saved, for an editor waiting underneath: the save is
+      // optimistic everywhere else in this app too, and the payload is what
+      // the record is about to become.
+      if (basicsReturn_ && mode === 'edit') basicsSaved_ = payload;
       closeModal();
 
       apiCall(action, { payload })
