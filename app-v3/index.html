@@ -3658,6 +3658,15 @@
             <label class="input-label" for="edit-pickup-details">Details</label>
             <input type="text" id="edit-pickup-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Pickup details" autocomplete="off">
           </div>
+          <div class="input-group travel-companions" id="pickup-companions">
+            <div class="room-group-header">
+              <label class="input-label">Travelling with</label>
+              <button class="travel-add-btn companion-add-btn" type="button"
+                id="pickup-companion-add">+ Add</button>
+            </div>
+            <div class="companion-list"></div>
+            <p class="travel-help companion-help">One car, however many people are in it. Changing the pickup here changes it for all of them.</p>
+          </div>
         </div>
 
         <div class="transport-requirement section-divider">
@@ -3692,6 +3701,14 @@
           <div class="input-group">
             <label class="input-label" for="edit-dropoff-details">Details</label>
             <input type="text" id="edit-dropoff-details" class="edit-input" maxlength="500" placeholder="Driver, vehicle, terminal, etc." aria-label="Drop-off details" autocomplete="off">
+          </div>
+          <div class="input-group travel-companions" id="dropoff-companions">
+            <div class="room-group-header">
+              <label class="input-label">Travelling with</label>
+              <button class="travel-add-btn companion-add-btn" type="button" id="dropoff-companion-add">+ Add</button>
+            </div>
+            <div class="companion-list"></div>
+            <p class="travel-help companion-help">One car, however many people are in it. Changing the drop-off here changes it for all of them.</p>
           </div>
         </div>
       </section>
@@ -4847,6 +4864,10 @@
       $('add-trip-travel-leg-btn').addEventListener('click', () => addTravelLegEditor({}, 'trip-travel-leg-list', 'trip-travel-empty'));
       $('add-room-btn').addEventListener('click', () => { addRoomRowEditor(); checkRoomAvailability(); });
       $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
+      ['pickup', 'dropoff'].forEach(type => {
+        $(type + '-companion-add').addEventListener('click',
+          () => addCompanionTo_($(type + '-companions')));
+      });
       $('edit-accommodation').addEventListener('change', toggleAccommodationFields);
       // The pair behaves like a clearable radio group: ticking one unticks the
       // other, and unticking the ticked one returns to "no preference".
@@ -9426,6 +9447,7 @@
       $('pickup-warning').classList.remove('info');
       resetCabBookingEditorState('pickup');
       initializeCabBookingEditorState('pickup', visit);
+      fillCabCompanions_('pickup', visit);
 
       $('edit-dropoff-required').checked = Boolean(visit && visit.dropoffRequired);
       $('edit-dropoff-required').dataset.originalChecked = String(Boolean(visit && visit.dropoffRequired));
@@ -9442,6 +9464,7 @@
       $('dropoff-warning').classList.remove('info');
       resetCabBookingEditorState('dropoff');
       initializeCabBookingEditorState('dropoff', visit);
+      fillCabCompanions_('dropoff', visit);
 
       $('room-warning').textContent = '';
       const roomValues = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
@@ -9509,6 +9532,8 @@
         pickupDetails: $('edit-pickup-details').value.trim(),
         pickupBookingConfirmed: $('edit-pickup-booking-confirmed').checked,
         pickupConfirmationIntent: $('edit-pickup-booking-confirmed').dataset.confirmationIntent || 'none',
+        pickupCompanionVisitIds: companionVisitIdsIn_($('pickup-companions')),
+        pickupRideId: $('pickup-companions').dataset.rideId || '',
         dropoffRequired: $('edit-dropoff-required').checked,
         dropoffDate: $('edit-dropoff-date').value,
         dropoffTime: $('edit-dropoff-time').value,
@@ -9516,6 +9541,8 @@
         dropoffDetails: $('edit-dropoff-details').value.trim(),
         dropoffBookingConfirmed: $('edit-dropoff-booking-confirmed').checked,
         dropoffConfirmationIntent: $('edit-dropoff-booking-confirmed').dataset.confirmationIntent || 'none',
+        dropoffCompanionVisitIds: companionVisitIdsIn_($('dropoff-companions')),
+        dropoffRideId: $('dropoff-companions').dataset.rideId || '',
         travelLegs: collectTravelLegPayloads(),
         newGuest: addVisitNewGuestDraft_ ? newGuestBasics : null
       };
@@ -12492,10 +12519,24 @@
       markModalDirty();
     }
 
-    // The picker hands back a guest; a journey attaches to a stay, so their
-    // visit is what actually rides the leg. Refused here for the same reasons
+    // The picker hands back a guest; a journey or a cab attaches to a stay, so
+    // their visit is what actually rides it. Refused here for the same reasons
     // the backend refuses, but with the name in the message.
-    function addCompanionToLeg_(editor) {
+    //
+    // host is anything holding a .companion-list — a travel leg editor, or the
+    // pickup or drop-off block.
+    // Who else is in this car, and which ride record it is — the id travels
+    // back on save so an existing ride is updated rather than a second one
+    // being made for the same car.
+    function fillCabCompanions_(type, visit) {
+      const host = $(type + '-companions');
+      host.querySelector('.companion-list').replaceChildren();
+      host.dataset.rideId = (visit && visit[type + 'RideId']) || '';
+      ((visit && visit[type + 'Companions']) || [])
+        .forEach(item => addCompanionChip_(host, item.visitId, item.name));
+    }
+
+    function addCompanionTo_(host) {
       openGuestPicker_(guestId => {
         closeGuestPicker_();
         const ownVisitId = $('visit-editor-visit-id').value;
@@ -12519,11 +12560,11 @@
               showToast('That is this same visit.', 'error');
               return;
             }
-            if (companionVisitIdsIn_(editor).includes(visit.visitId)) {
-              showToast(`${profile.name} is already on this journey.`);
+            if (companionVisitIdsIn_(host).includes(visit.visitId)) {
+              showToast(`${profile.name} is already on this one.`);
               return;
             }
-            addCompanionChip_(editor, visit.visitId, profile.name);
+            addCompanionChip_(host, visit.visitId, profile.name);
           })
           .catch(error => handleApiError(error, err =>
             showToast(`Couldn't add that companion: ${getErrorMessage(err)}`, 'error')));
@@ -12639,7 +12680,7 @@
         companions.hidden = false;
         (leg.companions || []).forEach(item => addCompanionChip_(editor, item.visitId, item.name));
         companions.querySelector('.companion-add-btn')
-          .addEventListener('click', () => addCompanionToLeg_(editor));
+          .addEventListener('click', () => addCompanionTo_(editor));
       }
 
       editor.querySelector('.travel-remove-btn').addEventListener('click', () => {

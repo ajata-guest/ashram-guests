@@ -58,7 +58,7 @@ function isResidencyStay(visit, personType) {
   return Boolean(visit) && personType === "Permanent Resident" && visit.accommodation === "Ashram";
 }
 const COLLECTIONS = [
-  "guests", "visits", "visitRooms", "visitTravelLegs", "rooms", "mealOverrides",
+  "guests", "visits", "visitRooms", "visitTravelLegs", "cabRides", "rooms", "mealOverrides",
   "mealSchedules", "mealSeatingChanges", "mealAbsences", "permanentResidents",
   "meetings", "sevaTeams", "teamMemberships", "specificSeva", "trips",
   "tripParticipants", "tripTravelLegs"
@@ -167,6 +167,51 @@ function legVisitIds(leg) {
   return leg.visitId ? [leg.visitId] : [];
 }
 
+// A cab ride names its riders the same way a shared leg does.
+function rideVisitIds(ride) {
+  return Array.isArray(ride.visitIds) ? ride.visitIds : [];
+}
+
+// The cab a visit rides, whether it is a record of its own or still written
+// on the visit as it was before rides existed. Everything downstream reads
+// one shape, so the app behaves either side of the migration.
+function cabRideFor(visit, rides, type) {
+  const found = (rides || []).find(ride => ride.type === type);
+  if (found) return found;
+  if (!visit[`${type}Required`]) return null;
+  const stayField = type === "pickup" ? "pickupConfirmedAgainstArrival" : "dropoffConfirmedAgainstDeparture";
+  return {
+    id: "",
+    type,
+    visitIds: [visit.id],
+    cabAt: visit[`${type}At`] || null,
+    cabDateKey: visit[`${type}DateKey`] || "",
+    timeConfirmed: Boolean(visit[`${type}TimeConfirmed`]),
+    place: (type === "pickup" ? visit.pickupFrom : visit.dropoffTo) || "",
+    details: visit[`${type}Details`] || "",
+    bookingConfirmed: Boolean(visit[`${type}BookingConfirmed`]),
+    confirmedCabTime: visit[`${type}ConfirmedCabTime`] || null,
+    confirmedAgainstStay: { [visit.id]: visit[stayField] || null }
+  };
+}
+
+// The booking is shared — one car, one time, one place — but the question
+// "is this still right for you?" is personal, because riders can have
+// different arrival times on record. So the schedule check and the
+// confirmation anchor are both read against this rider's own stay, and two
+// people can share a cab while only one of them needs reconfirming.
+function cabRideState(ride, visit, type) {
+  if (!ride) return "";
+  const stayAt = visit[type === "pickup" ? "arrivalAt" : "departureAt"];
+  if (cabScheduleInvalid(type, ride.cabAt, stayAt)) return "Needs Rescheduling";
+  if (!ride.bookingConfirmed) return "Requested";
+  const confirmedStay = (ride.confirmedAgainstStay || {})[visit.id] || null;
+  if (!sameTime(confirmedStay, stayAt) || !sameTime(ride.confirmedCabTime, ride.cabAt)) {
+    return "Needs Reconfirmation";
+  }
+  return "Confirmed";
+}
+
 // Which guest each visit belongs to, by name, so a shared leg can say who
 // else is on it without every caller joining guests to visits itself.
 function visitOwnerNames(canonical) {
@@ -190,11 +235,11 @@ function ridersAfterSave(visitId, leg, existingLeg) {
   return [...new Set([visitId, ...riders])];
 }
 
-// Dropping a shared leg means stepping off it rather than deleting it: a
-// save for one guest must never take another guest's train away. Only the
-// last rider off removes the record.
-function legAfterLeaving(leg, visitId) {
-  const remaining = legVisitIds(leg).filter(id => id !== visitId);
+// Dropping a shared record — a travel leg, a cab ride — means stepping off it
+// rather than deleting it: a save for one guest must never take another
+// guest's train or car away. Only the last rider off removes the record.
+function sharedRecordAfterLeaving(record, visitId) {
+  const remaining = legVisitIds(record).filter(id => id !== visitId);
   return remaining.length ? { action: "update", visitIds: remaining } : { action: "delete" };
 }
 
@@ -642,24 +687,21 @@ function cabScheduleInvalid(type, cabAt, stayAt) {
   return type === "pickup" ? cab > stay : cab < stay;
 }
 
-function cabState(visit, type) {
-  const required = Boolean(visit[`${type}Required`]);
-  if (!required) return "";
-  const cabAt = visit[`${type}At`];
-  const stayAt = visit[type === "pickup" ? "arrivalAt" : "departureAt"];
-  if (cabScheduleInvalid(type, cabAt, stayAt)) return "Needs Rescheduling";
-  if (!visit[`${type}BookingConfirmed`]) return "Requested";
-  const confirmedStay = visit[type === "pickup" ? "pickupConfirmedAgainstArrival" : "dropoffConfirmedAgainstDeparture"];
-  const confirmedCab = visit[`${type}ConfirmedCabTime`];
-  if (!sameTime(confirmedStay, stayAt) || !sameTime(confirmedCab, cabAt)) return "Needs Reconfirmation";
-  return "Confirmed";
-}
-
-function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}) {
+function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}, ridesByVisit = {}) {
   const arrival = serializeDate(visit.arrivalAt, visit.arrivalTimeConfirmed);
   const departure = serializeDate(visit.departureAt, visit.departureTimeConfirmed);
-  const pickup = serializeDate(visit.pickupAt, visit.pickupTimeConfirmed);
-  const dropoff = serializeDate(visit.dropoffAt, visit.dropoffTimeConfirmed);
+  // Read through the ride, which is either a record of its own or the cab
+  // still written on the visit. The fields below are unchanged either way:
+  // every card, chip, count and workspace downstream keeps its shape.
+  const rides = ridesByVisit[visit.id] || [];
+  const pickupRide = cabRideFor(visit, rides, "pickup");
+  const dropoffRide = cabRideFor(visit, rides, "dropoff");
+  const pickup = serializeDate(pickupRide?.cabAt, pickupRide?.timeConfirmed);
+  const dropoff = serializeDate(dropoffRide?.cabAt, dropoffRide?.timeConfirmed);
+  const rideCompanions = ride => rideVisitIds(ride)
+    .filter(id => id !== visit.id)
+    .map(id => ({ visitId: id, name: ownerNames[id] || "" }))
+    .filter(item => item.name);
   const roomRows = (roomsByVisit[visit.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0));
   return {
     visitId: visit.id,
@@ -686,22 +728,26 @@ function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}) {
     residencyMeals: residencyMeals(visit),
     residencyMealNote: visit.residencyMealNote || "",
     cformComplete: Boolean(visit.cFormComplete),
-    pickupRequired: Boolean(visit.pickupRequired),
-    pickupMs: visit.pickupRequired ? pickup.ms : null,
-    pickupDate: visit.pickupRequired ? (visit.pickupDateKey || pickup.date) : "",
-    pickupTime: visit.pickupRequired ? pickup.time : "",
-    pickupFrom: visit.pickupRequired ? (visit.pickupFrom || "") : "",
-    pickupDetails: visit.pickupRequired ? (visit.pickupDetails || "") : "",
-    pickupBookingConfirmed: Boolean(visit.pickupBookingConfirmed),
-    pickupBookingState: cabState(visit, "pickup"),
-    dropoffRequired: Boolean(visit.dropoffRequired),
-    dropoffMs: visit.dropoffRequired ? dropoff.ms : null,
-    dropoffDate: visit.dropoffRequired ? (visit.dropoffDateKey || dropoff.date) : "",
-    dropoffTime: visit.dropoffRequired ? dropoff.time : "",
-    dropoffTo: visit.dropoffRequired ? (visit.dropoffTo || "") : "",
-    dropoffDetails: visit.dropoffRequired ? (visit.dropoffDetails || "") : "",
-    dropoffBookingConfirmed: Boolean(visit.dropoffBookingConfirmed),
-    dropoffBookingState: cabState(visit, "dropoff"),
+    pickupRequired: Boolean(pickupRide),
+    pickupMs: pickupRide ? pickup.ms : null,
+    pickupDate: pickupRide ? (pickupRide.cabDateKey || pickup.date) : "",
+    pickupTime: pickupRide ? pickup.time : "",
+    pickupFrom: pickupRide ? (pickupRide.place || "") : "",
+    pickupDetails: pickupRide ? (pickupRide.details || "") : "",
+    pickupBookingConfirmed: Boolean(pickupRide?.bookingConfirmed),
+    pickupBookingState: cabRideState(pickupRide, visit, "pickup"),
+    pickupRideId: pickupRide?.id || "",
+    pickupCompanions: pickupRide ? rideCompanions(pickupRide) : [],
+    dropoffRequired: Boolean(dropoffRide),
+    dropoffMs: dropoffRide ? dropoff.ms : null,
+    dropoffDate: dropoffRide ? (dropoffRide.cabDateKey || dropoff.date) : "",
+    dropoffTime: dropoffRide ? dropoff.time : "",
+    dropoffTo: dropoffRide ? (dropoffRide.place || "") : "",
+    dropoffDetails: dropoffRide ? (dropoffRide.details || "") : "",
+    dropoffBookingConfirmed: Boolean(dropoffRide?.bookingConfirmed),
+    dropoffBookingState: cabRideState(dropoffRide, visit, "dropoff"),
+    dropoffRideId: dropoffRide?.id || "",
+    dropoffCompanions: dropoffRide ? rideCompanions(dropoffRide) : [],
     cancelled: Boolean(visit.isCancelled),
     cancelledAt: visit.cancelledAt || null,
     createdAt: visit.createdAt || null,
@@ -963,6 +1009,7 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
   const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
   const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
   const ownerNames = visitOwnerNames(canonical);
+  const ridesByVisit = groupByEach(canonical.cabRides, rideVisitIds);
   const mealsByGuest = groupBy(canonical.mealOverrides, "guestId");
   const meetingsByGuest = groupBy(canonical.meetings, "guestId");
   const tasksByGuest = groupBy(canonical.specificSeva, "guestId");
@@ -972,7 +1019,7 @@ function buildDirectoryRecords(canonical, includeArchived = false) {
   const tripsById = Object.fromEntries(canonical.trips.map(trip => [trip.id, trip]));
 
   return canonical.guests.filter(guest => includeArchived || !guest.archived).map(guest => {
-    const allVisits = (visitsByGuest[guest.id] || []).filter(visit => !visit.isCancelled).map(visit => visitView(visit, roomsByVisit, legsByVisit, ownerNames));
+    const allVisits = (visitsByGuest[guest.id] || []).filter(visit => !visit.isCancelled).map(visit => visitView(visit, roomsByVisit, legsByVisit, ownerNames, ridesByVisit));
     const meetings = (meetingsByGuest[guest.id] || []).map(meetingView);
     const tasks = (tasksByGuest[guest.id] || []).map(taskView);
     const meals = (mealsByGuest[guest.id] || []).map(item => ({ overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included) }));
@@ -1042,10 +1089,11 @@ function homeSummary(canonical, records) {
   const homeRooms = groupBy(canonical.visitRooms, "visitId");
   const homeLegs = groupByEach(canonical.visitTravelLegs, legVisitIds);
   const homeOwners = visitOwnerNames(canonical);
+  const homeRides = groupByEach(canonical.cabRides, rideVisitIds);
   canonical.visits.filter(visit => !visit.isCancelled).forEach(visit => {
     const guest = guestsById[visit.guestId];
     if (!guest || guest.archived) return;
-    const view = visitView(visit, homeRooms, homeLegs, homeOwners);
+    const view = visitView(visit, homeRooms, homeLegs, homeOwners, homeRides);
     if (view.arrivalDate === today || view.departureDate === today) result.accommodation.today += 1;
     if (view.arrivalDate && view.arrivalDate > today) result.accommodation.upcoming += 1;
     // Here right now, split by where they sleep: residing on campus, nearby
@@ -1228,7 +1276,8 @@ export function createFirestoreBridge(firebaseApp) {
     const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
     const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
   const ownerNames = visitOwnerNames(canonical);
-    const visits = canonical.visits.filter(item => item.guestId === id).map(item => visitView(item, roomsByVisit, legsByVisit, ownerNames));
+  const ridesByVisit = groupByEach(canonical.cabRides, rideVisitIds);
+    const visits = canonical.visits.filter(item => item.guestId === id).map(item => visitView(item, roomsByVisit, legsByVisit, ownerNames, ridesByVisit));
     const liveVisits = visits.filter(item => !item.cancelled);
     const mealOverrides = canonical.mealOverrides.filter(item => item.guestId === id).map(item => ({
       overrideId: item.id, date: item.dateKey, meal: item.meal, included: Boolean(item.included),
@@ -1279,12 +1328,13 @@ export function createFirestoreBridge(firebaseApp) {
     const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
     const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
   const ownerNames = visitOwnerNames(canonical);
+  const ridesByVisit = groupByEach(canonical.cabRides, rideVisitIds);
     const todayKey = dateKeyOf(Date.now());
     const now = Date.now();
     const visits = canonical.visits.filter(item => !item.isCancelled).map(item => {
       const guest = guestsById[item.guestId];
       if (!guest) return null;
-      const view = visitView(item, roomsByVisit, legsByVisit, ownerNames);
+      const view = visitView(item, roomsByVisit, legsByVisit, ownerNames, ridesByVisit);
       // A residency reads its room the same way every other stay does. It
       // used to need a free-text fallback, because a resident's room was
       // held out of inventory and so could never be allocated; now the room
@@ -1673,22 +1723,44 @@ export function createFirestoreBridge(firebaseApp) {
     if (bad.length) throw new Error(`${label} on ${bad.join(", ")} falls outside this guest's stay dates.`);
   }
 
-  function confirmationData(type, payload, existing, stayAt, cabAt) {
+  // Who is aboard a cab after this save. Same shape as ridersAfterSave for a
+  // travel leg: no list sent leaves the riders alone, an empty list is a
+  // deliberate "nobody else", and the visit saving is always aboard.
+  function cabRidersAfterSave(visitId, payload, type, existingRide) {
+    const supplied = Array.isArray(payload[`${type}CompanionVisitIds`])
+      ? payload[`${type}CompanionVisitIds`].map(id => clean(id, 100)).filter(Boolean)
+      : null;
+    const riders = supplied
+      ? [visitId, ...supplied]
+      : (existingRide ? rideVisitIds(existingRide) : [visitId]);
+    return [...new Set([visitId, ...riders])];
+  }
+
+  // The booking is shared and the check is personal, so confirming records
+  // the cab time once and the stay time it was checked against per rider.
+  // Everyone else keeps the anchor they had: the car being confirmed says
+  // nothing about whether it still suits their arrival.
+  function rideConfirmation(type, payload, existingRide, stayAt, cabAt, visitId, riders) {
     const intent = clean(payload[`${type}ConfirmationIntent`], 40);
-    const checked = Boolean(payload[`${type}BookingConfirmed`]);
-    const prefix = type === "pickup" ? "pickup" : "dropoff";
-    const stayField = type === "pickup" ? "pickupConfirmedAgainstArrival" : "dropoffConfirmedAgainstDeparture";
-    const cabField = `${prefix}ConfirmedCabTime`;
-    if (intent === "preserve" && existing) {
+    const carry = () => Object.fromEntries(riders.map(id =>
+      [id, (existingRide?.confirmedAgainstStay || {})[id] || null]));
+    if (intent === "preserve" && existingRide) {
       return {
-        [`${prefix}BookingConfirmed`]: Boolean(existing[`${prefix}BookingConfirmed`]),
-        [stayField]: existing[stayField] || null,
-        [cabField]: existing[cabField] || null
+        bookingConfirmed: Boolean(existingRide.bookingConfirmed),
+        confirmedCabTime: existingRide.confirmedCabTime || null,
+        confirmedAgainstStay: carry()
       };
     }
-    if (checked) return { [`${prefix}BookingConfirmed`]: true, [stayField]: stayAt, [cabField]: cabAt };
-    return { [`${prefix}BookingConfirmed`]: false, [stayField]: null, [cabField]: null };
+    if (Boolean(payload[`${type}BookingConfirmed`])) {
+      return {
+        bookingConfirmed: true,
+        confirmedCabTime: cabAt,
+        confirmedAgainstStay: { ...carry(), [visitId]: stayAt }
+      };
+    }
+    return { bookingConfirmed: false, confirmedCabTime: null, confirmedAgainstStay: {} };
   }
+
 
   async function saveVisitPlan(payload) {
   const actor = ensureApproved();
@@ -1939,21 +2011,6 @@ export function createFirestoreBridge(firebaseApp) {
     }
   });
 
-  const pickupConfirm = confirmationData(
-    "pickup",
-    payload,
-    existing,
-    arrivalAt,
-    pickupAt
-  );
-
-  const dropoffConfirm = confirmationData(
-    "dropoff",
-    payload,
-    existing,
-    departureAt,
-    dropoffAt
-  );
 
   const visitData = {
     guestId,
@@ -1998,47 +2055,9 @@ export function createFirestoreBridge(firebaseApp) {
 
     cFormComplete: Boolean(payload.isCformComplete),
 
-    pickupRequired: Boolean(payload.pickupRequired),
-    pickupAt,
-
-    pickupDateKey: payload.pickupRequired
-      ? clean(payload.pickupDate, 20)
-      : "",
-
-    pickupTimeConfirmed: Boolean(
-      payload.pickupRequired && payload.pickupTime
-    ),
-
-    pickupFrom: payload.pickupRequired
-      ? clean(payload.pickupFrom)
-      : "",
-
-    pickupDetails: payload.pickupRequired
-      ? clean(payload.pickupDetails)
-      : "",
-
-    ...pickupConfirm,
-
-    dropoffRequired: Boolean(payload.dropoffRequired),
-    dropoffAt,
-
-    dropoffDateKey: payload.dropoffRequired
-      ? clean(payload.dropoffDate, 20)
-      : "",
-
-    dropoffTimeConfirmed: Boolean(
-      payload.dropoffRequired && payload.dropoffTime
-    ),
-
-    dropoffTo: payload.dropoffRequired
-      ? clean(payload.dropoffTo)
-      : "",
-
-    dropoffDetails: payload.dropoffRequired
-      ? clean(payload.dropoffDetails)
-      : "",
-
-    ...dropoffConfirm,
+    // The cab now lives in its own record, because one car can carry several
+    // guests and a field on one visit cannot. The old fields are left on
+    // visits already written and simply stop being read.
 
     isCancelled: Boolean(existing?.isCancelled),
     cancelledAt: existing?.cancelledAt || null,
@@ -2124,6 +2143,58 @@ export function createFirestoreBridge(firebaseApp) {
   const oldLegs = canonical.visitTravelLegs.filter(
     item => legVisitIds(item).includes(visitId)
   );
+
+  const oldRides = canonical.cabRides.filter(
+    item => rideVisitIds(item).includes(visitId)
+  );
+
+  // Worked out before the transaction opens, because Firestore wants every
+  // read done before the first write and this needs the rides as they stand.
+  const ridePlans = ["pickup", "dropoff"].map(type => {
+    const existingRide = oldRides.find(item => item.type === type) || null;
+    if (!payload[`${type}Required`]) {
+      return { type, existingRide, drop: true };
+    }
+    const riders = cabRidersAfterSave(visitId, payload, type, existingRide);
+    const stayAt = type === "pickup" ? arrivalAt : departureAt;
+    const cabAt = type === "pickup" ? pickupAt : dropoffAt;
+    return {
+      type,
+      existingRide,
+      drop: false,
+      rideId: existingRide?.id || clean(payload[`${type}RideId`], 100) || uuid(),
+      riders,
+      data: {
+        type,
+        visitIds: riders,
+        cabAt,
+        cabDateKey: clean(payload[`${type}Date`], 20),
+        timeConfirmed: Boolean(payload[`${type}Time`]),
+        place: clean(payload[type === "pickup" ? "pickupFrom" : "dropoffTo"]),
+        details: clean(payload[`${type}Details`]),
+        ...rideConfirmation(type, payload, existingRide, stayAt, cabAt, visitId, riders)
+      }
+    };
+  });
+
+  // Same rule the travel legs follow: a companion needs a visit for the ride
+  // to belong to, and a Visitor may not have personal cab planning however
+  // they were added.
+  ridePlans.filter(plan => !plan.drop).forEach(plan => {
+    plan.riders.filter(id => id !== visitId).forEach(companionId => {
+      const companion = canonical.visits.find(item => item.id === companionId);
+      if (!companion || companion.isCancelled) {
+        throw new Error("Someone sharing this cab no longer has that visit. Remove them and try again.");
+      }
+      const companionGuest = canonical.guests.find(item => item.id === companion.guestId);
+      if (!companionGuest || companionGuest.archived) {
+        throw new Error("Someone sharing this cab is no longer an active guest. Remove them and try again.");
+      }
+      if (companionGuest.personType === "Visitor") {
+        throw new Error(companionGuest.name + " is a Visitor, and Visitors do not use personal cab planning. Add them to a shared Trip instead.");
+      }
+    });
+  });
 
   await runTransaction(db, async transaction => {
     /*
@@ -2295,6 +2366,35 @@ export function createFirestoreBridge(firebaseApp) {
       );
     });
 
+    // A cab nobody else is in goes with the visit that no longer wants it; a
+    // shared one keeps going without them. Exactly the rule the legs follow,
+    // for exactly the same reason.
+    ridePlans.forEach(plan => {
+      if (plan.drop) {
+        if (!plan.existingRide) return;
+        const outcome = sharedRecordAfterLeaving(plan.existingRide, visitId);
+        const reference = doc(db, "cabRides", plan.existingRide.id);
+        if (outcome.action === "update") {
+          transaction.update(reference, {
+            visitIds: outcome.visitIds,
+            updatedAt: serverTimestamp(),
+            updatedBy: actor
+          });
+        } else {
+          transaction.delete(reference);
+        }
+        return;
+      }
+      transaction.set(doc(db, "cabRides", plan.rideId), {
+        ...plan.data,
+        createdAt: plan.existingRide?.createdAt || serverTimestamp(),
+        createdBy: plan.existingRide?.createdBy || actor,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor,
+        schemaVersion: 1
+      });
+    });
+
     // A leg dropped from this visit's list is only deleted when nobody else
     // is on it. With companions still aboard, this visit steps off and the
     // journey carries on without it — saving one guest must never be able to
@@ -2302,7 +2402,7 @@ export function createFirestoreBridge(firebaseApp) {
     oldLegs
       .filter(item => !newLegIds.has(item.id))
       .forEach(item => {
-        const outcome = legAfterLeaving(item, visitId);
+        const outcome = sharedRecordAfterLeaving(item, visitId);
         const reference = doc(db, "visitTravelLegs", item.id);
         if (outcome.action === "update") {
           transaction.update(reference, {
@@ -2907,6 +3007,29 @@ export function createFirestoreBridge(firebaseApp) {
   // Two queries because a leg written before shared journeys names its visit
   // in visitId rather than visitIds, and both kinds have to be found — a
   // single-field query would quietly leave the other kind behind.
+  // A cab shared with somebody else is not this visit's to delete either.
+  async function detachVisitFromRides_(batch, actor, visitId) {
+    const found = await getDocs(query(collection(db, "cabRides"),
+      where("visitIds", "array-contains", visitId)));
+    let deleted = 0;
+    let leftBehind = 0;
+    found.docs.forEach(item => {
+      const outcome = sharedRecordAfterLeaving({ id: item.id, ...item.data() }, visitId);
+      if (outcome.action === "update") {
+        batch.update(item.ref, {
+          visitIds: outcome.visitIds,
+          updatedAt: Timestamp.now(),
+          updatedBy: actor
+        });
+        leftBehind += 1;
+      } else {
+        batch.delete(item.ref);
+        deleted += 1;
+      }
+    });
+    return { deleted, leftBehind };
+  }
+
   async function detachVisitFromLegs_(batch, actor, visitId) {
     const [shared, legacy] = await Promise.all([
       getDocs(query(collection(db, "visitTravelLegs"), where("visitIds", "array-contains", visitId))),
@@ -2918,7 +3041,7 @@ export function createFirestoreBridge(firebaseApp) {
     [...shared.docs, ...legacy.docs].forEach(item => {
       if (seen.has(item.id)) return;
       seen.add(item.id);
-      const outcome = legAfterLeaving({ id: item.id, ...item.data() }, visitId);
+      const outcome = sharedRecordAfterLeaving({ id: item.id, ...item.data() }, visitId);
       if (outcome.action === "update") {
         batch.update(item.ref, {
           visitIds: outcome.visitIds,
@@ -2942,9 +3065,11 @@ export function createFirestoreBridge(firebaseApp) {
     const batch = writeBatch(db);
     const rooms = await deleteChildDocs_(batch, "visitRooms", "visitId", id);
     const legs = await detachVisitFromLegs_(batch, actor, id);
+    const rides = await detachVisitFromRides_(batch, actor, id);
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "visit", id, "delete",
-      ["document", `rooms:${rooms}`, `travelLegs:${legs.deleted}`, `sharedLegsKept:${legs.leftBehind}`]);
+      ["document", `rooms:${rooms}`, `travelLegs:${legs.deleted}`, `sharedLegsKept:${legs.leftBehind}`,
+        `cabRides:${rides.deleted}`, `sharedRidesKept:${rides.leftBehind}`]);
     await batch.commit();
     invalidate();
     return {
@@ -2952,7 +3077,9 @@ export function createFirestoreBridge(firebaseApp) {
       deleted: true,
       roomsDeleted: rooms,
       travelLegsDeleted: legs.deleted,
-      sharedLegsKept: legs.leftBehind
+      sharedLegsKept: legs.leftBehind,
+      cabRidesDeleted: rides.deleted,
+      sharedRidesKept: rides.leftBehind
     };
   }
 
@@ -3684,7 +3811,9 @@ export function createFirestoreBridge(firebaseApp) {
     const commit = options?.commit === true;
 
     const writes = [];
+    const rideWrites = [];
     const alreadyShared = [];
+    const ridesAlready = [];
     const orphaned = [];
 
     canonical.visitTravelLegs.forEach(leg => {
@@ -3700,14 +3829,46 @@ export function createFirestoreBridge(firebaseApp) {
       writes.push({ id: leg.id, visitIds: [owner] });
     });
 
+    // Each cab still written on a visit becomes a ride of its own, with that
+    // visit as its only rider. Deterministic ids, so a second run finds them
+    // already there rather than making a second copy.
+    const ridesByVisit = groupByEach(canonical.cabRides, rideVisitIds);
+    canonical.visits.forEach(visit => {
+      ["pickup", "dropoff"].forEach(type => {
+        if (!visit[`${type}Required`]) return;
+        if ((ridesByVisit[visit.id] || []).some(ride => ride.type === type)) {
+          ridesAlready.push(`${visit.id}-${type}`);
+          return;
+        }
+        const built = cabRideFor(visit, [], type);
+        rideWrites.push({
+          id: `CAB-${visit.id}-${type}`,
+          data: {
+            type,
+            visitIds: built.visitIds,
+            cabAt: built.cabAt,
+            cabDateKey: built.cabDateKey,
+            timeConfirmed: built.timeConfirmed,
+            place: built.place,
+            details: built.details,
+            bookingConfirmed: built.bookingConfirmed,
+            confirmedCabTime: built.confirmedCabTime,
+            confirmedAgainstStay: built.confirmedAgainstStay
+          }
+        });
+      });
+    });
+
     const result = {
       generatedAt: new Date().toISOString(),
       committed: false,
       legsSeen: canonical.visitTravelLegs.length,
       legsToConvert: writes.length,
       alreadyConverted: alreadyShared.length,
+      cabsToConvert: rideWrites.length,
+      cabsAlreadyConverted: ridesAlready.length,
       orphaned,
-      documentsToWrite: writes.length
+      documentsToWrite: writes.length + rideWrites.length
     };
 
     if (!commit) {
@@ -3715,27 +3876,37 @@ export function createFirestoreBridge(firebaseApp) {
         "DRY RUN — nothing was written.",
         result.legsToConvert + " travel leg(s) would gain a rider list.",
         result.alreadyConverted + " already have one.",
+        result.cabsToConvert + " cab(s) would move off their visit into a ride of their own.",
+        result.cabsAlreadyConverted + " have already moved.",
         orphaned.length ? orphaned.length + " leg(s) name no visit — resolve before committing." : "Every leg names a visit."
       ];
       return result;
     }
     if (orphaned.length) throw new Error(orphaned.length + " leg(s) name no visit. Resolve them before committing.");
 
-    if (writes.length) {
+    if (writes.length || rideWrites.length) {
       const batch = writeBatch(db);
       writes.forEach(item => batch.update(doc(db, "visitTravelLegs", item.id), {
         visitIds: item.visitIds,
         updatedAt: Timestamp.now(),
         updatedBy: actor
       }));
-      await writeAuditBatch(batch, actor, "sharedJourneys", "all", "migrate", ["visitTravelLegs"]);
+      rideWrites.forEach(item => batch.set(doc(db, "cabRides", item.id), {
+        ...item.data,
+        createdAt: Timestamp.now(), createdBy: actor,
+        updatedAt: Timestamp.now(), updatedBy: actor,
+        schemaVersion: 1
+      }));
+      await writeAuditBatch(batch, actor, "sharedJourneys", "all", "migrate",
+        ["visitTravelLegs", "cabRides"]);
       await batch.commit();
       invalidate();
     }
     result.committed = true;
-    result.summary = [writes.length
-      ? "Committed. " + writes.length + " travel leg(s) now carry a rider list."
-      : "Nothing to do — every leg already carries one."];
+    result.summary = [(writes.length || rideWrites.length)
+      ? "Committed. " + writes.length + " travel leg(s) now carry a rider list, and "
+        + rideWrites.length + " cab(s) are rides of their own."
+      : "Nothing to do — every leg and cab has already moved."];
     return result;
   }
 
