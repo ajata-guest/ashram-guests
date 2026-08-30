@@ -1705,7 +1705,20 @@
     /* Who else is on this journey. Chips rather than a list, because the
        answer is usually one name and occasionally four, and it has to sit in
        the tightest part of the dialog without taking a row per person. */
-    .travel-companions { margin-top: 4px; }
+    /* Its own group, separated the way Optional details above it is: who is
+       travelling with this guest is not a detail of the booking. */
+    .travel-companions {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+    /* Room Allocation's header sets 14px below itself, which is right for
+       full-width rows and too much above a row of small chips. */
+    .travel-companions .room-group-header { margin-bottom: 9px; }
+    /* travel-help is written for a line that introduces a list; this one
+       follows its list, so the space it carries moves to the top — the same
+       correction the away hint already makes. */
+    .companion-help { margin: 10px 0 0; }
     .companion-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .companion-list:empty { display: none; }
     .companion-chip {
@@ -12494,14 +12507,14 @@
                 <input class="edit-input" data-field="notes" type="text" maxlength="500" autocomplete="off">
               </div>
             </div>
-            <div class="input-group travel-companions" hidden>
-              <div class="room-group-header">
-                <label class="input-label">Travelling with</label>
-                <button class="travel-add-btn companion-add-btn" type="button">+ Add</button>
-              </div>
-              <div class="companion-list"></div>
-              <p class="travel-help companion-help">One journey, however many people are on it. Editing it here edits it for all of them.</p>
+          </div>
+          <div class="input-group travel-companions" hidden>
+            <div class="room-group-header">
+              <label class="input-label">Travelling with</label>
+              <button class="travel-add-btn companion-add-btn" type="button">+ Add</button>
             </div>
+            <div class="companion-list"></div>
+            <p class="travel-help companion-help">One journey, however many people are on it. Editing it here edits it for all of them.</p>
           </div>
         </div>`;
 
