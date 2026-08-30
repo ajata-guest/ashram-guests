@@ -855,6 +855,16 @@
       line-height: 1.4;
     }
 
+    /* A whole journey on one row: icon, route, and its state as a badge at
+       the end. The badge wraps under the route rather than squeezing it,
+       which on a phone is the difference between two lines and four. */
+    .journey-line { flex-wrap: wrap; gap: 4px 8px; }
+    /* flex-basis 0, not auto: on auto the text claims its full content width,
+       cannot fit beside a 16px icon, and wraps to its own line leaving the
+       icon stranded above it. From zero it takes what is left and wraps
+       inside itself, which is what a detail line has always done. */
+    .journey-text { flex: 1 1 0; min-width: 0; }
+
     .travel-stack {
       display: flex;
       margin-top: 2px;
@@ -8099,8 +8109,7 @@
       if (outstanding.length) card.appendChild(badgeRow_(outstanding));
 
       appendTransportDetails_(card, visit);
-      appendTravelDetails_(card, visit, 'Required');
-      appendTravelDetails_(card, visit, 'Confirmed');
+      appendJourneys_(card, visit);
 
       return card;
     }
@@ -8274,12 +8283,17 @@
         return;
       }
 
+      // One row each, the same shape as a journey: what it is, then its
+      // state as a badge. A badge stacked above a line that read "From
+      // Dumet" was two rows saying one thing.
       const stack = createElement('div', 'travel-stack');
       entries.forEach(entry => {
-        const item = createElement('div', 'travel-item');
-        item.appendChild(badgeRow_([entry]));
-        if (entry.detail) item.appendChild(createDetailLine('icon-car', entry.detail));
-        stack.appendChild(item);
+        const row = createElement('div', 'detail-line journey-line');
+        row.appendChild(createIcon_('icon-car'));
+        row.appendChild(createElement('span', 'journey-text',
+          entry.detail ? `${entry.name} · ${entry.detail}` : entry.name));
+        row.appendChild(createBadge(entry.stateLabel, entry.badgeClass));
+        stack.appendChild(row);
       });
       card.appendChild(stack);
     }
@@ -8297,20 +8311,25 @@
       const location = (isPickup ? visit.pickupFrom : visit.dropoffTo) || '';
 
       let label;
+      let stateLabel;
       let badgeClass;
       if (state === 'Confirmed') {
         label = `${name} arranged`;
+        stateLabel = 'Arranged';
         badgeClass = isSchedulePast_(dateValue, msValue, Boolean(timeValue))
           ? 'badge-gray'
           : (isPickup ? 'badge-pickup' : 'badge-dropoff');
       } else if (state === 'Needs Rescheduling') {
         label = `${name} needs rescheduling`;
+        stateLabel = 'Needs rescheduling';
         badgeClass = 'badge-warning';
       } else if (state === 'Needs Reconfirmation') {
         label = `${name} needs reconfirmation`;
+        stateLabel = 'Needs reconfirmation';
         badgeClass = 'badge-cab-action';
       } else {
         label = `${name} requested`;
+        stateLabel = 'Requested';
         // Escalates to the louder colour once the workspace itself considers
         // this cab unresolved, matching V2's priority-reason check.
         badgeClass = visitAttentionReasons_(visit).includes(isPickup ? 'Pickup to arrange' : 'Drop-off to arrange')
@@ -8325,50 +8344,89 @@
       if (dateValue) parts.push(formatCabScheduleText_(dateValue, timeValue));
       else if (location) parts.push('Date not set');
 
-      return { label, badgeClass, detail: parts.join(' · ') };
+      return { label, stateLabel, badgeClass, name, detail: parts.join(' · ') };
     }
 
-    function appendTravelDetails_(card, visit, status) {
-      const legs = (Array.isArray(visit.travelLegs) ? visit.travelLegs : [])
-        .filter(leg => leg.status === status);
-      if (!legs.length) return;
+    // A visit's legs, grouped into journeys. Two rows per leg is what made a
+    // return trip unreadable: the badge named the direction and transport, and
+    // the line beneath repeated the transport as an icon and added the route.
+    //
+    // Legs arrive already in chronological order (compareLegs, adapter side),
+    // so the first inbound leg is where they set out from and the last
+    // outbound leg is where they end up.
+    function visitJourneys_(visit) {
+      const legs = Array.isArray(visit.travelLegs) ? visit.travelLegs : [];
+      const inbound = legs.filter(leg => leg.direction === 'Inbound');
+      const outbound = legs.filter(leg => leg.direction === 'Outbound');
 
+      // A return journey is one that ends where it began. Arriving from
+      // Shantivanam and leaving for Delhi is not one, and calling it a return
+      // would hide the fact that they are not going home.
+      const samePlace = (a, b) => Boolean(a) && Boolean(b)
+        && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+      if (inbound.length && outbound.length
+        && samePlace(outbound[outbound.length - 1].to, inbound[0].from)) {
+        return [journeySummary_('Return', inbound.concat(outbound), inbound)];
+      }
+
+      const journeys = [];
+      if (inbound.length) journeys.push(journeySummary_('Inbound', inbound, inbound));
+      if (outbound.length) journeys.push(journeySummary_('Outbound', outbound, outbound));
+      return journeys;
+    }
+
+    // routeLegs is the stretch whose endpoints name the journey — for a return
+    // that is the outward half, since the way back is what the label says.
+    function journeySummary_(label, legs, routeLegs) {
+      const outstanding = legs.filter(leg => leg.status !== 'Confirmed');
+      const route = [routeLegs[0].from, routeLegs[routeLegs.length - 1].to]
+        .filter(Boolean).join(' → ') || legs[0].transportType;
+
+      let status;
+      let badgeClass;
+      if (!outstanding.length) {
+        // Green has to mean "nothing to do here" or it is not worth scanning
+        // for, so it is only ever reached with every leg booked. Once the
+        // whole journey is behind them it goes quiet instead.
+        const dated = legs.find(leg => leg.travelDisplay);
+        status = dated ? dated.travelDisplay : 'Booked';
+        badgeClass = legs.every(leg => isSchedulePast_(leg.travelDate, leg.travelMs, Boolean(leg.travelTime)))
+          ? 'badge-gray'
+          : 'badge-confirmed';
+      } else {
+        // The count is the actionable fact. Which leg is outstanding is in the
+        // editor, one tap away, where every leg carries its own status.
+        status = outstanding.length === legs.length
+          ? (legs.length === 1 ? 'To arrange' : `${legs.length} to arrange`)
+          : `${outstanding.length} of ${legs.length} to arrange`;
+        // Nothing to book against is the more urgent of the two.
+        badgeClass = outstanding.some(leg => !leg.travelDate)
+          ? 'badge-travel-critical'
+          : 'badge-travel-action';
+      }
+
+      const names = [...new Set(legs.flatMap(leg => (leg.companions || []).map(item => item.name)))]
+        .filter(Boolean);
+      return {
+        iconId: getTravelIconId(legs[0].transportType),
+        text: `${label} · ${route}${names.length ? ` · with ${listPeople_(names)}` : ''}`,
+        status,
+        badgeClass
+      };
+    }
+
+    function appendJourneys_(card, visit) {
+      const journeys = visitJourneys_(visit);
+      if (!journeys.length) return;
       const stack = createElement('div', 'travel-stack');
-      legs.forEach(leg => {
-        const item = createElement('div', 'travel-item');
-        let label;
-        let badgeClass;
-        if (status === 'Confirmed') {
-          label = `${leg.direction} ${leg.transportType} confirmed`;
-          badgeClass = isSchedulePast_(leg.travelDate, leg.travelMs, Boolean(leg.travelTime))
-            ? 'badge-gray'
-            : 'badge-confirmed';
-        } else {
-          label = `${leg.direction} ${leg.transportType} to arrange`;
-          // No date at all is the more urgent of the two: there is nothing to
-          // book against yet.
-          badgeClass = leg.travelDate ? 'badge-travel-action' : 'badge-travel-critical';
-        }
-        item.appendChild(badgeRow_([{ label, badgeClass }]));
-        item.appendChild(createTravelDetailLine_(leg));
-        stack.appendChild(item);
+      journeys.forEach(journey => {
+        const row = createElement('div', 'detail-line journey-line');
+        row.appendChild(createIcon_(journey.iconId));
+        row.appendChild(createElement('span', 'journey-text', journey.text));
+        row.appendChild(createBadge(journey.status, journey.badgeClass));
+        stack.appendChild(row);
       });
       card.appendChild(stack);
-    }
-
-    function createTravelDetailLine_(leg) {
-      const route = [leg.from, leg.to].filter(Boolean).join(' → ');
-      const dateText = leg.travelDisplay || 'Date not set';
-      const service = leg.serviceNumber ? ` · ${leg.serviceNumber}` : '';
-      // A shared journey says so on the card. Otherwise the same train shows
-      // on two people's cards looking like two separate bookings, which is
-      // exactly the confusion this feature exists to end.
-      const names = (leg.companions || []).map(item => item.name).filter(Boolean);
-      const withWhom = names.length ? ` · with ${listPeople_(names)}` : '';
-      return createDetailLine(
-        getTravelIconId(leg.transportType),
-        `${route || leg.transportType} · ${dateText}${service}${withWhom}`
-      );
     }
 
     // Generic search-existing-or-create-new guest picker, reusable by any
@@ -12430,7 +12488,7 @@
       });
     }
 
-    function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty') {
+    function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty', insertAfter = null) {
       const list = $(listId);
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
@@ -12455,6 +12513,7 @@
               <select class="edit-input" data-field="direction">
                 <option value="Inbound">Inbound</option>
                 <option value="Outbound">Outbound</option>
+                <option value="Return">Return — adds the way back too</option>
               </select>
             </div>
             <div class="input-group">
@@ -12558,18 +12617,80 @@
         editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateLegSummary(editor));
       });
 
+      // Return is a command rather than a direction — a leg is physically
+      // one way or the other. Choosing it makes this leg the outward one and
+      // builds the way back underneath, so the two remain separate records
+      // with their own dates, which is what they are.
+      const directionField = editor.querySelector('[data-field="direction"]');
+      directionField.addEventListener('change', () => {
+        if (directionField.value !== 'Return') return;
+        directionField.value = 'Inbound';
+        updateLegSummary(editor);
+        addReturnLegFor_(editor, listId, emptyId);
+        markModalDirty();
+      });
+
+      // While the way back is still a mirror of the outward leg, editing the
+      // outward route moves it too — the route is usually typed after the
+      // Return is chosen, and reversing two empty boxes would help nobody.
+      ['from', 'to'].forEach(field => {
+        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => {
+          syncMirroredReturnLeg_(editor, listId);
+          // Editing the way back's own route ends the mirroring for good.
+          if (editor.dataset.mirroredFrom) delete editor.dataset.mirroredFrom;
+        });
+      });
+
       const summary = editor.querySelector('.travel-leg-summary');
       summary.addEventListener('click', event => {
         if (event.target.closest('button')) return;
         toggleLegExpanded(editor);
       });
 
-      list.appendChild(editor);
+      // A return leg goes directly under the leg it returns from, which is
+      // what makes updateTravelDateConstraints refuse a return date earlier
+      // than the outward one — that rule reads the list in order.
+      if (insertAfter && insertAfter.parentNode === list) insertAfter.after(editor);
+      else list.appendChild(editor);
       setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExistingLeg);
       editor.classList.toggle('leg-expanded', !isExistingLeg);
       updateLegSummary(editor);
       updateTravelEmptyState(listId, emptyId);
       updateTravelDateConstraints(listId);
+      return editor;
+    }
+
+    // Builds the way back from an outward leg: the same transport, the route
+    // reversed, the same people, and no date — that is the one thing that
+    // genuinely differs and has to be chosen.
+    function addReturnLegFor_(editor, listId, emptyId) {
+      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+      const back = addTravelLegEditor({
+        direction: 'Outbound',
+        transportType: value('transportType'),
+        from: value('to'),
+        to: value('from'),
+        status: 'Required',
+        companions: companionChipsIn_(editor).map(chip => ({
+          visitId: chip.dataset.visitId,
+          name: chip.dataset.name
+        }))
+      }, listId, emptyId, editor);
+      // Remembered so the route can keep following the outward leg until
+      // somebody types over it.
+      back.dataset.mirroredFrom = editor.dataset.travelId;
+      return back;
+    }
+
+    function syncMirroredReturnLeg_(editor, listId) {
+      const id = editor.dataset.travelId;
+      if (!id) return;
+      const back = $(listId).querySelector(`[data-mirrored-from="${CSS.escape(id)}"]`);
+      if (!back) return;
+      const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
+      back.querySelector('[data-field="from"]').value = value('to');
+      back.querySelector('[data-field="to"]').value = value('from');
+      updateLegSummary(back);
     }
 
     function toggleLegExpanded(editor, expanded) {
