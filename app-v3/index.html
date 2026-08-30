@@ -575,12 +575,10 @@
     .volunteer-type { color: var(--subtle); font-size: 0.76rem; }
 
     /* Still offered and still readable — greying it out entirely would leave
-       you wondering whether the name was even found. Clicking says why. */
+       you wondering whether the name was even found. The line beneath gives
+       the actual reason, so nothing is appended here. */
     .guest-name-suggestion.is-blocked .guest-name-suggestion-name { color: var(--muted); }
-    .guest-name-suggestion.is-blocked .guest-name-suggestion-meta::after {
-      content: ' · not here yet';
-      color: var(--red-deep);
-    }
+    .guest-name-suggestion.is-blocked .guest-name-suggestion-meta { color: var(--red-deep); }
 
     .card-grid {
       display: grid;
@@ -6858,18 +6856,6 @@
       $('seva-team-volunteer').setAttribute('aria-expanded', 'false');
     }
 
-    // Mirrors sevaBlockReason in the adapter, from the visit the directory
-    // row already carries — so no extra round trip just to find out.
-    function sevaBlockReason_(row) {
-      if (row.personType === 'Permanent Resident') return '';
-      const who = row.name || 'This guest';
-      const visit = row.visit;
-      if (!visit) return `${who} has no visit on record, so there is no arrival to confirm.`;
-      if (!visit.arrivalDate) return `${who}'s arrival date is not confirmed yet.`;
-      if (!hasVisitArrived_(visit)) return `${who} has not arrived yet.`;
-      return '';
-    }
-
     function openSevaTeam_() {
       const id = $('edit-seva-team-id').value;
       return (sevaWorkspaceData_.teams || []).find(team => team.teamId === id) || null;
@@ -6910,9 +6896,12 @@
         option.type = 'button';
         option.setAttribute('role', 'option');
         option.appendChild(createElement('span', 'guest-name-suggestion-name', row.name || 'Unnamed guest'));
+        // Said in full rather than as a fixed suffix: "no arrival date yet"
+        // and "arrives next week" are different problems and the earlier
+        // version called both of them "not here yet".
+        const blocked = row.sevaBlockReason || '';
         option.appendChild(createElement('span', 'guest-name-suggestion-meta',
-          `${row.personType || 'Guest'} · Existing guest`));
-        const blocked = sevaBlockReason_(row);
+          blocked || `${row.personType || 'Guest'} · Existing guest`));
         if (blocked) {
           option.classList.add('is-blocked');
           option.title = blocked;

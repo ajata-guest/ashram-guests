@@ -4096,13 +4096,23 @@ export function createFirestoreBridge(firebaseApp) {
         const canonical = await loadCanonical();
         const term = clean(options.nameQuery, 200).toLowerCase();
         const includeArchived = Boolean(options.includeArchived);
+        // Whether somebody may be given seva is decided here rather than by
+        // the picker, so the list and the write path answer with one rule and
+        // one wording. The row itself carries no visit — this list is kept
+        // deliberately light — so a client cannot work it out for itself.
+        const directoryVisits = groupBy(canonical.visits, "guestId");
+        const directoryToday = dateKeyOf(Date.now());
+        const directoryNow = Date.now();
         const rows = canonical.guests.filter(item => (includeArchived || !item.archived) && (!term || String(item.name || "").toLowerCase().includes(term)))
           .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
           .map(item => ({
             guestId: item.id, name: item.name || "", personType: item.personType || "Needs Review",
             isForeign: Boolean(item.foreignNational), invitedPurpose: item.invitedPurposes || [],
             invitedPurposeOther: item.invitedPurposeOther || "", staffAssignment: item.staffAssignment || "",
-            archived: Boolean(item.archived), version: versionOf(item)
+            archived: Boolean(item.archived), version: versionOf(item),
+            sevaBlockReason: sevaBlockReason(item,
+              (directoryVisits[item.id] || []).map(visit => visitView(visit, {}, {})),
+              directoryToday, directoryNow)
           }));
         const offset = Math.max(0, Number(options.offset) || 0);
         const limitValue = Math.min(200, Math.max(1, Number(options.limit) || 50));
