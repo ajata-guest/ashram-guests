@@ -548,6 +548,10 @@
       font-size: 0.72rem;
     }
 
+    /* A card's own actions sit at its foot, clear of the detail lines above
+       them, so the card reads as a summary and then a thing to do. */
+    .card-actions { display: flex; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
+
     .card-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
@@ -4190,6 +4194,12 @@
         </div>
       </div>
       <input type="hidden" id="edit-seva-team-id">
+      <div class="modal-section-nav" id="seva-team-section-nav" aria-label="Jump to section" hidden>
+        <button type="button" class="section-nav-pill active" data-target="seva-team-sec-team">Team</button>
+        <button type="button" class="section-nav-pill" data-target="seva-team-roster-group">Volunteers</button>
+        <button type="button" class="section-nav-pill" data-target="seva-team-new-guest">New Guest</button>
+      </div>
+      <section id="seva-team-sec-team">
       <div class="input-group">
         <label class="input-label" for="edit-seva-team-name">Seva Team Name</label>
         <div class="guest-name-lookup">
@@ -4216,14 +4226,48 @@
           </div>
         </div>
       </div>
-      <div class="input-group" id="seva-team-roster-group" hidden>
+      </section>
+      <section class="input-group" id="seva-team-roster-group" hidden>
         <div class="room-group-header">
-          <label class="input-label">Members</label>
-          <button id="seva-team-add-member" class="travel-add-btn" type="button">+ Add member</button>
+          <label class="input-label">Volunteers</label>
+          <button id="seva-team-add-member" class="travel-add-btn" type="button">+ Add volunteer</button>
         </div>
         <div id="seva-team-roster" class="room-list"></div>
-        <p class="travel-help">Friends, Visitors, Other and Permanent Residents may join a team.</p>
-      </div>
+        <div class="input-group guest-name-lookup" id="seva-team-volunteer-lookup" hidden>
+          <input type="text" id="seva-team-volunteer" class="edit-input" maxlength="500" autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="seva-team-volunteer-suggestions"
+            placeholder="Start typing a name...">
+          <div id="seva-team-volunteer-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Volunteers" hidden></div>
+        </div>
+        <p class="travel-help">Friends, Visitors, Other and Permanent Residents may take seva.</p>
+      </section>
+      <section class="form-section" id="seva-team-new-guest" hidden>
+        <h3 class="form-section-title">
+          <svg class="icon section-title-icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+          New Volunteer
+        </h3>
+        <div class="input-group">
+          <label class="input-label" for="seva-new-guest-name">Name</label>
+          <input type="text" id="seva-new-guest-name" class="edit-input" maxlength="500" autocomplete="off">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="seva-new-guest-person-type">Person Type</label>
+          <select id="seva-new-guest-person-type" class="edit-input">
+            <option value="Friend">Friend</option>
+            <option value="Visitor">Visitor</option>
+            <option value="Other">Other</option>
+            <option value="Permanent Resident">Permanent Resident</option>
+          </select>
+        </div>
+        <label class="checkbox-label" for="seva-new-guest-foreign">
+          <input type="checkbox" id="seva-new-guest-foreign" class="checkbox-input">
+          Foreign National
+        </label>
+        <div class="dialog-actions">
+          <button id="seva-new-guest-save" class="dialog-primary-btn" type="button">Add Volunteer</button>
+          <button id="seva-new-guest-cancel" class="dialog-secondary-btn" type="button">Cancel</button>
+        </div>
+      </section>
       <div id="seva-team-form-message" class="field-message" aria-live="polite"></div>
       <div class="dialog-actions">
         <button id="seva-team-save-btn" class="dialog-primary-btn" type="button">Save Team</button>
@@ -4311,7 +4355,7 @@
           <h3 class="travel-section-title">Teams</h3>
         </div>
         <p class="travel-help">Friends, Visitors, Other and Permanent Residents may take seva. Invited Guests and Event Staff do not — neither in a Team nor individually.</p>
-        <div id="seva-teams-list" class="travel-leg-list"></div>
+        <div id="seva-teams-list" class="card-grid"></div>
         <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
       </div>
 
@@ -4320,7 +4364,7 @@
           <h3 class="travel-section-title">Individual Seva</h3>
         </div>
         <p class="travel-help">Seva held on their own, outside any Team. The same people are eligible: Friends, Visitors, Other and Permanent Residents.</p>
-        <div id="individual-tasks-list" class="travel-leg-list"></div>
+        <div id="individual-tasks-list" class="card-grid"></div>
         <div id="individual-tasks-empty" class="travel-empty">No individual seva yet.</div>
       </div>
       </div>
@@ -4970,12 +5014,21 @@
       $('edit-seva-team-name').addEventListener('input', renderSevaTeamSuggestions_);
       $('edit-seva-team-name').addEventListener('blur',
         () => window.setTimeout(hideSevaTeamSuggestions_, 150));
-      $('seva-team-add-member').addEventListener('click', () => {
-        const teamId = $('edit-seva-team-id').value;
-        if (!teamId) return;
-        openGuestPicker_(guestId => addTeamMemberAction_(guestId, teamId),
-          sevaPickerOptions_('Add Member'));
+      $('seva-team-add-member').addEventListener('click', openTeamVolunteerLookup_);
+      $('seva-team-volunteer').addEventListener('input', () => {
+        window.clearTimeout(teamVolunteerTimer_);
+        teamVolunteerTimer_ = window.setTimeout(loadTeamVolunteerSuggestions_, 180);
       });
+      $('seva-new-guest-save').addEventListener('click', saveSevaNewGuest_);
+      $('seva-new-guest-cancel').addEventListener('click', closeSevaNewGuest_);
+      $('seva-team-section-nav').addEventListener('click', event => {
+        const pill = event.target.closest('.section-nav-pill');
+        if (pill) showSevaTeamSection_(pill.dataset.target);
+      });
+      // A team is arranged for days ahead, not behind, and it cannot end
+      // before it starts. Both limits move as the other date is chosen.
+      $('edit-seva-team-start').addEventListener('input', syncSevaTeamDateLimits_);
+      $('edit-seva-team-end').addEventListener('input', syncSevaTeamDateLimits_);
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
       $('seva-team-close-btn').addEventListener('click', closeSevaTeamForm);
       $('seva-team-modal').addEventListener('click', event => {
@@ -6564,9 +6617,23 @@
       if (team.eventName && team.eventName !== team.name) {
         card.appendChild(createDetailLine('icon-lotus', team.eventName));
       }
-      card.appendChild(createDetailLine('icon-calendar', dateRange || 'Dates TBD'));
-      card.appendChild(createDetailLine('icon-people',
-        `${members.length} member${members.length === 1 ? '' : 's'}`));
+      // When and how many read as one fact about the team, the way the stay
+      // window and the room do on a visit card.
+      card.appendChild(createDetailLine('icon-calendar',
+        `${dateRange || 'Dates TBD'} · ${members.length} volunteer${members.length === 1 ? '' : 's'}`));
+
+      // The commonest thing to do to a team is put somebody in it, so it is
+      // on the card rather than two taps inside. It opens the team with the
+      // volunteer field waiting, which is where the adding actually happens.
+      const actions = createElement('div', 'card-actions');
+      const add = createElement('button', 'row-btn', '+ Add volunteer');
+      add.type = 'button';
+      add.addEventListener('click', event => {
+        event.stopPropagation();
+        openSevaTeamForm(team, { focus: 'volunteers' });
+      });
+      actions.appendChild(add);
+      card.appendChild(actions);
       return card;
     }
 
@@ -6627,7 +6694,7 @@
         }));
     }
 
-    function openSevaTeamForm(team) {
+    function openSevaTeamForm(team, options) {
       $('edit-seva-team-id').value = team ? team.teamId : '';
       $('edit-seva-team-name').value = team ? team.name : '';
       // An older team has no event of its own — its name was the event. Left
@@ -6642,9 +6709,24 @@
       // A team that does not exist yet has nobody in it, and no id to add
       // anybody against.
       $('seva-team-roster-group').hidden = !team;
+      $('seva-team-new-guest').hidden = true;
+      $('seva-team-volunteer-lookup').hidden = true;
+      hideTeamVolunteerSuggestions_();
       if (team) renderSevaTeamRoster_(team);
+      syncSevaTeamDateLimits_();
+      syncSevaTeamNav_();
       $('seva-team-modal').style.display = 'flex';
       $('seva-team-modal').setAttribute('aria-hidden', 'false');
+      // Arriving from the card's Add volunteer button: open at the
+      // volunteers with the field already waiting, so that button lands
+      // where it promised rather than at the top of a form.
+      if (options && options.focus === 'volunteers' && team) {
+        window.setTimeout(() => {
+          showSevaTeamSection_('seva-team-roster-group');
+          openTeamVolunteerLookup_();
+        }, 0);
+        return;
+      }
       window.setTimeout(() => $('edit-seva-team-name').focus(), 0);
     }
 
@@ -6677,6 +6759,166 @@
       if (!openId || $('seva-team-modal').style.display !== 'flex') return;
       const team = (sevaWorkspaceData_.teams || []).find(item => item.teamId === openId);
       if (team) renderSevaTeamRoster_(team);
+    }
+
+    let teamVolunteerRequest_ = 0;
+    let teamVolunteerTimer_ = null;
+
+    // The dialog's own sections, so the pills only ever offer what is on
+    // screen — the same rule the visit editor's nav follows.
+    function syncSevaTeamNav_() {
+      const nav = $('seva-team-section-nav');
+      const pills = [...nav.querySelectorAll('.section-nav-pill')];
+      pills.forEach(pill => { pill.hidden = $(pill.dataset.target).hidden; });
+      const visible = pills.filter(pill => !pill.hidden);
+      // One section is not a journey through a dialog; the bar earns its space
+      // only once there is somewhere else to go.
+      nav.hidden = visible.length < 2;
+      if (visible.length && !visible.some(pill => pill.classList.contains('active'))) {
+        visible.forEach(pill => pill.classList.remove('active'));
+        visible[0].classList.add('active');
+      }
+    }
+
+    function showSevaTeamSection_(target) {
+      const nav = $('seva-team-section-nav');
+      [...nav.querySelectorAll('.section-nav-pill')].forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.target === target);
+      });
+      const section = $(target);
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function hideTeamVolunteerSuggestions_() {
+      const list = $('seva-team-volunteer-suggestions');
+      list.replaceChildren();
+      list.hidden = true;
+      $('seva-team-volunteer').setAttribute('aria-expanded', 'false');
+    }
+
+    function openSevaTeam_() {
+      const id = $('edit-seva-team-id').value;
+      return (sevaWorkspaceData_.teams || []).find(team => team.teamId === id) || null;
+    }
+
+    // The volunteer field belongs to this dialog rather than another one over
+    // the top of it, so adding somebody never puts the team away half-finished.
+    function openTeamVolunteerLookup_() {
+      $('seva-team-volunteer-lookup').hidden = false;
+      $('seva-team-volunteer').value = '';
+      hideTeamVolunteerSuggestions_();
+      syncSevaTeamNav_();
+      $('seva-team-volunteer').focus();
+    }
+
+    function loadTeamVolunteerSuggestions_() {
+      const query = $('seva-team-volunteer').value.trim();
+      if (!query) { hideTeamVolunteerSuggestions_(); return; }
+      const token = ++teamVolunteerRequest_;
+      apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
+        .then(page => {
+          if (token !== teamVolunteerRequest_) return;
+          const eligible = sevaEligibleTypes_();
+          const team = openSevaTeam_();
+          const already = new Set(((team && team.roster) || []).map(member => member.guestId));
+          renderTeamVolunteerSuggestions_(query, (Array.isArray(page.guests) ? page.guests : [])
+            .filter(row => eligible.includes(row.personType) && !already.has(row.guestId)));
+        })
+        .catch(error => handleApiError(error,
+          err => showToast(`Search failed: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function renderTeamVolunteerSuggestions_(query, rows) {
+      const list = $('seva-team-volunteer-suggestions');
+      list.replaceChildren();
+      rows.forEach(row => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.setAttribute('role', 'option');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', row.name || 'Unnamed guest'));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta',
+          `${row.personType || 'Guest'} · Existing guest`));
+        option.addEventListener('click', () => {
+          const teamId = $('edit-seva-team-id').value;
+          hideTeamVolunteerSuggestions_();
+          $('seva-team-volunteer-lookup').hidden = true;
+          syncSevaTeamNav_();
+          if (teamId) addTeamMemberAction_(row.guestId, teamId);
+        });
+        list.appendChild(option);
+      });
+      const exact = rows.some(row => normalizeSearchText(row.name || '') === normalizeSearchText(query));
+      if (!exact) {
+        const add = createElement('button', 'guest-name-suggestion');
+        add.type = 'button';
+        add.setAttribute('role', 'option');
+        add.appendChild(createElement('span', 'guest-name-suggestion-name', `Add "${query}" as a new guest`));
+        add.appendChild(createElement('span', 'guest-name-suggestion-meta', 'Opens their basic details below'));
+        add.addEventListener('click', () => openSevaNewGuest_(query));
+        list.appendChild(add);
+      }
+      list.hidden = false;
+      $('seva-team-volunteer').setAttribute('aria-expanded', 'true');
+    }
+
+    // Rather than a second dialog on top of this one: the section opens
+    // underneath, the pills grow a third stop, and the team behind it stays put.
+    function openSevaNewGuest_(name) {
+      hideTeamVolunteerSuggestions_();
+      $('seva-new-guest-name').value = name || '';
+      $('seva-new-guest-person-type').value = 'Friend';
+      $('seva-new-guest-foreign').checked = false;
+      $('seva-team-new-guest').hidden = false;
+      syncSevaTeamNav_();
+      showSevaTeamSection_('seva-team-new-guest');
+      window.setTimeout(() => $('seva-new-guest-name').focus(), 0);
+    }
+
+    function closeSevaNewGuest_() {
+      $('seva-team-new-guest').hidden = true;
+      syncSevaTeamNav_();
+    }
+
+    function saveSevaNewGuest_() {
+      const name = $('seva-new-guest-name').value.trim();
+      const teamId = $('edit-seva-team-id').value;
+      if (!name) {
+        $('seva-team-form-message').textContent = 'A name is required for the new volunteer.';
+        return;
+      }
+      const button = $('seva-new-guest-save');
+      button.disabled = true;
+      const guestId = crypto.randomUUID();
+      apiCall('createGuest', { payload: {
+        guestId,
+        name,
+        personType: $('seva-new-guest-person-type').value,
+        isForeign: $('seva-new-guest-foreign').checked
+      } })
+        .then(() => {
+          button.disabled = false;
+          closeSevaNewGuest_();
+          $('seva-team-volunteer-lookup').hidden = true;
+          $('seva-team-form-message').textContent = '';
+          syncSevaTeamNav_();
+          if (teamId) addTeamMemberAction_(guestId, teamId);
+        })
+        .catch(error => handleApiError(error, err => {
+          button.disabled = false;
+          $('seva-team-form-message').textContent = getErrorMessage(err);
+        }));
+    }
+
+    // A team already under way keeps whatever dates it was given; the floor
+    // is only for one being arranged now, or a past team could not be
+    // corrected — the same trap the cab pickers had.
+    function syncSevaTeamDateLimits_() {
+      const start = $('edit-seva-team-start');
+      const end = $('edit-seva-team-end');
+      const today = todayDateKey_();
+      const isNew = !$('edit-seva-team-id').value;
+      start.min = isNew ? today : '';
+      end.min = start.value || (isNew ? today : '');
     }
 
     function hideSevaTeamSuggestions_() {
@@ -8793,9 +9035,6 @@
         : ['Friend', 'Visitor', 'Other', 'Permanent Resident'];
     }
 
-    function sevaPickerOptions_(title) {
-      return { title, eligibleTypes: sevaEligibleTypes_(), newGuestType: 'Friend' };
-    }
     let guestPickerSearchTimer_ = null;
     let guestPickerIndex_ = -1;
     // Every search is numbered, so a slow reply for "th" cannot land on top of
