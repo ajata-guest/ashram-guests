@@ -7004,7 +7004,12 @@
             'No overnight stay': 'No overnight stay',
             TBD: 'Accommodation: TBD'
           };
-          card.appendChild(createDetailLine('icon-bed', accommodationLabels[visit.accommodation] || visit.accommodation));
+          const stayingAt = visit.accommodation === 'Outside - Self-arranged'
+            ? visit.selfArrangedStayingAt
+            : visit.outsideAccommodationDetails;
+          card.appendChild(createDetailLine('icon-bed',
+            [accommodationLabels[visit.accommodation] || visit.accommodation, stayingAt]
+              .filter(Boolean).join(' · ')));
         }
       }
 
@@ -8133,7 +8138,21 @@
           'No overnight stay': 'No overnight stay',
           TBD: 'Accommodation: TBD'
         };
-        card.appendChild(createDetailLine('icon-bed', labels[visit.accommodation] || visit.accommodation));
+        // Where they are staying is the fact you scan the card for, exactly as
+        // the room name is for a guest housed here. It was being dropped, so a
+        // card said "Outside" and left you to open the visit to learn where.
+        const place = visit.accommodation === 'Outside - Self-arranged'
+          ? visit.selfArrangedStayingAt
+          : visit.outsideAccommodationDetails;
+        card.appendChild(createDetailLine('icon-bed',
+          [labels[visit.accommodation] || visit.accommodation, place].filter(Boolean).join(' · ')));
+        // The workspace has counted this as needing attention all along and
+        // the card never said so. Read through the shared definition rather
+        // than restating the condition, so the badge and the filter chip
+        // cannot disagree about who is outstanding.
+        if (visitAttentionReasons_(visit).includes('Outside not confirmed')) {
+          outstanding.push({ label: 'Outside not confirmed', badgeClass: 'badge-action' });
+        }
       }
 
       if (outstanding.length) card.appendChild(badgeRow_(outstanding));
