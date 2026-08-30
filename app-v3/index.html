@@ -13367,14 +13367,23 @@
       date.disabled = !canSchedule;
       time.disabled = !canSchedule;
 
+      // The car brings them to their arrival and takes them from their
+      // departure, so each window is anchored to its own end of the stay: a
+      // pickup finishes by the arrival, a drop-off starts at the departure.
+      //
+      // "Not in the past" is a rule about booking a car, not about recording
+      // one. Applied unconditionally it made a past stay uneditable — the
+      // pickup's floor landed after its ceiling and the picker offered no date
+      // at all, so a cab that had already happened could never be corrected.
+      // It now only applies while the stay is still ahead.
       const today = getAppDateKey(Date.now());
       if (type === 'pickup') {
-        date.min = today;
         date.max = stayDate || '';
+        date.min = stayDate && stayDate < today ? '' : today;
         time.min = '';
         time.max = date.value && date.value === stayDate && stayTime ? stayTime : '';
       } else {
-        date.min = stayDate && stayDate > today ? stayDate : today;
+        date.min = stayDate || today;
         date.max = '';
         time.min = date.value && date.value === stayDate && stayTime ? stayTime : '';
         time.max = '';
