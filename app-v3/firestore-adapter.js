@@ -38,7 +38,12 @@ const APPROVED_EMAILS = new Set(["atma.chetan108@gmail.com", "rajatbhatiaom@gmai
 const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff", "Other", "Permanent Resident"]);
 // Residents are eligible for Seva Teams: the exclusion here is about guests
 // whose time is already committed, which is not true of someone who lives here.
-const TEAM_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other", "Permanent Resident"]);
+// Who does seva at all — a Team or an individual one, the same answer for
+// both. These were split once, so that excluding a Person Type from Team
+// membership did not silently exclude them from individual seva too; the
+// ashram has since decided that an Invited Guest or Event Staff member does
+// neither, so one set now serves both and cannot drift from itself.
+const SEVA_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other", "Permanent Resident"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
 const MEAL_SEATING = new Set(["Floor", "Table and chair"]);
 const MEAL_SOURCE_TYPES = new Set(["individualGuest", "sevaTeam", "individualSeva"]);
@@ -798,7 +803,11 @@ function taskView(task) {
 function teamView(team) {
   return {
     teamId: team.id,
-    name: team.eventProgrammeName || "",
+    // A team used to be named after its event, because there was nowhere
+    // else to put one. Teams written before it had a name of its own keep
+    // reading as the event they belong to, so nothing renames itself.
+    name: team.teamName || team.eventProgrammeName || "",
+    eventName: team.eventProgrammeName || "",
     startDate: team.startDateKey || dateKeyOf(team.startAt),
     startMs: millis(team.startAt),
     endDate: team.endDateKey || dateKeyOf(team.endAt),
@@ -2776,14 +2785,16 @@ export function createFirestoreBridge(firebaseApp) {
     const actor = ensureApproved();
     const id = clean(payload?.teamId, 100) || uuid();
     const name = clean(payload?.name);
+    const eventName = clean(payload?.eventName);
     const startDateKey = clean(payload?.startDate, 20);
     const endDateKey = clean(payload?.endDate, 20);
-    if (!name) throw new Error("Event/Programme name is required.");
+    if (!name) throw new Error("A Seva Team name is required.");
     if (startDateKey && endDateKey && endDateKey < startDateKey) throw new Error("End date cannot be earlier than start date.");
     const reference = doc(db, "sevaTeams", id);
     const existing = (await getDoc(reference)).data() || null;
     await setDoc(reference, {
-      eventProgrammeName: name,
+      teamName: name,
+      eventProgrammeName: eventName,
       startAt: timestampFromInput(startDateKey, "", false), startDateKey,
       endAt: timestampFromInput(endDateKey, "", true), endDateKey,
       calendarStartAt: timestampFromInput(startDateKey, "", false),
@@ -2791,7 +2802,7 @@ export function createFirestoreBridge(firebaseApp) {
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
       updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
-    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "sevaTeam", id, existing ? "update" : "create", ["name", "dates"]));
+    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "sevaTeam", id, existing ? "update" : "create", ["name", "event", "dates"]));
     invalidate();
     return { teamId: id, version: await committedVersion("sevaTeams", id) };
   }
@@ -2817,7 +2828,7 @@ export function createFirestoreBridge(firebaseApp) {
     const guest = canonical.guests.find(item => item.id === clean(guestId, 100) && !item.archived);
     const team = canonical.sevaTeams.find(item => item.id === clean(teamId, 100));
     if (!guest || !team) throw new Error("The guest or Seva Team no longer exists.");
-    if (!TEAM_ELIGIBLE_TYPES.has(guest.personType)) throw new Error("Invited Guests and Event Staff cannot be members of a Seva Team.");
+    if (!SEVA_ELIGIBLE_TYPES.has(guest.personType)) throw new Error("Invited Guests and Event Staff cannot be members of a Seva Team.");
     const existing = canonical.teamMemberships.find(item => item.guestId === guest.id && item.teamId === team.id);
     if (existing) return { membershipId: existing.id, guestId: guest.id, teamId: team.id };
     const id = `${team.id}--${guest.id}`;
@@ -2852,7 +2863,13 @@ export function createFirestoreBridge(firebaseApp) {
     const description = clean(payload?.description);
     const startDateKey = clean(payload?.startDate, 20);
     const endDateKey = clean(payload?.endDate, 20);
-    if (!canonical.guests.some(item => item.id === guestId && !item.archived)) throw new Error("This guest no longer exists.");
+    const guest = canonical.guests.find(item => item.id === guestId && !item.archived);
+    if (!guest) throw new Error("This guest no longer exists.");
+    // The same rule Team membership applies. Records made before it existed
+    // are left alone: this refuses a new write, it does not erase history.
+    if (!SEVA_ELIGIBLE_TYPES.has(guest.personType)) {
+      throw new Error("Invited Guests and Event Staff do not take seva.");
+    }
     if (!description) throw new Error("A description is required.");
     if (startDateKey && endDateKey && endDateKey < startDateKey) throw new Error("End date cannot be earlier than start date.");
     validateEngagementDate(canonical, guestId, startDateKey, `Seva: ${description}`);
@@ -4142,6 +4159,9 @@ export function createFirestoreBridge(firebaseApp) {
     isApproved: user => Boolean(user && APPROVED_EMAILS.has(clean(user.email, 200).toLowerCase())),
     startRemoteListener,
     hasCanonicalCache: () => Boolean(canonicalCache),
+    // Published so the volunteer picker filters by the same rule the write
+    // path enforces, rather than keeping its own copy of the list.
+    sevaEligibleTypes: () => [...SEVA_ELIGIBLE_TYPES],
     invalidate
   };
 }

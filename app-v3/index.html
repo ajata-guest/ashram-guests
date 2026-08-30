@@ -967,6 +967,10 @@
     }
 
     .modal-header h2 { margin: 0; color: #fff; }
+    /* The Seva workspace's own colour. --accent is set on a page's content
+       and a dialog is not inside one, so it is named here rather than
+       inherited. */
+    .modal-header h2.seva-dialog-title { color: #FFAE70; }
 
     .modal-header-actions {
       display: flex;
@@ -4178,7 +4182,7 @@
   <div id="seva-team-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seva-team-modal-title">
       <div class="modal-header">
-        <h2 id="seva-team-modal-title">Seva Team</h2>
+        <h2 id="seva-team-modal-title" class="seva-dialog-title">Add Seva Team</h2>
         <div class="modal-header-actions">
           <button id="seva-team-close-btn" class="close-btn" type="button" aria-label="Close dialog">
             <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
@@ -4187,8 +4191,18 @@
       </div>
       <input type="hidden" id="edit-seva-team-id">
       <div class="input-group">
-        <label class="input-label" for="edit-seva-team-name">Event/Programme Name</label>
-        <input type="text" id="edit-seva-team-name" class="edit-input" maxlength="500" autocomplete="off">
+        <label class="input-label" for="edit-seva-team-name">Seva Team Name</label>
+        <div class="guest-name-lookup">
+          <input type="text" id="edit-seva-team-name" class="edit-input" maxlength="500" autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="seva-team-suggestions"
+            placeholder="Kitchen, Garden, Reception...">
+          <div id="seva-team-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Existing Seva Teams" hidden></div>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="edit-seva-team-event">Event/Programme Name — optional</label>
+        <input type="text" id="edit-seva-team-event" class="edit-input" maxlength="500" autocomplete="off"
+          placeholder="The programme this team serves">
       </div>
       <div class="input-group">
         <div class="date-time-row">
@@ -4202,6 +4216,14 @@
           </div>
         </div>
       </div>
+      <div class="input-group" id="seva-team-roster-group" hidden>
+        <div class="room-group-header">
+          <label class="input-label">Members</label>
+          <button id="seva-team-add-member" class="travel-add-btn" type="button">+ Add member</button>
+        </div>
+        <div id="seva-team-roster" class="room-list"></div>
+        <p class="travel-help">Friends, Visitors, Other and Permanent Residents may join a team.</p>
+      </div>
       <div id="seva-team-form-message" class="field-message" aria-live="polite"></div>
       <div class="dialog-actions">
         <button id="seva-team-save-btn" class="dialog-primary-btn" type="button">Save Team</button>
@@ -4213,7 +4235,7 @@
   <div id="specific-seva-modal" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="specific-seva-modal-title">
       <div class="modal-header">
-        <h2 id="specific-seva-modal-title">Individual Seva</h2>
+        <h2 id="specific-seva-modal-title" class="seva-dialog-title">Add Volunteer</h2>
         <div class="modal-header-actions">
           <button id="specific-seva-close-btn" class="close-btn" type="button" aria-label="Close dialog">
             <svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg>
@@ -4223,10 +4245,20 @@
       <input type="hidden" id="edit-task-guest-id">
       <input type="hidden" id="edit-task-seva-id">
       <input type="hidden" id="edit-task-version">
-      <div id="edit-task-guest-name" class="app-subtitle dialog-subtitle"></div>
+      <div class="input-group" id="edit-task-volunteer-group">
+        <label class="input-label" for="edit-task-volunteer">Volunteer Name</label>
+        <div class="guest-name-lookup">
+          <input type="text" id="edit-task-volunteer" class="edit-input" maxlength="500" autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="edit-task-volunteer-suggestions"
+            placeholder="Start typing a name...">
+          <div id="edit-task-volunteer-suggestions" class="guest-name-suggestions" role="listbox" aria-label="Volunteers" hidden></div>
+        </div>
+      </div>
+      <div id="edit-task-guest-name" class="app-subtitle dialog-subtitle" hidden></div>
       <div class="input-group">
-        <label class="input-label" for="edit-task-description">Description</label>
-        <input type="text" id="edit-task-description" class="edit-input" maxlength="500" autocomplete="off">
+        <label class="input-label" for="edit-task-description">Seva</label>
+        <input type="text" id="edit-task-description" class="edit-input" maxlength="500" autocomplete="off"
+          placeholder="Kitchen help, garden work, reception...">
       </div>
       <div class="input-group">
         <div class="date-time-row">
@@ -4243,8 +4275,8 @@
       </div>
       <div id="specific-seva-form-message" class="field-message" aria-live="polite"></div>
       <div class="dialog-actions">
-        <button id="specific-seva-save-btn" class="dialog-primary-btn" type="button">Save Task</button>
-        <button id="specific-seva-cancel-btn" type="button" class="dialog-secondary-btn">Cancel</button>
+        <button id="specific-seva-save-btn" class="dialog-primary-btn" type="button">Save Individual Seva</button>
+        <button id="specific-seva-cancel-btn" type="button" class="dialog-secondary-btn">Discard</button>
       </div>
     </div>
   </div>
@@ -4278,7 +4310,7 @@
         <div class="travel-section-header">
           <h3 class="travel-section-title">Teams</h3>
         </div>
-        <p class="travel-help">Friends, Visitors and Other are eligible for Team membership. Invited Guests and Event Staff are not — but any of them may still hold individual seva.</p>
+        <p class="travel-help">Friends, Visitors, Other and Permanent Residents may take seva. Invited Guests and Event Staff do not — neither in a Team nor individually.</p>
         <div id="seva-teams-list" class="travel-leg-list"></div>
         <div id="seva-teams-empty" class="travel-empty">No Seva Teams yet.</div>
       </div>
@@ -4287,7 +4319,7 @@
         <div class="travel-section-header">
           <h3 class="travel-section-title">Individual Seva</h3>
         </div>
-        <p class="travel-help">Independent of any Seva Team — every Person Type is eligible.</p>
+        <p class="travel-help">Seva held on their own, outside any Team. The same people are eligible: Friends, Visitors, Other and Permanent Residents.</p>
         <div id="individual-tasks-list" class="travel-leg-list"></div>
         <div id="individual-tasks-empty" class="travel-empty">No individual seva yet.</div>
       </div>
@@ -4935,6 +4967,15 @@
       $('seva-search').addEventListener('input', () => renderSevaLists_());
       $('add-seva-team-btn').addEventListener('click', () => openSevaTeamForm(null));
       $('seva-team-save-btn').addEventListener('click', saveSevaTeamFromForm);
+      $('edit-seva-team-name').addEventListener('input', renderSevaTeamSuggestions_);
+      $('edit-seva-team-name').addEventListener('blur',
+        () => window.setTimeout(hideSevaTeamSuggestions_, 150));
+      $('seva-team-add-member').addEventListener('click', () => {
+        const teamId = $('edit-seva-team-id').value;
+        if (!teamId) return;
+        openGuestPicker_(guestId => addTeamMemberAction_(guestId, teamId),
+          sevaPickerOptions_('Add Member'));
+      });
       $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
       $('seva-team-close-btn').addEventListener('click', closeSevaTeamForm);
       $('seva-team-modal').addEventListener('click', event => {
@@ -4942,6 +4983,15 @@
       });
       $('add-individual-task-btn').addEventListener('click', handleAddIndividualTaskClick_);
       $('specific-seva-save-btn').addEventListener('click', saveSpecificSevaFromForm_);
+      $('edit-task-volunteer').addEventListener('input', () => {
+        // Typing over a chosen name unchooses them, or the dialog would keep
+        // saving against whoever was picked before.
+        $('edit-task-guest-id').value = '';
+        window.clearTimeout(volunteerSearchTimer_);
+        volunteerSearchTimer_ = window.setTimeout(loadVolunteerSuggestions_, 180);
+      });
+      $('edit-task-volunteer').addEventListener('blur',
+        () => window.setTimeout(hideVolunteerSuggestions_, 150));
       $('specific-seva-cancel-btn').addEventListener('click', closeSpecificSevaForm_);
       $('specific-seva-close-btn').addEventListener('click', closeSpecificSevaForm_);
       $('edit-task-start').addEventListener('input', syncSpecificSevaStayHint_);
@@ -6205,6 +6255,10 @@
     function renderSevaLists_() {
       const teams = sevaWorkspaceData_.teams || [];
       const tasks = sevaWorkspaceData_.individualTasks || [];
+      // The roster now sits inside the team dialog, and every add and remove
+      // already redraws the lists — so redrawing it here means those four
+      // call sites need no knowledge of the dialog being open.
+      redrawOpenSevaTeamRoster_();
 
       const tabs = $('seva-view-tabs');
       tabs.replaceChildren();
@@ -6465,94 +6519,65 @@
         if (bMs === null) return -1;
         return aMs - bMs;
       });
-      sorted.forEach(team => list.appendChild(createSevaTeamRow(team)));
+      sorted.forEach(team => list.appendChild(createSevaTeamCard_(team)));
       $('seva-teams-empty').hidden = sorted.length > 0;
     }
 
-    function createSevaTeamRow(team) {
+    // A card like every other workspace's, replacing the collapsible bar this
+    // list used to borrow from the travel-leg editor — a form control sitting
+    // in a list of records. Tapping it opens the team, which is where the
+    // roster now lives too.
+    function createSevaTeamCard_(team) {
       const members = Array.isArray(team.roster) ? team.roster : [];
-      const dateRange = [msToDateDisplay_(team.startMs), msToDateDisplay_(team.endMs)].filter(Boolean).join(' – ');
+      const dateRange = [msToDateDisplay_(team.startMs), msToDateDisplay_(team.endMs)]
+        .filter(Boolean).join(' – ');
 
-      const row = createElement('div', 'travel-leg-editor');
-      row.dataset.teamId = team.teamId;
-      attachLongPress_(row, () => ({
+      const card = createElement('article', 'card');
+      card.dataset.teamId = team.teamId;
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Open ${team.name || 'this Seva Team'}`);
+      const open = () => openSevaTeamForm(team);
+      card.addEventListener('click', () => {
+        if (consumedLongPressClick_(card)) return;
+        open();
+      });
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      });
+      attachLongPress_(card, () => ({
         title: team.name || 'Unnamed Seva Team',
         actions: [
-          { label: 'Edit Team', run: () => openSevaTeamForm(team) },
-          { label: 'Delete permanently', destructive: true, run: () => deleteSevaTeamRow(team.teamId, team.name) }
+          { label: 'Edit Team', run: open },
+          { label: 'Delete permanently', destructive: true,
+            run: () => deleteSevaTeamRow(team.teamId, team.name) }
         ]
       }));
 
-      const summary = createElement('div', 'travel-leg-summary');
-      const summaryText = createElement('div', 'travel-leg-summary-text');
-      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      icon.setAttribute('class', 'icon');
-      icon.setAttribute('aria-hidden', 'true');
-      const iconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      iconUse.setAttribute('href', '#icon-people');
-      icon.appendChild(iconUse);
-      summaryText.appendChild(icon);
-      const memberCountText = `${members.length} member${members.length === 1 ? '' : 's'}`;
-      summaryText.appendChild(createElement('span', '', `${team.name} \u00B7 ${dateRange || 'dates TBD'} \u00B7 ${team.status} \u00B7 ${memberCountText}`));
-
-      const summaryActions = createElement('div', 'travel-leg-summary-actions');
-      const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      chevron.setAttribute('class', 'icon travel-leg-chevron');
-      chevron.setAttribute('aria-hidden', 'true');
-      const chevronUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      chevronUse.setAttribute('href', '#icon-chevron-down');
-      chevron.appendChild(chevronUse);
-      summaryActions.appendChild(chevron);
-
-      summary.appendChild(summaryText);
-      summary.appendChild(summaryActions);
-
-      const details = createElement('div', 'travel-leg-details conditional-fields');
-      const roster = createElement('div', 'seva-team-roster');
-      if (members.length) {
-        members.forEach(member => {
-          const item = createElement('div', 'seva-team-roster-item');
-          item.appendChild(document.createTextNode(`${member.name || 'Unnamed Guest'} `));
-          const removeBtn = createElement('button', 'travel-remove-btn', 'Remove');
-          removeBtn.type = 'button';
-          removeBtn.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
-          item.appendChild(removeBtn);
-          roster.appendChild(item);
-        });
-      } else {
-        roster.appendChild(createElement('div', 'seva-team-roster-item', 'No members yet.'));
+      card.appendChild(createElement('div', 'guest-name', team.name || 'Unnamed Seva Team'));
+      card.appendChild(badgeRow_([{ label: team.status, badgeClass: sevaStatusBadgeClass_(team.status) }]));
+      // The event is the programme this team belongs to, so it reads as the
+      // parent it is rather than as the team's own name.
+      if (team.eventName && team.eventName !== team.name) {
+        card.appendChild(createDetailLine('icon-lotus', team.eventName));
       }
-      const addMemberBtn = createElement('button', 'travel-add-btn', '+ Add member');
-      addMemberBtn.type = 'button';
-      addMemberBtn.addEventListener('click', () => {
-        openGuestPicker_(guestId => addTeamMemberAction_(guestId, team.teamId));
-      });
-      roster.appendChild(addMemberBtn);
-
-      const actions = createElement('div', 'seva-team-row-actions');
-      // Not the salmon "+ Add" style it used to borrow — Edit opens something,
-      // it doesn't create anything.
-      const editBtn = createElement('button', 'row-btn', 'Edit');
-      editBtn.type = 'button';
-      editBtn.addEventListener('click', () => openSevaTeamForm(team));
-      const deleteBtn = createElement('button', 'row-btn danger', 'Delete');
-      deleteBtn.type = 'button';
-      deleteBtn.addEventListener('click', () => deleteSevaTeamRow(team.teamId, team.name));
-      actions.appendChild(editBtn);
-      actions.appendChild(deleteBtn);
-
-      details.appendChild(roster);
-      details.appendChild(actions);
-
-      summary.addEventListener('click', event => {
-        if (event.target.closest('button')) return;
-        toggleLegExpanded(row);
-      });
-
-      row.appendChild(summary);
-      row.appendChild(details);
-      return row;
+      card.appendChild(createDetailLine('icon-calendar', dateRange || 'Dates TBD'));
+      card.appendChild(createDetailLine('icon-people',
+        `${members.length} member${members.length === 1 ? '' : 's'}`));
+      return card;
     }
+
+    // Seva status is a date-derived word, so it gets the same colours the rest
+    // of the app gives a settled, an active and a finished thing.
+    function sevaStatusBadgeClass_(status) {
+      if (status === 'Active') return 'badge-confirmed';
+      if (status === 'Completed') return 'badge-gray';
+      return 'badge-blue';
+    }
+
 
     // Roster edits redraw from the copy already in memory rather than
     // refetching the workspace, so a name appears or disappears the moment
@@ -6605,13 +6630,87 @@
     function openSevaTeamForm(team) {
       $('edit-seva-team-id').value = team ? team.teamId : '';
       $('edit-seva-team-name').value = team ? team.name : '';
+      // An older team has no event of its own — its name was the event. Left
+      // blank rather than repeated, so saving does not write the same string
+      // into both fields and make the duplication permanent.
+      $('edit-seva-team-event').value = (team && team.eventName !== team.name) ? (team.eventName || '') : '';
       $('edit-seva-team-start').value = team ? msToDateInputValue_(team.startMs) : '';
       $('edit-seva-team-end').value = team ? msToDateInputValue_(team.endMs) : '';
       $('seva-team-form-message').textContent = '';
       $('seva-team-modal-title').textContent = team ? 'Edit Seva Team' : 'Add Seva Team';
+      hideSevaTeamSuggestions_();
+      // A team that does not exist yet has nobody in it, and no id to add
+      // anybody against.
+      $('seva-team-roster-group').hidden = !team;
+      if (team) renderSevaTeamRoster_(team);
       $('seva-team-modal').style.display = 'flex';
       $('seva-team-modal').setAttribute('aria-hidden', 'false');
       window.setTimeout(() => $('edit-seva-team-name').focus(), 0);
+    }
+
+    // The roster, moved here from the list where it used to live inside an
+    // expanding bar. Redraws from the copy already in memory so a name
+    // appears or goes the moment it is clicked.
+    function renderSevaTeamRoster_(team) {
+      const list = $('seva-team-roster');
+      list.replaceChildren();
+      const members = Array.isArray(team.roster) ? team.roster : [];
+      if (!members.length) {
+        list.appendChild(createElement('div', 'travel-empty', '-- Nobody yet --'));
+        return;
+      }
+      members.forEach(member => {
+        const row = createElement('div', 'room-row');
+        row.appendChild(createElement('span', 'journey-text', member.name || 'Unnamed Guest'));
+        const remove = createElement('button', 'row-btn danger', 'Remove');
+        remove.type = 'button';
+        remove.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
+        row.appendChild(remove);
+        list.appendChild(row);
+      });
+    }
+
+    // Only when that dialog is showing a saved team; there is no roster to
+    // draw for one being created.
+    function redrawOpenSevaTeamRoster_() {
+      const openId = $('edit-seva-team-id').value;
+      if (!openId || $('seva-team-modal').style.display !== 'flex') return;
+      const team = (sevaWorkspaceData_.teams || []).find(item => item.teamId === openId);
+      if (team) renderSevaTeamRoster_(team);
+    }
+
+    function hideSevaTeamSuggestions_() {
+      const list = $('seva-team-suggestions');
+      list.replaceChildren();
+      list.hidden = true;
+      $('edit-seva-team-name').setAttribute('aria-expanded', 'false');
+    }
+
+    // Typing a team name offers the ones that already exist. Choosing one
+    // opens that team rather than starting a second with the same name —
+    // which is the whole reason the suggestions are here.
+    function renderSevaTeamSuggestions_() {
+      const input = $('edit-seva-team-name');
+      const query = normalizeSearchText(input.value.trim());
+      const list = $('seva-team-suggestions');
+      list.replaceChildren();
+      const openId = $('edit-seva-team-id').value;
+      const matches = !query ? [] : (sevaWorkspaceData_.teams || [])
+        .filter(team => team.teamId !== openId)
+        .filter(team => normalizeSearchText(team.name || '').includes(query))
+        .slice(0, 8);
+      matches.forEach(team => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.setAttribute('role', 'option');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', team.name));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta',
+          `${team.eventName && team.eventName !== team.name ? team.eventName + ' · ' : ''}Existing team`));
+        option.addEventListener('click', () => openSevaTeamForm(team));
+        list.appendChild(option);
+      });
+      list.hidden = !matches.length;
+      input.setAttribute('aria-expanded', String(Boolean(matches.length)));
     }
 
     function isSevaTeamFormOpen_() {
@@ -6620,14 +6719,14 @@
 
     function closeSevaTeamForm() {
       $('seva-team-modal').style.display = '';
-      $('seva-team-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('seva-team-modal');
       $('seva-team-form-message').textContent = '';
     }
 
     function saveSevaTeamFromForm() {
       const name = $('edit-seva-team-name').value.trim();
       if (!name) {
-        $('seva-team-form-message').textContent = 'Event/Programme name is required.';
+        $('seva-team-form-message').textContent = 'A Seva Team name is required.';
         return;
       }
       const startDate = $('edit-seva-team-start').value;
@@ -6637,7 +6736,13 @@
         return;
       }
 
-      const payload = { teamId: $('edit-seva-team-id').value, name, startDate, endDate };
+      const payload = {
+        teamId: $('edit-seva-team-id').value,
+        name,
+        eventName: $('edit-seva-team-event').value.trim(),
+        startDate,
+        endDate
+      };
 
       $('seva-team-save-btn').disabled = true;
       apiCall('saveSevaTeam', { payload })
@@ -6690,8 +6795,13 @@
           { label: 'Delete permanently', destructive: true, run: () => deleteIndividualTaskAction_(task.sevaId) }
         ]
       }));
-      row.appendChild(createGuestNameRow_(task.name, task.guestId));
-      row.appendChild(createDetailLine('icon-people', `${task.description}${dateRange ? ` \u00B7 ${dateRange}` : ' \u00B7 dates TBD'} \u00B7 ${task.status}`));
+      // The seva leads and the volunteer follows it: a list of seva reads as
+      // the work to be done, rather than as a list of names you have to read
+      // across to find out what each one is for.
+      row.appendChild(createGuestNameRow_(task.description || 'Seva', task.guestId));
+      row.appendChild(createElement('div', 'detail-subline', task.name || 'Unnamed Guest'));
+      row.appendChild(createDetailLine('icon-calendar',
+        `${dateRange || 'Dates TBD'} · ${task.status}`));
 
       const actions = createElement('div', 'seva-team-row-actions');
       const editBtn = createElement('button', 'row-btn', 'Edit');
@@ -6711,10 +6821,100 @@
     // existing task already has its guest name from sevaWorkspaceData_, so
     // only the new-task path needs a getGuestProfile round-trip — same
     // split openVisitEditor/openMeetingEditor_ use.
+    let volunteerRequest_ = 0;
+    let volunteerSearchTimer_ = null;
+
+    function hideVolunteerSuggestions_() {
+      const list = $('edit-task-volunteer-suggestions');
+      list.replaceChildren();
+      list.hidden = true;
+      $('edit-task-volunteer').setAttribute('aria-expanded', 'false');
+    }
+
+    // The same shape as the guest picker's list — matches first, then the way
+    // to add somebody who is not there yet as its last line. Only people who
+    // may take seva are offered, and the rule is asked of the adapter so the
+    // list and the save cannot disagree about who that is.
+    function loadVolunteerSuggestions_() {
+      const query = $('edit-task-volunteer').value.trim();
+      if (!query) { hideVolunteerSuggestions_(); return; }
+      const token = ++volunteerRequest_;
+      apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
+        .then(page => {
+          if (token !== volunteerRequest_) return;
+          const eligible = sevaEligibleTypes_();
+          renderVolunteerSuggestions_(query, (Array.isArray(page.guests) ? page.guests : [])
+            .filter(row => eligible.includes(row.personType)));
+        })
+        .catch(error => handleApiError(error,
+          err => showToast(`Search failed: ${getErrorMessage(err)}`, 'error')));
+    }
+
+    function renderVolunteerSuggestions_(query, rows) {
+      const list = $('edit-task-volunteer-suggestions');
+      list.replaceChildren();
+      rows.forEach(row => {
+        const option = createElement('button', 'guest-name-suggestion');
+        option.type = 'button';
+        option.setAttribute('role', 'option');
+        option.appendChild(createElement('span', 'guest-name-suggestion-name', row.name || 'Unnamed guest'));
+        option.appendChild(createElement('span', 'guest-name-suggestion-meta',
+          `${row.personType || 'Guest'} · Existing guest`));
+        option.addEventListener('click', () => chooseVolunteer_(row.guestId, row.name));
+        list.appendChild(option);
+      });
+      const exact = rows.some(row => normalizeSearchText(row.name || '') === normalizeSearchText(query));
+      if (!exact) {
+        const add = createElement('button', 'guest-name-suggestion');
+        add.type = 'button';
+        add.setAttribute('role', 'option');
+        add.appendChild(createElement('span', 'guest-name-suggestion-name', `Add "${query}"`));
+        add.appendChild(createElement('span', 'guest-name-suggestion-meta', 'New volunteer · Friend'));
+        add.addEventListener('click', () => createVolunteer_(query, add));
+        list.appendChild(add);
+      }
+      list.hidden = false;
+      $('edit-task-volunteer').setAttribute('aria-expanded', 'true');
+    }
+
+    function chooseVolunteer_(guestId, name) {
+      $('edit-task-guest-id').value = guestId;
+      $('edit-task-volunteer').value = name || '';
+      hideVolunteerSuggestions_();
+      syncSpecificSevaStayHint_();
+      $('edit-task-description').focus();
+    }
+
+    // Friend, because the one thing a volunteer must not be is a Person Type
+    // barred from seva — and Invited Guest, the picker's usual default, is
+    // exactly that.
+    function createVolunteer_(name, option) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return;
+      option.disabled = true;
+      const guestId = crypto.randomUUID();
+      apiCall('createGuest', { payload: { guestId, name: trimmed, personType: 'Friend' } })
+        .then(() => chooseVolunteer_(guestId, trimmed))
+        .catch(error => handleApiError(error, err => {
+          option.disabled = false;
+          showToast(`Couldn't add that volunteer: ${getErrorMessage(err)}`, 'error');
+        }));
+    }
+
     function openSpecificSevaForm_(guestId, guestName, task) {
       $('edit-task-guest-id').value = guestId;
-      setEditorGuestHeader_('edit-task-guest-name', guestName, guestId,
-        saved => applyBasicsToHeading_('edit-task-guest-name', saved));
+      // Choosing the volunteer belongs to a new seva. Editing an existing one
+      // names who it is for instead — moving a seva to somebody else is not
+      // what an edit means.
+      const choosing = !guestId;
+      $('edit-task-volunteer-group').hidden = !choosing;
+      $('edit-task-volunteer').value = choosing ? '' : guestName;
+      hideVolunteerSuggestions_();
+      $('edit-task-guest-name').hidden = choosing;
+      if (!choosing) {
+        setEditorGuestHeader_('edit-task-guest-name', guestName, guestId,
+          saved => applyBasicsToHeading_('edit-task-guest-name', saved));
+      }
       $('edit-task-seva-id').value = task ? task.sevaId : '';
       $('edit-task-version').value = task ? task.version : '';
       $('edit-task-description').value = task ? task.description : '';
@@ -6722,10 +6922,11 @@
       $('edit-task-end').value = task ? (task.endDate || '') : '';
       $('specific-seva-form-message').textContent = '';
       syncSpecificSevaStayHint_();
-      $('specific-seva-modal-title').textContent = task ? 'Edit Individual Seva' : 'Add Individual Seva';
+      $('specific-seva-modal-title').textContent = task ? 'Edit Individual Seva' : 'Add Volunteer';
       $('specific-seva-modal').style.display = 'flex';
       $('specific-seva-modal').setAttribute('aria-hidden', 'false');
-      window.setTimeout(() => $('edit-task-description').focus(), 0);
+      window.setTimeout(
+        () => $(choosing ? 'edit-task-volunteer' : 'edit-task-description').focus(), 0);
     }
 
     function isSpecificSevaFormOpen_() {
@@ -6734,22 +6935,28 @@
 
     function closeSpecificSevaForm_() {
       $('specific-seva-modal').style.display = '';
-      $('specific-seva-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('specific-seva-modal');
       $('specific-seva-form-message').textContent = '';
     }
 
+    // One dialog now: the volunteer is chosen inside it rather than in a
+    // separate picker first.
     function handleAddIndividualTaskClick_() {
-      openGuestPicker_(guestId => {
-        apiCall('getGuestProfile', { guestId })
-          .then(profile => openSpecificSevaForm_(guestId, profile.name, null))
-          .catch(error => handleApiError(error, err => showToast(`Couldn't open guest: ${getErrorMessage(err)}`, 'error')));
-      });
+      openSpecificSevaForm_('', '', null);
     }
 
     function saveSpecificSevaFromForm_() {
+      // Typing a name is not choosing one — the volunteer is only settled
+      // once a suggestion or Add has been clicked, which is what fills this in.
+      if (!$('edit-task-guest-id').value) {
+        $('specific-seva-form-message').textContent =
+          'Choose a volunteer from the list, or add them as a new one.';
+        $('edit-task-volunteer').focus();
+        return;
+      }
       const description = $('edit-task-description').value.trim();
       if (!description) {
-        $('specific-seva-form-message').textContent = 'A description is required.';
+        $('specific-seva-form-message').textContent = 'A seva is required.';
         return;
       }
       const startDate = $('edit-task-start').value;
@@ -8575,14 +8782,33 @@
     // workspace's "Add" flow (plan §4) — Trips/Meals/Meetings/Seva will
     // reuse this in their own phases rather than each building their own.
     let guestPickerOnSelect_ = null;
+    let guestPickerOptions_ = {};
+
+    // Asked of the adapter rather than restated here: the same list the write
+    // path refuses against. The fallback only matters if the bridge is not up.
+    function sevaEligibleTypes_() {
+      const bridge = window.__firestoreBridge;
+      return (bridge && bridge.sevaEligibleTypes)
+        ? bridge.sevaEligibleTypes()
+        : ['Friend', 'Visitor', 'Other', 'Permanent Resident'];
+    }
+
+    function sevaPickerOptions_(title) {
+      return { title, eligibleTypes: sevaEligibleTypes_(), newGuestType: 'Friend' };
+    }
     let guestPickerSearchTimer_ = null;
     let guestPickerIndex_ = -1;
     // Every search is numbered, so a slow reply for "th" cannot land on top of
     // a fast one for "thier" and put the wrong names under the cursor.
     let guestPickerRequest_ = 0;
 
-    function openGuestPicker_(onSelect) {
+    // options: { title, eligibleTypes, newGuestType }. The dialog is shared by
+    // Meals, Trips, Seva and the Travelling-with rows, so what it is called and
+    // who it may offer belong to the caller, not to the dialog.
+    function openGuestPicker_(onSelect, options) {
       guestPickerOnSelect_ = onSelect;
+      guestPickerOptions_ = options || {};
+      $('add-to-workspace-modal-title').textContent = guestPickerOptions_.title || 'Add Guest';
       $('add-to-workspace-search').value = '';
       hideGuestPickerSuggestions_();
       $('add-to-workspace-modal').style.display = 'flex';
@@ -8593,8 +8819,9 @@
     function closeGuestPicker_() {
       hideGuestPickerSuggestions_();
       $('add-to-workspace-modal').style.display = 'none';
-      $('add-to-workspace-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('add-to-workspace-modal');
       guestPickerOnSelect_ = null;
+      guestPickerOptions_ = {};
       window.clearTimeout(guestPickerSearchTimer_);
     }
 
@@ -8623,7 +8850,11 @@
       apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
         .then(page => {
           if (token !== guestPickerRequest_) return;
-          renderGuestPickerSuggestions_(query, Array.isArray(page.guests) ? page.guests : []);
+          const rows = Array.isArray(page.guests) ? page.guests : [];
+          const allowed = guestPickerOptions_.eligibleTypes;
+          renderGuestPickerSuggestions_(query, allowed
+            ? rows.filter(row => allowed.includes(row.personType))
+            : rows);
         })
         .catch(error => handleApiError(error, err => showToast(`Search failed: ${getErrorMessage(err)}`, 'error')));
     }
@@ -8716,7 +8947,11 @@
       if (!trimmed) return;
       if (option) option.disabled = true;
       const guestId = crypto.randomUUID();
-      apiCall('createGuest', { payload: { guestId, name: trimmed, personType: 'Invited Guest' } })
+      // A volunteer created here must not land as an Invited Guest — that is
+      // the one Person Type barred from seva, so the guest would be refused a
+      // second after being made for exactly that purpose.
+      const personType = guestPickerOptions_.newGuestType || 'Invited Guest';
+      apiCall('createGuest', { payload: { guestId, name: trimmed, personType } })
         .then(() => {
           const callback = guestPickerOnSelect_;
           closeGuestPicker_();
@@ -9270,7 +9505,7 @@
       visitEditorOpen_ = false;
       modalDirty = false;
       $('visit-editor-modal').style.display = 'none';
-      $('visit-editor-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('visit-editor-modal');
       resetAddVisitManager_();
       $('add-visit-manager-view').hidden = true;
       $('add-visit-manager-details').hidden = true;
@@ -10658,7 +10893,7 @@
 
     function closeMealResidentPlan_() {
       $('meal-resident-plan-modal').style.display = 'none';
-      $('meal-resident-plan-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('meal-resident-plan-modal');
       mealResidentPlan_ = null;
     }
 
@@ -10778,7 +11013,7 @@
 
     function closeMealAwayEditor_() {
       $('meal-away-modal').style.display = 'none';
-      $('meal-away-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('meal-away-modal');
       mealAwayEditing_ = null;
       mealAwayOnSaved_ = null;
     }
@@ -11091,7 +11326,7 @@
       if (mealEditorDirty_ && !window.confirm('Discard your unsaved meal changes?')) return;
       closeMealEditor_();
     }
-    function closeMealEditor_() { mealEditorDirty_ = false; $('meal-editor-modal').style.display = 'none'; $('meal-editor-modal').setAttribute('aria-hidden', 'true'); hideMealGuestSuggestions_(); }
+    function closeMealEditor_() { mealEditorDirty_ = false; $('meal-editor-modal').style.display = 'none'; markDialogHidden_('meal-editor-modal'); hideMealGuestSuggestions_(); }
 
     function openMealResidentEditor_(resident = null) {
       mealResidentEditing_ = resident;
@@ -11102,7 +11337,7 @@
       $('meal-resident-modal').style.display = 'flex'; $('meal-resident-modal').setAttribute('aria-hidden', 'false');
       window.setTimeout(() => $('meal-resident-name').focus(), 0);
     }
-    function closeMealResidentEditor_() { $('meal-resident-modal').style.display = 'none'; $('meal-resident-modal').setAttribute('aria-hidden', 'true'); mealResidentEditing_ = null; }
+    function closeMealResidentEditor_() { $('meal-resident-modal').style.display = 'none'; markDialogHidden_('meal-resident-modal'); mealResidentEditing_ = null; }
     function saveMealResident_() {
       const payload = { residentId: mealResidentEditing_?.residentId || '', version: mealResidentEditing_?.version || '', name: $('meal-resident-name').value.trim(), defaultSeating: $('meal-resident-seating').value, activeFrom: $('meal-resident-from').value, activeUntil: $('meal-resident-until').value, active: $('meal-resident-active').checked, note: $('meal-resident-note').value.trim() };
       apiCall('savePermanentResident', { payload }).then(() => { showToast('Permanent resident saved.', 'success'); closeMealResidentEditor_(); return reloadMeals_(); }).catch(error => handleApiError(error, err => showToast(`Couldn't save the resident: ${getErrorMessage(err)}`, 'error')));
@@ -11357,7 +11592,7 @@
 
     function closeMeetingEditor_() {
       $('meeting-editor-modal').style.display = 'none';
-      $('meeting-editor-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('meeting-editor-modal');
     }
 
     function saveMeetingFromEditor_() {
@@ -11550,7 +11785,7 @@
       tripEditorOpen_ = false;
       modalDirty = false;
       $('trip-editor-modal').style.display = 'none';
-      $('trip-editor-modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('trip-editor-modal');
     }
 
     function requestCloseTripEditor_() {
@@ -13020,6 +13255,19 @@
       return true;
     }
 
+    // A dialog that hides while one of its own buttons still holds focus
+    // leaves that focus on something nobody can see, and the browser refuses
+    // the aria-hidden outright rather than hide a focused element from screen
+    // readers — which left every dialog in the app closing with a console
+    // warning and a stranded focus ring. Letting the focus go first is the
+    // whole fix, and it belongs in one place because all eleven dialogs did it.
+    function markDialogHidden_(id) {
+      const dialog = $(id);
+      if (!dialog) return;
+      if (dialog.contains(document.activeElement)) document.activeElement.blur();
+      dialog.setAttribute('aria-hidden', 'true');
+    }
+
     // The single "actually close" implementation — always closes, no guard.
     // Called directly (bypassing the guard entirely) after a successful save
     // or delete, since committing a change is never something to warn about.
@@ -13031,7 +13279,7 @@
       modalUsesSmartLookup_ = false;
       resetExistingGuestSelection_();
       $('modal').style.display = 'none';
-      $('modal').setAttribute('aria-hidden', 'true');
+      markDialogHidden_('modal');
       $('modal').classList.remove('is-stacked');
 
       // Opened over an editor: hand that editor back the front, whatever it
