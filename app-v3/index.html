@@ -4595,8 +4595,25 @@
       });
     }
 
+    // Reads are named getSomething; everything else changes data.
+    function isReadOnlyAction_(action) {
+      return /^get/.test(String(action || ''));
+    }
+
     function apiCall(action, extra) {
-      return waitForFirestoreBridge_().then(bridge => bridge.apiCall(action, extra || {}));
+      return waitForFirestoreBridge_()
+        .then(bridge => bridge.apiCall(action, extra || {}))
+        .then(result => {
+          // A save of our own has to mark the workspaces stale exactly as a
+          // change made elsewhere does. The audit listener did that for remote
+          // writes and nothing did it for ours: the reload afterwards leaned on
+          // the adapter's cache being empty to know something had changed, so
+          // anything that refilled it first — a poll, the audit listener, a
+          // sibling reload — let the workspace redraw from the copy it already
+          // had and show the value you had just replaced.
+          if (!isReadOnlyAction_(action)) markAllWorkspacesDirty_();
+          return result;
+        });
     }
 
     // Shared by every apiCall .catch() — auth-shaped failures are handled
@@ -8495,9 +8512,13 @@
       } else {
         // The count is the actionable fact. Which leg is outstanding is in the
         // editor, one tap away, where every leg carries its own status.
-        status = outstanding.length === legs.length
-          ? (legs.length === 1 ? 'To book' : `${legs.length} left`)
-          : `${outstanding.length} of ${legs.length} left`;
+        // Always out of the whole journey, so the card says what is done as
+        // well as what is left: 4/4 on the day it is entered, 1/4 when only
+        // the last leg is outstanding. A single leg has no fraction worth
+        // printing — 1/1 is just "to book" said arithmetically.
+        status = legs.length === 1
+          ? 'To book'
+          : `${outstanding.length}/${legs.length} left`;
         // Nothing to book against is the more urgent of the two.
         badgeClass = outstanding.some(leg => !leg.travelDate)
           ? 'badge-travel-critical'
