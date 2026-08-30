@@ -8010,8 +8010,6 @@
       // Anything settled reads as a plain line; anything still outstanding
       // becomes a badge — the distinction V2 drew. Those badges have nothing
       // further to say, so they share one row instead of taking a line each.
-      const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      const dayMonth = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
       const outstanding = [];
 
       // Arrival and departure are one fact — the stay window — so they read as
@@ -8354,18 +8352,63 @@
     // Legs arrive already in chronological order (compareLegs, adapter side),
     // so the first inbound leg is where they set out from and the last
     // outbound leg is where they end up.
+    // One set of date formats for the card and for the journeys on it, so a
+    // stay window and a travel window are written the same way.
+    const dateFormat = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const dayMonth = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+
+    // A one-way journey happens on a date; a return occupies a span. Written
+    // like the stay line above it: the year is said once when both ends share
+    // it, and twice when they do not.
+    function journeyDates_(legs) {
+      const dated = legs.filter(leg => leg.travelMs !== null && leg.travelMs !== undefined);
+      if (!dated.length) return 'Booked';
+      const first = dated[0].travelMs;
+      const last = dated[dated.length - 1].travelMs;
+      if (first === last) return dateFormat(first);
+      const sameYear = new Date(first).getFullYear() === new Date(last).getFullYear();
+      return `${sameYear ? dayMonth(first) : dateFormat(first)} – ${dateFormat(last)}`;
+    }
+
+    const samePlace_ = (a, b) => Boolean(a) && Boolean(b)
+      && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+    // Undated legs can only be ordered by the order they were typed in, and
+    // that order is routinely wrong for the way home: it retraces the way out
+    // backwards, so adding a return for each outward leg in turn files the
+    // homeward legs in exactly the reverse of the order they are travelled.
+    // Delhi → Trichy sitting before Rishikesh → Delhi made a journey read
+    // "Delhi → Delhi" and stopped it being recognised as a return at all.
+    //
+    // So where there are no dates to go on, follow the route instead: start
+    // at the leg nobody arrives at, and walk the chain. Anything that is not
+    // one clean chain is left exactly as it came.
+    function chainLegs_(legs) {
+      if (legs.length < 2) return legs;
+      if (legs.some(leg => leg.travelMs !== null && leg.travelMs !== undefined)) return legs;
+      const starts = legs.filter(leg => !legs.some(other => samePlace_(other.to, leg.from)));
+      if (starts.length !== 1) return legs;
+      const chain = [starts[0]];
+      const rest = legs.filter(leg => leg !== starts[0]);
+      while (rest.length) {
+        const here = chain[chain.length - 1].to;
+        const index = rest.findIndex(leg => samePlace_(leg.from, here));
+        if (index === -1) return legs;
+        chain.push(rest.splice(index, 1)[0]);
+      }
+      return chain;
+    }
+
     function visitJourneys_(visit) {
       const legs = Array.isArray(visit.travelLegs) ? visit.travelLegs : [];
-      const inbound = legs.filter(leg => leg.direction === 'Inbound');
-      const outbound = legs.filter(leg => leg.direction === 'Outbound');
+      const inbound = chainLegs_(legs.filter(leg => leg.direction === 'Inbound'));
+      const outbound = chainLegs_(legs.filter(leg => leg.direction === 'Outbound'));
 
       // A return journey is one that ends where it began. Arriving from
       // Shantivanam and leaving for Delhi is not one, and calling it a return
       // would hide the fact that they are not going home.
-      const samePlace = (a, b) => Boolean(a) && Boolean(b)
-        && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
       if (inbound.length && outbound.length
-        && samePlace(outbound[outbound.length - 1].to, inbound[0].from)) {
+        && samePlace_(outbound[outbound.length - 1].to, inbound[0].from)) {
         return [journeySummary_('Return', inbound.concat(outbound), inbound)];
       }
 
@@ -8388,8 +8431,7 @@
         // Green has to mean "nothing to do here" or it is not worth scanning
         // for, so it is only ever reached with every leg booked. Once the
         // whole journey is behind them it goes quiet instead.
-        const dated = legs.find(leg => leg.travelDisplay);
-        status = dated ? dated.travelDisplay : 'Booked';
+        status = journeyDates_(legs);
         badgeClass = legs.every(leg => isSchedulePast_(leg.travelDate, leg.travelMs, Boolean(leg.travelTime)))
           ? 'badge-gray'
           : 'badge-confirmed';
@@ -12488,7 +12530,7 @@
       });
     }
 
-    function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty', insertAfter = null) {
+    function addTravelLegEditor(leg = {}, listId = 'travel-leg-list', emptyId = 'travel-empty', place = null) {
       const list = $(listId);
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
@@ -12647,10 +12689,11 @@
         toggleLegExpanded(editor);
       });
 
-      // A return leg goes directly under the leg it returns from, which is
-      // what makes updateTravelDateConstraints refuse a return date earlier
-      // than the outward one — that rule reads the list in order.
-      if (insertAfter && insertAfter.parentNode === list) insertAfter.after(editor);
+      // Position matters twice over: updateTravelDateConstraints reads the
+      // list in order, and an undated leg has nothing but its position to be
+      // ordered by once it is saved.
+      if (place && place.before && place.before.parentNode === list) list.insertBefore(editor, place.before);
+      else if (place && place.after && place.after.parentNode === list) place.after.after(editor);
       else list.appendChild(editor);
       setConditionalFieldsExpanded(editor.querySelector('.travel-leg-details'), !isExistingLeg);
       editor.classList.toggle('leg-expanded', !isExistingLeg);
@@ -12675,11 +12718,23 @@
           visitId: chip.dataset.visitId,
           name: chip.dataset.name
         }))
-      }, listId, emptyId, editor);
+      }, listId, emptyId, homewardPlacement_(listId));
       // Remembered so the route can keep following the outward leg until
       // somebody types over it.
       back.dataset.mirroredFrom = editor.dataset.travelId;
       return back;
+    }
+
+    // The way home retraces the way out backwards, so the newest homeward leg
+    // is the first one travelled: it goes at the head of the outbound run,
+    // after every inbound leg. Filing it directly under the leg it returns
+    // from instead is what produced "Delhi → Delhi" — the homeward legs ended
+    // up stored in the reverse of the order they are flown.
+    function homewardPlacement_(listId) {
+      const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
+      const firstOutbound = editors.find(item =>
+        item.querySelector('[data-field="direction"]').value === 'Outbound');
+      return firstOutbound ? { before: firstOutbound } : null;
     }
 
     function syncMirroredReturnLeg_(editor, listId) {
