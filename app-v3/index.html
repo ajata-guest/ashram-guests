@@ -4611,7 +4611,20 @@
           // anything that refilled it first — a poll, the audit listener, a
           // sibling reload — let the workspace redraw from the copy it already
           // had and show the value you had just replaced.
-          if (!isReadOnlyAction_(action)) markAllWorkspacesDirty_();
+          if (!isReadOnlyAction_(action)) {
+            markAllWorkspacesDirty_();
+            // Every save handler reloads the page it assumes you are looking
+            // at — the visit editor reloads Accommodation, the meeting editor
+            // reloads Meetings, saving basic details patches the Directory.
+            // Save from a dialog opened over any other page and nothing
+            // reloaded that page, so it went on showing what it held before.
+            // Redraw whatever is actually on screen instead of guessing, on
+            // the next tick so the caller has finished closing its dialog and
+            // navigating first.
+            window.setTimeout(() => {
+              if (appInitialized) refreshCurrentPage_({ silent: true });
+            }, 0);
+          }
           return result;
         });
     }
@@ -5913,6 +5926,11 @@
     // that workspace is dirty or the adapter's canonical snapshot has been
     // invalidated by a real write/audit event. Merely navigating between
     // pages no longer starts another database read.
+    // One read per workspace at a time. A save now triggers both its own
+    // handler's reload and the redraw of the current page, which would
+    // otherwise be two reads of the same thing a millisecond apart.
+    const workspaceFetches_ = new Map();
+
     function loadWorkspaceCached_(workspace, hasData, render, fetch) {
       const alreadyLoaded = hasData();
       const canonicalReady = Boolean(window.__firestoreBridge && window.__firestoreBridge.hasCanonicalCache());
@@ -5921,12 +5939,15 @@
       if (alreadyLoaded && !dirtyWorkspaces_.has(workspace) && canonicalReady) {
         return Promise.resolve();
       }
+      if (workspaceFetches_.has(workspace)) return workspaceFetches_.get(workspace);
 
-      return fetch().then(result => {
+      const request = fetch().then(result => {
         dirtyWorkspaces_.delete(workspace);
         render();
         return result;
-      });
+      }).finally(() => workspaceFetches_.delete(workspace));
+      workspaceFetches_.set(workspace, request);
+      return request;
     }
 
     function prefetchWorkspaces_() {
