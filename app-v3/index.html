@@ -8362,6 +8362,11 @@
       // just restates a bare "requested" badge.
       if (dateValue) parts.push(formatCabScheduleText_(dateValue, timeValue));
       else if (location) parts.push('Date not set');
+      // A shared car says so, exactly as a shared journey does. Without it the
+      // same cab shows on two people's cards looking like two bookings.
+      const names = ((isPickup ? visit.pickupCompanions : visit.dropoffCompanions) || [])
+        .map(item => item.name).filter(Boolean);
+      if (names.length) parts.push(`with ${listPeople_(names)}`);
 
       return { label, stateLabel, badgeClass, name, detail: parts.join(' · ') };
     }
