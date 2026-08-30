@@ -855,15 +855,13 @@
       line-height: 1.4;
     }
 
-    /* A whole journey on one row: icon, route, and its state as a badge at
-       the end. The badge wraps under the route rather than squeezing it,
-       which on a phone is the difference between two lines and four. */
-    .journey-line { flex-wrap: wrap; gap: 4px 8px; }
-    /* flex-basis 0, not auto: on auto the text claims its full content width,
-       cannot fit beside a 16px icon, and wraps to its own line leaving the
-       icon stranded above it. From zero it takes what is left and wraps
-       inside itself, which is what a detail line has always done. */
-    .journey-text { flex: 1 1 0; min-width: 0; }
+    /* The state badge closes the sentence rather than being pushed to the
+       right edge. Pushed right it lined up with nothing — every other badge
+       on the card sits left, in the flow — and it left a two-word line like
+       "Drop-off" with its badge stranded halfway across the card. Inline, it
+       reads as the end of the line and wraps with it, which also means the
+       row is an ordinary detail line again with no flex rules of its own. */
+    .journey-badge { margin-left: 6px; }
 
     .travel-stack {
       display: flex;
@@ -8307,11 +8305,12 @@
       // Dumet" was two rows saying one thing.
       const stack = createElement('div', 'travel-stack');
       entries.forEach(entry => {
-        const row = createElement('div', 'detail-line journey-line');
+        const row = createElement('div', 'detail-line');
         row.appendChild(createIcon_('icon-car'));
-        row.appendChild(createElement('span', 'journey-text',
-          entry.detail ? `${entry.name} · ${entry.detail}` : entry.name));
-        row.appendChild(createBadge(entry.stateLabel, entry.badgeClass));
+        const text = createElement('span', null,
+          entry.detail ? `${entry.name} · ${entry.detail}` : entry.name);
+        text.appendChild(createBadge(entry.stateLabel, `${entry.badgeClass} journey-badge`));
+        row.appendChild(text);
         stack.appendChild(row);
       });
       card.appendChild(stack);
@@ -8334,21 +8333,21 @@
       let badgeClass;
       if (state === 'Confirmed') {
         label = `${name} arranged`;
-        stateLabel = 'Arranged';
+        stateLabel = 'Booked';
         badgeClass = isSchedulePast_(dateValue, msValue, Boolean(timeValue))
           ? 'badge-gray'
           : (isPickup ? 'badge-pickup' : 'badge-dropoff');
       } else if (state === 'Needs Rescheduling') {
         label = `${name} needs rescheduling`;
-        stateLabel = 'Needs rescheduling';
+        stateLabel = 'Reschedule';
         badgeClass = 'badge-warning';
       } else if (state === 'Needs Reconfirmation') {
         label = `${name} needs reconfirmation`;
-        stateLabel = 'Needs reconfirmation';
+        stateLabel = 'Reconfirm';
         badgeClass = 'badge-cab-action';
       } else {
         label = `${name} requested`;
-        stateLabel = 'Requested';
+        stateLabel = 'To book';
         // Escalates to the louder colour once the workspace itself considers
         // this cab unresolved, matching V2's priority-reason check.
         badgeClass = visitAttentionReasons_(visit).includes(isPickup ? 'Pickup to arrange' : 'Drop-off to arrange')
@@ -8465,8 +8464,8 @@
         // The count is the actionable fact. Which leg is outstanding is in the
         // editor, one tap away, where every leg carries its own status.
         status = outstanding.length === legs.length
-          ? (legs.length === 1 ? 'To arrange' : `${legs.length} to arrange`)
-          : `${outstanding.length} of ${legs.length} to arrange`;
+          ? (legs.length === 1 ? 'To book' : `${legs.length} left`)
+          : `${outstanding.length} of ${legs.length} left`;
         // Nothing to book against is the more urgent of the two.
         badgeClass = outstanding.some(leg => !leg.travelDate)
           ? 'badge-travel-critical'
@@ -8488,10 +8487,11 @@
       if (!journeys.length) return;
       const stack = createElement('div', 'travel-stack');
       journeys.forEach(journey => {
-        const row = createElement('div', 'detail-line journey-line');
+        const row = createElement('div', 'detail-line');
         row.appendChild(createIcon_(journey.iconId));
-        row.appendChild(createElement('span', 'journey-text', journey.text));
-        row.appendChild(createBadge(journey.status, journey.badgeClass));
+        const text = createElement('span', null, journey.text);
+        text.appendChild(createBadge(journey.status, `${journey.badgeClass} journey-badge`));
+        row.appendChild(text);
         stack.appendChild(row);
       });
       card.appendChild(stack);
