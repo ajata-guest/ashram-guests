@@ -861,7 +861,20 @@
        "Drop-off" with its badge stranded halfway across the card. Inline, it
        reads as the end of the line and wraps with it, which also means the
        row is an ordinary detail line again with no flex rules of its own. */
-    .journey-badge { margin-left: 6px; }
+    /* A badge is a good deal taller than a line of body text — 25px against
+       17px at the card's size — so dropped into a line it pushes up into the
+       line above and reads as crowding rather than as part of the sentence.
+       It is trimmed a little, and a row carrying one is given the height to
+       hold it. Rows without a badge are untouched. */
+    .journey-badge {
+      margin-left: 6px;
+      padding: 3px 8px;
+      font-size: 0.66rem;
+      /* Its own, or it inherits the roomier line-height given to the row
+         below and grows by exactly as much as the room it was given. */
+      line-height: 1;
+    }
+    .detail-line:has(.journey-badge) { line-height: 1.6; }
 
     .travel-stack {
       display: flex;
