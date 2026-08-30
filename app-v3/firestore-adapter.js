@@ -874,21 +874,35 @@ function hasArrived(visit, todayKey, now) {
   return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey;
 }
 
-// Seva is done in person, so somebody who is not here yet cannot be put on a
-// team for it. "Not here yet" has two quite different causes and each gets
-// its own message: nobody has said when they arrive, or they arrive later.
+// Whether somebody can be given seva on a team: not whether they are here
+// today, but whether they are here while the team is running. A guest
+// arriving halfway through a fortnight of seva is available for the second
+// half of it, and an earlier version of this asked only about today and so
+// turned all of them away.
 //
 // A Permanent Resident is exempt. They live here; their stay has no arrival
-// date by design, and treating that as a missing one would bar the people
+// date by design, and reading that as a missing one would bar the people
 // most likely to be doing seva at all.
-function sevaBlockReason(guest, visits, todayKey, now) {
+function sevaBlockReason(guest, visits, team) {
   if (guest.personType === "Permanent Resident") return "";
   const who = guest.name || "This guest";
   const live = visits.filter(visit => !visit.cancelled);
-  if (!live.length) return `${who} has no visit on record, so there is no arrival to confirm.`;
+  if (!live.length) return `${who} has no visit on record, so there are no dates to check.`;
   const dated = live.filter(visit => Boolean(visit.arrivalDate));
   if (!dated.length) return `${who}'s arrival date is not confirmed yet.`;
-  if (!dated.some(visit => hasArrived(visit, todayKey, now))) return `${who} has not arrived yet.`;
+
+  // With no dates on the team there is no window to be inside, so knowing
+  // when they arrive is all that can be asked of them.
+  const teamStart = team && team.startDate;
+  if (!teamStart) return "";
+  const teamEnd = (team && team.endDate) || "9999-12-31";
+  // A stay with no departure runs on, so it overlaps anything after arrival.
+  const overlaps = dated.some(visit =>
+    visit.arrivalDate <= teamEnd && (visit.departureDate || "9999-12-31") >= teamStart);
+  if (!overlaps) {
+    const soonest = dated.map(visit => visit.arrivalDate).sort()[0];
+    return `${who} is not here during this team's dates — they arrive ${soonest}.`;
+  }
   return "";
 }
 
@@ -2854,7 +2868,7 @@ export function createFirestoreBridge(firebaseApp) {
     const guestVisits = canonical.visits
       .filter(item => item.guestId === guest.id)
       .map(item => visitView(item, roomsByVisit, legsByVisit));
-    const blocked = sevaBlockReason(guest, guestVisits, dateKeyOf(Date.now()), Date.now());
+    const blocked = sevaBlockReason(guest, guestVisits, teamView(team));
     if (blocked) throw new Error(blocked);
     const existing = canonical.teamMemberships.find(item => item.guestId === guest.id && item.teamId === team.id);
     if (existing) return { membershipId: existing.id, guestId: guest.id, teamId: team.id };
@@ -4101,8 +4115,13 @@ export function createFirestoreBridge(firebaseApp) {
         // one wording. The row itself carries no visit — this list is kept
         // deliberately light — so a client cannot work it out for itself.
         const directoryVisits = groupBy(canonical.visits, "guestId");
-        const directoryToday = dateKeyOf(Date.now());
-        const directoryNow = Date.now();
+        // Availability is a question about a particular team's dates, so the
+        // caller names the team it is filling. Without one the rows simply
+        // carry no verdict, which is what every other caller of this wants.
+        const forTeam = clean(options.sevaTeamId, 100)
+          ? canonical.sevaTeams.find(item => item.id === clean(options.sevaTeamId, 100))
+          : null;
+        const forTeamView = forTeam ? teamView(forTeam) : null;
         const rows = canonical.guests.filter(item => (includeArchived || !item.archived) && (!term || String(item.name || "").toLowerCase().includes(term)))
           .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
           .map(item => ({
@@ -4110,9 +4129,11 @@ export function createFirestoreBridge(firebaseApp) {
             isForeign: Boolean(item.foreignNational), invitedPurpose: item.invitedPurposes || [],
             invitedPurposeOther: item.invitedPurposeOther || "", staffAssignment: item.staffAssignment || "",
             archived: Boolean(item.archived), version: versionOf(item),
-            sevaBlockReason: sevaBlockReason(item,
-              (directoryVisits[item.id] || []).map(visit => visitView(visit, {}, {})),
-              directoryToday, directoryNow)
+            sevaBlockReason: forTeamView
+              ? sevaBlockReason(item,
+                  (directoryVisits[item.id] || []).map(visit => visitView(visit, {}, {})),
+                  forTeamView)
+              : ""
           }));
         const offset = Math.max(0, Number(options.offset) || 0);
         const limitValue = Math.min(200, Math.max(1, Number(options.limit) || 50));

@@ -6875,7 +6875,11 @@
       const query = $('seva-team-volunteer').value.trim();
       if (!query) { hideTeamVolunteerSuggestions_(); return; }
       const token = ++teamVolunteerRequest_;
-      apiCall('getDirectory', { options: { nameQuery: query, limit: 10 } })
+      // Named so each row comes back with a verdict about this team's dates
+      // rather than about today.
+      apiCall('getDirectory', { options: {
+        nameQuery: query, limit: 10, sevaTeamId: $('edit-seva-team-id').value
+      } })
         .then(page => {
           if (token !== teamVolunteerRequest_) return;
           const eligible = sevaEligibleTypes_();
