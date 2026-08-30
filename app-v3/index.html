@@ -552,6 +552,36 @@
        them, so the card reads as a summary and then a thing to do. */
     .card-actions { display: flex; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
 
+    /* A numbered list rather than loose rows: a roster is something you count
+       and read down, so the number, the person and the way to remove them each
+       hold their own column and line up between rows. */
+    .volunteer-row {
+      display: grid;
+      grid-template-columns: 1.6rem 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #262626;
+    }
+    .volunteer-row:last-child { border-bottom: 0; }
+    .volunteer-number {
+      color: var(--subtle);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .volunteer-who { display: flex; min-width: 0; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+    .volunteer-name { overflow-wrap: anywhere; }
+    .volunteer-type { color: var(--subtle); font-size: 0.76rem; }
+
+    /* Still offered and still readable — greying it out entirely would leave
+       you wondering whether the name was even found. Clicking says why. */
+    .guest-name-suggestion.is-blocked .guest-name-suggestion-name { color: var(--muted); }
+    .guest-name-suggestion.is-blocked .guest-name-suggestion-meta::after {
+      content: ' · not here yet';
+      color: var(--red-deep);
+    }
+
     .card-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
@@ -4689,6 +4719,7 @@
           // had and show the value you had just replaced.
           if (!isReadOnlyAction_(action)) {
             markAllWorkspacesDirty_();
+            directoryDirty_ = true;
             // Every save handler reloads the page it assumes you are looking
             // at — the visit editor reloads Accommodation, the meeting editor
             // reloads Meetings, saving basic details patches the Directory.
@@ -5166,12 +5197,27 @@
     // ============================================================
 
     const ROUTES_ = Object.freeze({
-      home: { page: 'page-home', load: () => renderHome_() },
-      directory: { page: 'page-directory', load: () => renderDirectory_() },
+      // Both draw from what is already held, then re-read if a write has
+      // happened since — warm immediately, correct a moment later.
+      home: {
+        page: 'page-home',
+        load: () => { renderHome_(); return refreshDirectoryIfStale_(); }
+      },
+      directory: {
+        page: 'page-directory',
+        load: () => { renderDirectory_(); return refreshDirectoryIfStale_(); }
+      },
       accommodation: { page: 'page-accommodation', load: arg => loadAccommodationPage_(arg) },
       meals: { page: 'page-meals', load: arg => loadMealsPage_(arg) },
       meetings: { page: 'page-meetings', load: arg => loadMeetingsPage_(arg) },
-      seva: { page: 'page-seva', load: arg => loadSevaPage_(arg) },
+      seva: {
+        page: 'page-seva',
+        load: arg => {
+          closeSevaTeamForm();
+          closeSpecificSevaForm_();
+          return loadSevaPage_(arg);
+        }
+      },
       trips: { page: 'page-trips', load: arg => loadTripsPage_(arg) },
       guest: { page: 'page-guest', load: arg => loadGuestProfile_(arg) }
       // Editing a visit or a trip is not a destination — both are dialogs
@@ -5776,6 +5822,11 @@
     // network round trip per keystroke. Held in memory, the Directory opens
     // instantly and search is local across every field a card displays.
     let directoryRecords_ = [];
+    // The Directory and the homepage come from the bootstrap payload, which
+    // the five workspaces' dirty set knows nothing about — so a guest created
+    // anywhere but the guest dialog stayed missing from the Directory until
+    // something reloaded the whole app. This is their equivalent of that set.
+    let directoryDirty_ = false;
     let directoryIncludesArchived_ = false;
     let homeSummary_ = null;
 
@@ -5804,6 +5855,7 @@
 
       directoryRecords_ = (Array.isArray(data.guests) ? data.guests : []).map(prepareRecordForDisplay_);
       directoryIncludesArchived_ = Boolean(includeArchived);
+      directoryDirty_ = false;
       updateLastRefreshed(data.generatedAt);
     }
 
@@ -6288,10 +6340,12 @@
 
     let sevaLoaded_ = false;
 
+    // Loading is not navigating. These closes used to live here, so once a
+    // save started refreshing whatever page you were on, adding a volunteer
+    // shut the very dialog you added them from. They belong to arriving at
+    // the page, which is where they are now.
     function loadSevaPage_(view) {
       if (view && SEVA_VIEWS_.some(v => v.key === view)) sevaView_ = view;
-      closeSevaTeamForm();
-      closeSpecificSevaForm_();
       return loadWorkspaceCached_(
         'seva',
         () => sevaLoaded_,
@@ -6490,6 +6544,10 @@
     // edit, is what made every change feel like a stall. Overlapping calls
     // collapse into one.
     let directoryRefreshPending_ = null;
+
+    function refreshDirectoryIfStale_() {
+      return directoryDirty_ ? refreshDirectoryInBackground_() : Promise.resolve();
+    }
 
     function refreshDirectoryInBackground_() {
       if (directoryRefreshPending_) return directoryRefreshPending_;
@@ -6741,9 +6799,13 @@
         list.appendChild(createElement('div', 'travel-empty', '-- Nobody yet --'));
         return;
       }
-      members.forEach(member => {
-        const row = createElement('div', 'room-row');
-        row.appendChild(createElement('span', 'journey-text', member.name || 'Unnamed Guest'));
+      members.forEach((member, index) => {
+        const row = createElement('div', 'volunteer-row');
+        row.appendChild(createElement('span', 'volunteer-number', String(index + 1)));
+        const who = createElement('div', 'volunteer-who');
+        who.appendChild(createElement('span', 'volunteer-name', member.name || 'Unnamed Guest'));
+        who.appendChild(createElement('span', 'volunteer-type', member.personType || ''));
+        row.appendChild(who);
         const remove = createElement('button', 'row-btn danger', 'Remove');
         remove.type = 'button';
         remove.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
@@ -6796,6 +6858,18 @@
       $('seva-team-volunteer').setAttribute('aria-expanded', 'false');
     }
 
+    // Mirrors sevaBlockReason in the adapter, from the visit the directory
+    // row already carries — so no extra round trip just to find out.
+    function sevaBlockReason_(row) {
+      if (row.personType === 'Permanent Resident') return '';
+      const who = row.name || 'This guest';
+      const visit = row.visit;
+      if (!visit) return `${who} has no visit on record, so there is no arrival to confirm.`;
+      if (!visit.arrivalDate) return `${who}'s arrival date is not confirmed yet.`;
+      if (!hasVisitArrived_(visit)) return `${who} has not arrived yet.`;
+      return '';
+    }
+
     function openSevaTeam_() {
       const id = $('edit-seva-team-id').value;
       return (sevaWorkspaceData_.teams || []).find(team => team.teamId === id) || null;
@@ -6838,7 +6912,15 @@
         option.appendChild(createElement('span', 'guest-name-suggestion-name', row.name || 'Unnamed guest'));
         option.appendChild(createElement('span', 'guest-name-suggestion-meta',
           `${row.personType || 'Guest'} · Existing guest`));
+        const blocked = sevaBlockReason_(row);
+        if (blocked) {
+          option.classList.add('is-blocked');
+          option.title = blocked;
+        }
         option.addEventListener('click', () => {
+          // Said before anything is written, rather than adding them and
+          // taking it back a moment later.
+          if (blocked) { showToast(blocked, 'error'); return; }
           const teamId = $('edit-seva-team-id').value;
           hideTeamVolunteerSuggestions_();
           $('seva-team-volunteer-lookup').hidden = true;

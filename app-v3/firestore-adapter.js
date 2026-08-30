@@ -874,6 +874,24 @@ function hasArrived(visit, todayKey, now) {
   return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayKey;
 }
 
+// Seva is done in person, so somebody who is not here yet cannot be put on a
+// team for it. "Not here yet" has two quite different causes and each gets
+// its own message: nobody has said when they arrive, or they arrive later.
+//
+// A Permanent Resident is exempt. They live here; their stay has no arrival
+// date by design, and treating that as a missing one would bar the people
+// most likely to be doing seva at all.
+function sevaBlockReason(guest, visits, todayKey, now) {
+  if (guest.personType === "Permanent Resident") return "";
+  const who = guest.name || "This guest";
+  const live = visits.filter(visit => !visit.cancelled);
+  if (!live.length) return `${who} has no visit on record, so there is no arrival to confirm.`;
+  const dated = live.filter(visit => Boolean(visit.arrivalDate));
+  if (!dated.length) return `${who}'s arrival date is not confirmed yet.`;
+  if (!dated.some(visit => hasArrived(visit, todayKey, now))) return `${who} has not arrived yet.`;
+  return "";
+}
+
 function stillHere(visit, todayKey) {
   return !visit.departureDate || visit.departureDate >= todayKey;
 }
@@ -2829,6 +2847,15 @@ export function createFirestoreBridge(firebaseApp) {
     const team = canonical.sevaTeams.find(item => item.id === clean(teamId, 100));
     if (!guest || !team) throw new Error("The guest or Seva Team no longer exists.");
     if (!SEVA_ELIGIBLE_TYPES.has(guest.personType)) throw new Error("Invited Guests and Event Staff cannot be members of a Seva Team.");
+    // Enforced here as well as in the picker, because a rule the UI merely
+    // hides is not a rule.
+    const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
+    const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
+    const guestVisits = canonical.visits
+      .filter(item => item.guestId === guest.id)
+      .map(item => visitView(item, roomsByVisit, legsByVisit));
+    const blocked = sevaBlockReason(guest, guestVisits, dateKeyOf(Date.now()), Date.now());
+    if (blocked) throw new Error(blocked);
     const existing = canonical.teamMemberships.find(item => item.guestId === guest.id && item.teamId === team.id);
     if (existing) return { membershipId: existing.id, guestId: guest.id, teamId: team.id };
     const id = `${team.id}--${guest.id}`;
