@@ -1054,6 +1054,19 @@
       overflow-wrap: anywhere;
     }
 
+    /* The volunteer under the seva they are doing. Brighter and larger than
+       .detail-subline above, which hangs under a detail line and is quiet on
+       purpose: this is the second thing you read on the card, not a qualifier
+       on the line before it, and it sits under the title rather than under an
+       icon, so it needs none of that line's indent. */
+    .seva-volunteer {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
     /* Every dialog in the app. The five workspaces became pages; what stays
        a dialog is editing one record — a guest, a visit, a trip, a meeting —
        plus the guest picker shared by the Add flows. */
@@ -7398,32 +7411,55 @@
 
     function createIndividualTaskRow_(task) {
       const dateRange = [task.startDate, task.endDate].filter(Boolean).join(' – ');
+      const label = task.description || 'Seva';
       const row = createElement('article', 'card');
+      // The card opens its own editor, the way every other card in the app
+      // does, so the Edit button it used to carry was a second way to do the
+      // one thing a click already did.
+      const open = () => openSpecificSevaForm_(task.guestId, task.name, task);
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `Open ${label}`);
+      row.addEventListener('click', () => {
+        if (consumedLongPressClick_(row)) return;
+        open();
+      });
+      row.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      });
       attachLongPress_(row, () => ({
-        title: `${task.name || 'Unnamed Guest'} \u00B7 ${task.description || 'Seva task'}`,
+        title: `${task.name || 'Unnamed Guest'} · ${task.description || 'Seva task'}`,
         actions: [
-          { label: 'Edit Task', run: () => openSpecificSevaForm_(task.guestId, task.name, task) },
-          { label: 'Delete permanently', destructive: true, run: () => deleteIndividualTaskAction_(task.sevaId) }
+          { label: 'Edit Task', run: open },
+          { label: 'Delete permanently', destructive: true,
+            run: () => deleteIndividualTaskAction_(task.sevaId, label) }
         ]
       }));
       // The seva leads and the volunteer follows it: a list of seva reads as
       // the work to be done, rather than as a list of names you have to read
-      // across to find out what each one is for.
-      row.appendChild(createGuestNameRow_(task.description || 'Seva', task.guestId));
-      row.appendChild(createElement('div', 'detail-subline', task.name || 'Unnamed Guest'));
+      // across to find out what each one is for. No basic-details icon here --
+      // the title is the seva, not the person, so an icon beside it would be
+      // offering to edit a guest the heading does not name.
+      const head = createElement('div', 'card-head-row');
+      head.appendChild(createElement('div', 'guest-name', label));
+      const remove = createElement('button', 'card-icon-btn danger-icon-btn');
+      remove.type = 'button';
+      remove.title = 'Delete seva';
+      remove.setAttribute('aria-label', `Delete ${label}`);
+      remove.appendChild(createIcon_('icon-trash'));
+      remove.addEventListener('click', event => {
+        // The card underneath opens its editor on a click.
+        event.stopPropagation();
+        deleteIndividualTaskAction_(task.sevaId, label);
+      });
+      head.appendChild(remove);
+      row.appendChild(head);
+      row.appendChild(createElement('div', 'seva-volunteer', task.name || 'Unnamed Guest'));
       row.appendChild(createDetailLine('icon-calendar',
         `${dateRange || 'Dates TBD'} · ${task.status}`));
-
-      const actions = createElement('div', 'seva-team-row-actions');
-      const editBtn = createElement('button', 'row-btn', 'Edit');
-      editBtn.type = 'button';
-      editBtn.addEventListener('click', () => openSpecificSevaForm_(task.guestId, task.name, task));
-      const deleteBtn = createElement('button', 'row-btn danger', 'Delete');
-      deleteBtn.type = 'button';
-      deleteBtn.addEventListener('click', () => deleteIndividualTaskAction_(task.sevaId));
-      actions.appendChild(editBtn);
-      actions.appendChild(deleteBtn);
-      row.appendChild(actions);
 
       return row;
     }
@@ -7600,8 +7636,12 @@
         }));
     }
 
-    function deleteIndividualTaskAction_(sevaId) {
-      if (!window.confirm('Delete this task? This cannot be undone.')) return;
+    // Named rather than "this task": the control is now an icon in a corner,
+    // so the confirm is the first place the seva you are deleting is spelled
+    // out.
+    function deleteIndividualTaskAction_(sevaId, label) {
+      const what = label ? `"${label}"` : 'this seva';
+      if (!window.confirm(`Delete ${what}? This cannot be undone.`)) return;
       apiCall('deleteSpecificSeva', { sevaId })
         .then(() => {
           showToast('Task deleted.', 'success');
