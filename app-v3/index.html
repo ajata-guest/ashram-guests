@@ -574,6 +574,18 @@
     .volunteer-name { overflow-wrap: anywhere; }
     .volunteer-type { color: var(--subtle); font-size: 0.76rem; }
 
+    /* A volunteer left outside their team's dates. Amber rather than red: the
+       record is not wrong, it has drifted, and it is a person's job to decide
+       whether to move the visit, move the team or take them off. The name
+       stays at full strength because the row is still a real membership. */
+    .volunteer-warning {
+      color: var(--orange);
+      font-size: 0.76rem;
+      overflow-wrap: anywhere;
+    }
+    .volunteer-warning::before { content: "⚠ "; }
+    .volunteer-row.is-stranded .volunteer-number { color: var(--orange); }
+
     /* Still offered and still readable — greying it out entirely would leave
        you wondering whether the name was even found. The line beneath gives
        the actual reason, so nothing is appended here. */
@@ -936,6 +948,10 @@
     /* An away period running today, as against one still ahead or already
        over — the difference between "not here" and "will be away". */
     .detail-line.is-away-now { color: #c9cdd2; font-weight: 600; }
+
+    /* A team whose roster has drifted outside its own dates. Amber, like the
+       roster rows it is summarising, and after .detail-line so it wins. */
+    .detail-line.detail-line-warning { color: var(--orange); }
 
     .icon {
       width: 16px;
@@ -4490,6 +4506,7 @@
     <symbol id="icon-x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
     <symbol id="icon-check" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
     <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
     <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></symbol>
@@ -6678,6 +6695,16 @@
       card.appendChild(createDetailLine('icon-calendar',
         `${dateRange || 'Dates TBD'} · ${members.length} volunteer${members.length === 1 ? '' : 's'}`));
 
+      // Visible from the list, not only from inside the team, so a roster that
+      // has drifted out of its dates is not hidden behind a tap.
+      const stranded = members.filter(item => item.blockReason).length;
+      if (stranded) {
+        const line = createDetailLine('icon-alert',
+          `${stranded} volunteer${stranded === 1 ? ' is' : 's are'} not here for these dates`);
+        line.classList.add('detail-line-warning');
+        card.appendChild(line);
+      }
+
       // The commonest thing to do to a team is put somebody in it, so it is
       // on the card rather than two taps inside. It opens the team with the
       // volunteer field waiting, which is where the adding actually happens.
@@ -6803,6 +6830,17 @@
         const who = createElement('div', 'volunteer-who');
         who.appendChild(createElement('span', 'volunteer-name', member.name || 'Unnamed Guest'));
         who.appendChild(createElement('span', 'volunteer-type', member.personType || ''));
+        // A membership can be left outside its team's dates afterwards, by an
+        // edit to the team or to this guest's own visit, so the roster says so
+        // wherever it is drawn rather than relying on a warning that only the
+        // person who moved the dates ever saw.
+        if (member.blockReason) {
+          row.classList.add('is-stranded');
+          const warn = createElement('span', 'volunteer-warning',
+            member.blockLabel || 'Not here for these dates');
+          warn.title = member.blockReason;
+          who.appendChild(warn);
+        }
         row.appendChild(who);
         const remove = createElement('button', 'row-btn danger', 'Remove');
         remove.type = 'button';
@@ -7061,13 +7099,33 @@
         endDate
       };
 
+      const done = () => {
+        $('seva-team-save-btn').disabled = false;
+        closeSevaTeamForm();
+        loadSevaWorkspaceData_();
+        showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
+      };
+
       $('seva-team-save-btn').disabled = true;
       apiCall('saveSevaTeam', { payload })
-        .then(() => {
-          $("seva-team-save-btn").disabled = false;
-          closeSevaTeamForm();
-          loadSevaWorkspaceData_();
-          showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
+        .then(result => {
+          // The new dates leave somebody already on the team outside them.
+          // They are named rather than counted, because deciding what to do
+          // about it is the whole point of being asked.
+          if (result && result.saved === false) {
+            const stranded = result.strandedVolunteers || [];
+            const names = stranded.map(item => item.name || 'A volunteer').join(', ');
+            const ok = window.confirm(
+              `${names} ${stranded.length === 1 ? 'is' : 'are'} not here for these dates.`
+              + '\n\nSaving keeps them on the team and marks them on the roster, so you can'
+              + ' remove them or fix their visit whenever you like. Nobody is taken off.');
+            if (!ok) {
+              $('seva-team-save-btn').disabled = false;
+              return;
+            }
+            return apiCall('saveSevaTeam', { payload: { ...payload, acceptStranded: true } }).then(done);
+          }
+          done();
         })
         .catch(error => handleApiError(error, error => {
           $('seva-team-save-btn').disabled = false;

@@ -883,27 +883,76 @@ function hasArrived(visit, todayKey, now) {
 // A Permanent Resident is exempt. They live here; their stay has no arrival
 // date by design, and reading that as a missing one would bar the people
 // most likely to be doing seva at all.
-function sevaBlockReason(guest, visits, team) {
-  if (guest.personType === "Permanent Resident") return "";
-  const who = guest.name || "This guest";
+// The reason as plain facts, so the sentence can be written to suit whoever
+// is reading it: a picker that must say which guest it means, and a roster
+// row that has already named them at the start of the line.
+function sevaBlockFacts(guest, visits, team) {
+  if (guest.personType === "Permanent Resident") return null;
   const live = visits.filter(visit => !visit.cancelled);
-  if (!live.length) return `${who} has no visit on record, so there are no dates to check.`;
+  if (!live.length) return { code: "noVisit" };
   const dated = live.filter(visit => Boolean(visit.arrivalDate));
-  if (!dated.length) return `${who}'s arrival date is not confirmed yet.`;
+  if (!dated.length) return { code: "noArrival" };
 
   // With no dates on the team there is no window to be inside, so knowing
   // when they arrive is all that can be asked of them.
   const teamStart = team && team.startDate;
-  if (!teamStart) return "";
+  if (!teamStart) return null;
   const teamEnd = (team && team.endDate) || "9999-12-31";
   // A stay with no departure runs on, so it overlaps anything after arrival.
   const overlaps = dated.some(visit =>
     visit.arrivalDate <= teamEnd && (visit.departureDate || "9999-12-31") >= teamStart);
-  if (!overlaps) {
-    const soonest = dated.map(visit => visit.arrivalDate).sort()[0];
-    return `${who} is not here during this team's dates — they arrive ${soonest}.`;
-  }
-  return "";
+  if (overlaps) return null;
+  return { code: "outsideDates", arrivalDate: dated.map(visit => visit.arrivalDate).sort()[0] };
+}
+
+function sevaBlockSentence(facts, who) {
+  if (!facts) return "";
+  if (facts.code === "noVisit") return `${who} has no visit on record, so there are no dates to check.`;
+  if (facts.code === "noArrival") return `${who}'s arrival date is not confirmed yet.`;
+  return `${who} is not here during this team's dates — they arrive ${facts.arrivalDate}.`;
+}
+
+function sevaBlockReason(guest, visits, team) {
+  return sevaBlockSentence(sevaBlockFacts(guest, visits, team), guest.name || "This guest");
+}
+
+// The same three facts, for a line that has already said who it is about.
+function sevaBlockLabel(facts) {
+  if (!facts) return "";
+  if (facts.code === "noVisit") return "No visit on record";
+  if (facts.code === "noArrival") return "Arrival not confirmed";
+  return `Not here for these dates — arrives ${facts.arrivalDate}`;
+}
+
+// Whether a volunteer belongs on a team is a fact about the pairing, not
+// about either one alone, so it is derived wherever a roster is read rather
+// than trusted from the moment the member was added. That check can be
+// undone afterwards from either side -- the team's dates can move, or the
+// guest's own can -- and neither edit knows the other exists. Deriving it on
+// read is the only version no future write path can forget to run.
+function sevaRosterChecker_(canonical) {
+  const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
+  const visitsByGuest = groupBy(canonical.visits, "guestId");
+  const roomsByVisit = groupBy(canonical.visitRooms, "visitId");
+  const legsByVisit = groupByEach(canonical.visitTravelLegs, legVisitIds);
+  return function checkMember(guestId, team) {
+    const guest = guestsById[guestId];
+    if (!guest) return null;
+    const visits = (visitsByGuest[guestId] || []).map(item => visitView(item, roomsByVisit, legsByVisit));
+    const facts = sevaBlockFacts(guest, visits, team);
+    return {
+      guestId, name: guest.name,
+      reason: sevaBlockSentence(facts, guest.name || "This guest"),
+      label: sevaBlockLabel(facts)
+    };
+  };
+}
+
+// The team as sevaBlockReason reads it. Only the two dates matter, so a
+// half-written document on its way to Firestore can be asked the question
+// just as well as a saved one.
+function teamWindow_(startDate, endDate) {
+  return { startDate: startDate || "", endDate: endDate || "" };
 }
 
 function stillHere(visit, todayKey) {
@@ -1539,13 +1588,22 @@ export function createFirestoreBridge(firebaseApp) {
     const canonical = await loadCanonical();
     const guestsById = Object.fromEntries(canonical.guests.filter(item => !item.archived).map(item => [item.id, item]));
     const membersByTeam = groupBy(canonical.teamMemberships, "teamId");
-    const teams = canonical.sevaTeams.map(team => ({
-      ...teamView(team),
-      roster: (membersByTeam[team.id] || []).map(member => {
+    const checkMember = sevaRosterChecker_(canonical);
+    const teams = canonical.sevaTeams.map(team => {
+      const view = teamView(team);
+      const roster = (membersByTeam[team.id] || []).map(member => {
         const guest = guestsById[member.guestId];
-        return guest ? { guestId: guest.id, membershipId: member.id, name: guest.name, personType: guest.personType } : null;
-      }).filter(Boolean)
-    }));
+        if (!guest) return null;
+        // Carried on every row, so a roster that has drifted outside its
+        // team's dates says so wherever it is drawn and whatever moved.
+        const checked = checkMember(guest.id, view);
+        return {
+          guestId: guest.id, membershipId: member.id, name: guest.name, personType: guest.personType,
+          blockReason: (checked && checked.reason) || "", blockLabel: (checked && checked.label) || ""
+        };
+      }).filter(Boolean);
+      return { ...view, roster, strandedCount: roster.filter(item => item.blockReason).length };
+    });
     const individualTasks = canonical.specificSeva.map(task => {
       const guest = guestsById[task.guestId];
       return guest ? { guestId: guest.id, name: guest.name, personType: guest.personType, ...taskView(task) } : null;
@@ -2824,6 +2882,28 @@ export function createFirestoreBridge(firebaseApp) {
     if (startDateKey && endDateKey && endDateKey < startDateKey) throw new Error("End date cannot be earlier than start date.");
     const reference = doc(db, "sevaTeams", id);
     const existing = (await getDoc(reference)).data() || null;
+    // Moving a team's dates can leave volunteers on a team that no longer
+    // runs while they are here, so the save reports them and waits rather
+    // than going through quietly. Only the ones this edit strands are worth
+    // stopping for: anyone already outside is marked on the roster, and
+    // warning about them on every unrelated save is how a warning stops
+    // being read. Nobody is removed either way -- the roster is the record
+    // of who was assigned, and unassigning is a decision for a person.
+    if (existing && payload?.acceptStranded !== true) {
+      const canonical = await loadCanonical();
+      const members = canonical.teamMemberships.filter(item => item.teamId === id);
+      if (members.length) {
+        const checkMember = sevaRosterChecker_(canonical);
+        const before = teamWindow_(existing.startDateKey || dateKeyOf(existing.startAt),
+          existing.endDateKey || dateKeyOf(existing.endAt));
+        const after = teamWindow_(startDateKey, endDateKey);
+        const stranded = members
+          .map(member => checkMember(member.guestId, after))
+          .filter(entry => entry && entry.reason)
+          .filter(entry => !(checkMember(entry.guestId, before) || {}).reason);
+        if (stranded.length) return { teamId: id, saved: false, strandedVolunteers: stranded };
+      }
+    }
     await setDoc(reference, {
       teamName: name,
       eventProgrammeName: eventName,
