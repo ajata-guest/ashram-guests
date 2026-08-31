@@ -2929,19 +2929,24 @@ export function createFirestoreBridge(firebaseApp) {
   async function deleteSevaTeam(teamId) {
     const actor = ensureApproved();
     const id = clean(teamId, 100);
-    const memberships = await getDocs(query(collection(db, "teamMemberships"), where("teamId", "==", id), limit(1)));
-    if (!memberships.empty) throw new Error("This Seva Team still has members. Remove their memberships before deleting the team.");
     const reference = doc(db, "sevaTeams", id);
     if (!(await getDoc(reference)).exists()) throw new Error("This Seva Team no longer exists.");
     const batch = writeBatch(db);
+    // A membership belongs to its team and to nothing else, so it goes with
+    // it, the way a trip's participants do. Refusing until the roster was
+    // emptied by hand only made you do the cascade yourself, one name at a
+    // time, and left the team undeletable if a membership pointed at a guest
+    // who had since been archived. The count is kept in the audit line, which
+    // is the record of what the one click actually removed.
+    const members = await deleteChildDocs_(batch, "teamMemberships", "teamId", id);
     batch.delete(reference);
-    await writeAuditBatch(batch, actor, "sevaTeam", id, "delete", ["document"]);
+    await writeAuditBatch(batch, actor, "sevaTeam", id, "delete", ["document", `members:${members}`]);
     await batch.commit();
     invalidate();
-    return { teamId: id, deleted: true };
+    return { teamId: id, deleted: true, membersDeleted: members };
   }
 
-  async function addTeamMember(guestId, teamId) {
+  async function addTeamMember(guestId, teamId, isCoordinator) {
     const actor = ensureApproved();
     const canonical = await loadCanonical(true);
     const guest = canonical.guests.find(item => item.id === clean(guestId, 100) && !item.archived);
@@ -2970,7 +2975,7 @@ export function createFirestoreBridge(firebaseApp) {
       .reduce((top, item) => Math.max(top, Number(item.order) || 0), 0) + 1;
     const batch = writeBatch(db);
     batch.set(doc(db, "teamMemberships", id), {
-      guestId: guest.id, teamId: team.id, order: nextOrder, isCoordinator: false,
+      guestId: guest.id, teamId: team.id, order: nextOrder, isCoordinator: isCoordinator === true,
       createdAt: serverTimestamp(), createdBy: actor, updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
     await writeAuditBatch(batch, actor, "teamMembership", id, "create", ["guestId", "teamId"]);
@@ -4229,13 +4234,20 @@ export function createFirestoreBridge(firebaseApp) {
         // one wording. The row itself carries no visit — this list is kept
         // deliberately light — so a client cannot work it out for itself.
         const directoryVisits = groupBy(canonical.visits, "guestId");
-        // Availability is a question about a particular team's dates, so the
-        // caller names the team it is filling. Without one the rows simply
-        // carry no verdict, which is what every other caller of this wants.
+        // Availability is a question about a particular set of dates, so the
+        // caller names them: a saved team by id, or -- while a team is being
+        // edited and its dates have been changed but not yet saved -- the
+        // window sitting in the form. Judging against the saved team there
+        // would answer about dates the editor has already moved on from.
+        // Without either the rows simply carry no verdict, which is what
+        // every other caller of this wants.
         const forTeam = clean(options.sevaTeamId, 100)
           ? canonical.sevaTeams.find(item => item.id === clean(options.sevaTeamId, 100))
           : null;
-        const forTeamView = forTeam ? teamView(forTeam) : null;
+        const window_ = options.sevaWindow || null;
+        const forTeamView = window_
+          ? teamWindow_(clean(window_.startDate, 20), clean(window_.endDate, 20))
+          : (forTeam ? teamView(forTeam) : null);
         const rows = canonical.guests.filter(item => (includeArchived || !item.archived) && (!term || String(item.name || "").toLowerCase().includes(term)))
           .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
           .map(item => ({
@@ -4290,7 +4302,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);
       if (action === "saveSevaTeam") return saveSevaTeam(extra.payload || {});
       if (action === "deleteSevaTeam") return deleteSevaTeam(extra.teamId);
-      if (action === "addTeamMember") return addTeamMember(extra.guestId, extra.teamId);
+      if (action === "addTeamMember") return addTeamMember(extra.guestId, extra.teamId, extra.isCoordinator);
       if (action === "removeTeamMember") return removeTeamMember(extra.membershipId);
       if (action === "setTeamCoordinator") return setTeamCoordinator(extra.membershipId, extra.isCoordinator);
       if (action === "upsertSpecificSeva") return upsertSpecificSeva(extra.payload || {});

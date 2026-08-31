@@ -6769,7 +6769,7 @@
         actions: [
           { label: 'Edit Team', run: open },
           { label: 'Delete permanently', destructive: true,
-            run: () => deleteSevaTeamRow(team.teamId, team.name) }
+            run: () => deleteSevaTeamRow(team.teamId, team.name, members.length) }
         ]
       }));
 
@@ -6788,7 +6788,7 @@
       // still goes through the same confirm.
       remove.addEventListener('click', event => {
         event.stopPropagation();
-        deleteSevaTeamRow(team.teamId, team.name);
+        deleteSevaTeamRow(team.teamId, team.name, members.length);
       });
       head.appendChild(remove);
       card.appendChild(head);
@@ -7357,12 +7357,24 @@
         }));
     }
 
-    function deleteSevaTeamRow(teamId, name) {
-      if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    // Deleting a team now takes its roster with it, so the confirm says how
+    // many go and says plainly that the guests themselves do not -- a count
+    // on a warning is the difference between removing an empty team and
+    // quietly dismantling a roster of twelve.
+    function deleteSevaTeamRow(teamId, name, memberCount) {
+      const count = Number(memberCount) || 0;
+      const roster = count
+        ? `\n\nIts ${count} volunteer${count === 1 ? '' : 's'} will be taken off the team.`
+          + ' The guests themselves are not deleted.'
+        : '';
+      if (!window.confirm(`Delete "${name}"?${roster}\n\nThis cannot be undone.`)) return;
       apiCall('deleteSevaTeam', { teamId })
-        .then(() => {
+        .then(result => {
           loadSevaWorkspaceData_();
-          showToast('Seva Team deleted.', 'success');
+          const removed = (result && result.membersDeleted) || 0;
+          showToast(removed
+            ? `Seva Team deleted, with ${removed} volunteer${removed === 1 ? '' : 's'}.`
+            : 'Seva Team deleted.', 'success');
         })
         .catch(error => handleApiError(error, error => {
           showToast(`Delete failed: ${getErrorMessage(error)}`, 'error');
