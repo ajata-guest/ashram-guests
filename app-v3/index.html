@@ -552,6 +552,27 @@
        them, so the card reads as a summary and then a thing to do. */
     .card-actions { display: flex; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
 
+    /* An icon-only action on a card. Pushed to the far end of the row so it is
+       never next to the button you meant to press, and white rather than red at
+       rest: it is one of the things you can do here, not a warning sitting on
+       every card. The red is kept for the moment you are actually on it. */
+    .card-icon-btn {
+      display: inline-flex;
+      margin-left: auto;
+      padding: 6px 8px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      align-items: center;
+    }
+    .danger-icon-btn:hover, .danger-icon-btn:focus-visible {
+      border-color: rgba(231, 76, 60, 0.6);
+      background: rgba(231, 76, 60, 0.12);
+      color: var(--red);
+    }
+
     /* A numbered list rather than loose rows: a roster is something you count
        and read down, so the number, the person and the way to remove them each
        hold their own column and line up between rows. */
@@ -5124,10 +5145,10 @@
       // before it starts. Both limits move as the other date is chosen.
       $('edit-seva-team-start').addEventListener('input', syncSevaTeamDateLimits_);
       $('edit-seva-team-end').addEventListener('input', syncSevaTeamDateLimits_);
-      $('seva-team-cancel-btn').addEventListener('click', closeSevaTeamForm);
-      $('seva-team-close-btn').addEventListener('click', closeSevaTeamForm);
+      $('seva-team-cancel-btn').addEventListener('click', cancelSevaTeamForm);
+      $('seva-team-close-btn').addEventListener('click', cancelSevaTeamForm);
       $('seva-team-modal').addEventListener('click', event => {
-        if (event.target === $('seva-team-modal')) closeSevaTeamForm();
+        if (event.target === $('seva-team-modal')) cancelSevaTeamForm();
       });
       $('add-individual-task-btn').addEventListener('click', handleAddIndividualTaskClick_);
       $('specific-seva-save-btn').addEventListener('click', saveSpecificSevaFromForm_);
@@ -5168,7 +5189,7 @@
         // The two Seva dialogs sit above the picker for the same reason —
         // adding a team member opens the picker on top of the team dialog.
         if (isGuestPickerOpen_()) { closeGuestPicker_(); return; }
-        if (isSevaTeamFormOpen_()) { closeSevaTeamForm(); return; }
+        if (isSevaTeamFormOpen_()) { cancelSevaTeamForm(); return; }
         if (isSpecificSevaFormOpen_()) { closeSpecificSevaForm_(); return; }
         if ($('meeting-editor-modal').style.display === 'flex') { closeMeetingEditor_(); return; }
         if (visitEditorOpen_) { requestCloseVisitEditor_(); return; }
@@ -6358,8 +6379,8 @@
     // ============================================================
     // Seva Teams — a shared entity, managed from its own workspace screen.
     // V3 Operational Workspaces Architecture — Phase H: membership/roster
-    // editing moved here too (addTeamMemberAction_/removeTeamMemberAction_
-    // below), out of the guest modal.
+    // editing moved here too, out of the guest modal. The roster is a draft
+    // held by the dialog and applied by Save Team.
     // ============================================================
 
     function computeSevaTeamStatus(team, nowMs) {
@@ -6775,6 +6796,27 @@
         openSevaTeamForm(team, { focus: 'volunteers' });
       });
       actions.appendChild(add);
+
+      // Delete belongs on the card as well as in the long-press menu, which is
+      // not discoverable at all on a desktop with nothing to long-press. Pushed
+      // to the far end, away from the button you actually meant to hit, and it
+      // still goes through the same confirm.
+      const remove = createElement('button', 'card-icon-btn danger-icon-btn');
+      remove.type = 'button';
+      remove.title = 'Delete team';
+      remove.setAttribute('aria-label', `Delete ${team.name || 'this Seva Team'}`);
+      const bin = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      bin.setAttribute('class', 'icon');
+      bin.setAttribute('aria-hidden', 'true');
+      const binUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      binUse.setAttribute('href', '#icon-trash');
+      bin.appendChild(binUse);
+      remove.appendChild(bin);
+      remove.addEventListener('click', event => {
+        event.stopPropagation();
+        deleteSevaTeamRow(team.teamId, team.name);
+      });
+      actions.appendChild(remove);
       card.appendChild(actions);
       return card;
     }
@@ -6788,52 +6830,95 @@
     }
 
 
-    // Roster edits redraw from the copy already in memory rather than
-    // refetching the workspace, so a name appears or disappears the moment
-    // it is clicked instead of after a second round trip.
-    function addTeamMemberAction_(guestId, teamId) {
-      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
-      const guest = directoryRecords_.find(r => r.guestId === guestId);
-      if (team && guest) {
-        team.roster = (team.roster || []).concat([{
-          guestId,
-          membershipId: '',           // filled in from the response below
-          name: guest.name,
-          personType: guest.personType
-        }]);
-        renderSevaLists_();
-      }
+    // The Volunteers section is a draft until Save Team, the way the visit
+    // editor holds its travel legs. It used to write on the spot, which was
+    // right while the roster lived in an expanding bar out in the list where
+    // there was no Save button -- but it moved into a dialog that has one, and
+    // a Cancel that undoes only half of what is in front of you is worse than
+    // no Cancel at all.
+    //
+    // Held here rather than mutated into sevaWorkspaceData_, so Cancel has to
+    // do nothing whatever to discard it, and the cards behind the dialog go on
+    // showing what is actually saved.
+    let sevaRosterDraft_ = [];
+    let sevaRosterBaseline_ = [];
 
-      apiCall('addTeamMember', { guestId, teamId })
-        .then(result => {
-          showToast('Member added.', 'success');
-          if (team && result && result.membershipId) {
-            const added = team.roster.find(m => m.guestId === guestId && !m.membershipId);
-            if (added) added.membershipId = result.membershipId;
-            renderSevaLists_();
-          }
-        })
-        .catch(error => handleApiError(error, err => {
-          loadSevaWorkspaceData_();
-          showToast(`Couldn't add member: ${getErrorMessage(err)}`, 'error');
-        }));
+    function openSevaTeamRosterDraft_(team) {
+      sevaRosterDraft_ = team ? sortRoster_(team.roster || []).map(member => ({ ...member })) : [];
+      sevaRosterBaseline_ = sevaRosterDraft_.map(member => ({
+        membershipId: member.membershipId,
+        isCoordinator: member.isCoordinator === true
+      }));
     }
 
-    function removeTeamMemberAction_(membershipId, teamId) {
-      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
-      const removed = team ? (team.roster || []).find(m => m.membershipId === membershipId) : null;
-      if (team) {
-        team.roster = (team.roster || []).filter(m => m.membershipId !== membershipId);
-        renderSevaLists_();
-      }
+    // What Save has to do to turn the saved roster into the drafted one.
+    function sevaRosterChanges_() {
+      const kept = new Set(sevaRosterDraft_.filter(row => row.membershipId).map(row => row.membershipId));
+      const wasCoordinator = Object.fromEntries(
+        sevaRosterBaseline_.map(row => [row.membershipId, row.isCoordinator]));
+      return {
+        removals: sevaRosterBaseline_.filter(row => !kept.has(row.membershipId)),
+        additions: sevaRosterDraft_.filter(row => !row.membershipId),
+        flips: sevaRosterDraft_.filter(row =>
+          row.membershipId && (row.isCoordinator === true) !== wasCoordinator[row.membershipId])
+      };
+    }
 
-      apiCall('removeTeamMember', { membershipId })
-        .then(() => showToast('Member removed.', 'success'))
-        .catch(error => handleApiError(error, err => {
-          if (team && removed) team.roster = team.roster.concat([removed]);
-          renderSevaLists_();
-          showToast(`Couldn't remove member: ${getErrorMessage(err)}`, 'error');
-        }));
+    function sevaRosterDirty_() {
+      const changes = sevaRosterChanges_();
+      return Boolean(changes.removals.length || changes.additions.length || changes.flips.length);
+    }
+
+    function applySevaRosterDraft_(teamId) {
+      const changes = sevaRosterChanges_();
+      const steps = [];
+      changes.removals.forEach(row =>
+        steps.push(() => apiCall('removeTeamMember', { membershipId: row.membershipId })));
+      changes.additions.forEach(row =>
+        steps.push(() => apiCall('addTeamMember',
+          { guestId: row.guestId, teamId, isCoordinator: row.isCoordinator === true })));
+      changes.flips.forEach(row =>
+        steps.push(() => apiCall('setTeamCoordinator',
+          { membershipId: row.membershipId, isCoordinator: row.isCoordinator === true })));
+      // One at a time. addTeamMember numbers a new member from the highest
+      // number already on the team, so two adds running together would both
+      // read the same one and land on the same number.
+      return steps.reduce((chain, step) => chain.then(step), Promise.resolve());
+    }
+
+    // Draft edits. None of these write anything; they change the list in front
+    // of you and leave the saving to Save Team.
+    function addTeamMemberToDraft_(guest) {
+      if (!guest || !guest.guestId) return;
+      if (sevaRosterDraft_.some(row => row.guestId === guest.guestId)) {
+        showToast(`${guest.name || 'That guest'} is already on this team.`, 'error');
+        return;
+      }
+      const highest = sevaRosterDraft_.reduce((top, row) => Math.max(top, row.order || 0), 0);
+      sevaRosterDraft_.push({
+        guestId: guest.guestId,
+        membershipId: '',
+        name: guest.name || '',
+        personType: guest.personType || '',
+        isCoordinator: false,
+        order: highest + 1,
+        addedMs: Date.now(),
+        // Carried from the picker, which judged them against the dates in the
+        // form, so a drafted row warns for the same reason a saved one does.
+        blockReason: guest.sevaBlockReason || '',
+        blockLabel: guest.sevaBlockReason || ''
+      });
+      renderSevaTeamRoster_();
+    }
+
+    function removeTeamMemberFromDraft_(row) {
+      sevaRosterDraft_ = sevaRosterDraft_.filter(item => item !== row);
+      renderSevaTeamRoster_();
+    }
+
+    function setDraftCoordinator_(row, isCoordinator) {
+      row.isCoordinator = isCoordinator === true;
+      renderSevaTeamRoster_();
     }
 
     function openSevaTeamForm(team, options) {
@@ -6854,7 +6939,8 @@
       $('seva-team-new-guest').hidden = true;
       $('seva-team-volunteer-lookup').hidden = true;
       hideTeamVolunteerSuggestions_();
-      if (team) renderSevaTeamRoster_(team);
+      openSevaTeamRosterDraft_(team);
+      if (team) renderSevaTeamRoster_();
       syncSevaTeamDateLimits_();
       syncSevaTeamNav_();
       $('seva-team-modal').style.display = 'flex';
@@ -6891,13 +6977,12 @@
       });
     }
 
-    // The roster, moved here from the list where it used to live inside an
-    // expanding bar. Redraws from the copy already in memory so a name
-    // appears or goes the moment it is clicked.
-    function renderSevaTeamRoster_(team) {
+    // Drawn from the draft, never from the workspace copy, so what you see is
+    // what Save Team is going to do.
+    function renderSevaTeamRoster_() {
       const list = $('seva-team-roster');
       list.replaceChildren();
-      const members = sortRoster_(Array.isArray(team.roster) ? team.roster : []);
+      const members = sortRoster_(sevaRosterDraft_);
       if (!members.length) {
         list.appendChild(createElement('div', 'travel-empty', '-- Nobody yet --'));
         return;
@@ -6930,49 +7015,27 @@
         const box = createElement('input', 'checkbox-input coordinator-input');
         box.type = 'checkbox';
         box.checked = member.isCoordinator === true;
-        box.addEventListener('change', () =>
-          setTeamCoordinatorAction_(member.membershipId, team.teamId, box.checked));
+        box.addEventListener('change', () => setDraftCoordinator_(member, box.checked));
         mark.appendChild(box);
         mark.appendChild(createElement('span', '', 'Mark Coordinator'));
         actions.appendChild(mark);
 
         const remove = createElement('button', 'row-btn danger', 'Remove');
         remove.type = 'button';
-        remove.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
+        remove.addEventListener('click', () => removeTeamMemberFromDraft_(member));
         actions.appendChild(remove);
         row.appendChild(actions);
         list.appendChild(row);
       });
     }
 
-    // Optimistic, like removing a member: the badge appears and the name rises
-    // to the top on the spot, and the box goes back to where it was if the
-    // write is refused.
-    function setTeamCoordinatorAction_(membershipId, teamId, isCoordinator) {
-      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
-      const member = team ? (team.roster || []).find(m => m.membershipId === membershipId) : null;
-      const was = member ? member.isCoordinator === true : false;
-      if (member) {
-        member.isCoordinator = isCoordinator === true;
-        renderSevaLists_();
-      }
-
-      apiCall('setTeamCoordinator', { membershipId, isCoordinator: isCoordinator === true })
-        .then(() => showToast(isCoordinator ? 'Marked as coordinator.' : 'No longer coordinator.', 'success'))
-        .catch(error => handleApiError(error, err => {
-          if (member) member.isCoordinator = was;
-          renderSevaLists_();
-          showToast(`Couldn't change the coordinator: ${getErrorMessage(err)}`, 'error');
-        }));
-    }
-
     // Only when that dialog is showing a saved team; there is no roster to
-    // draw for one being created.
+    // draw for one being created. Redraws the draft rather than reloading it
+    // from the workspace: a background refresh must not quietly throw away
+    // volunteer changes that have not been saved yet.
     function redrawOpenSevaTeamRoster_() {
-      const openId = $('edit-seva-team-id').value;
-      if (!openId || $('seva-team-modal').style.display !== 'flex') return;
-      const team = (sevaWorkspaceData_.teams || []).find(item => item.teamId === openId);
-      if (team) renderSevaTeamRoster_(team);
+      if (!$('edit-seva-team-id').value || $('seva-team-modal').style.display !== 'flex') return;
+      renderSevaTeamRoster_();
     }
 
     let teamVolunteerRequest_ = 0;
@@ -7029,16 +7092,20 @@
       const query = $('seva-team-volunteer').value.trim();
       if (!query) { hideTeamVolunteerSuggestions_(); return; }
       const token = ++teamVolunteerRequest_;
-      // Named so each row comes back with a verdict about this team's dates
-      // rather than about today.
+      // Judged against the dates sitting in the form, not the ones the team
+      // was last saved with -- if you have just moved the team to October,
+      // that is the window a volunteer has to be here for.
       apiCall('getDirectory', { options: {
-        nameQuery: query, limit: 10, sevaTeamId: $('edit-seva-team-id').value
+        nameQuery: query, limit: 10,
+        sevaTeamId: $('edit-seva-team-id').value,
+        sevaWindow: { startDate: $('edit-seva-team-start').value, endDate: $('edit-seva-team-end').value }
       } })
         .then(page => {
           if (token !== teamVolunteerRequest_) return;
           const eligible = sevaEligibleTypes_();
-          const team = openSevaTeam_();
-          const already = new Set(((team && team.roster) || []).map(member => member.guestId));
+          // The draft, not the saved roster: somebody added a moment ago has
+          // not been written yet but must not be offered twice.
+          const already = new Set(sevaRosterDraft_.map(member => member.guestId));
           renderTeamVolunteerSuggestions_(query, (Array.isArray(page.guests) ? page.guests : [])
             .filter(row => eligible.includes(row.personType) && !already.has(row.guestId)));
         })
@@ -7072,7 +7139,7 @@
           hideTeamVolunteerSuggestions_();
           $('seva-team-volunteer-lookup').hidden = true;
           syncSevaTeamNav_();
-          if (teamId) addTeamMemberAction_(row.guestId, teamId);
+          if (teamId) addTeamMemberToDraft_(row);
         });
         list.appendChild(option);
       });
@@ -7130,7 +7197,7 @@
           $('seva-team-volunteer-lookup').hidden = true;
           $('seva-team-form-message').textContent = '';
           syncSevaTeamNav_();
-          if (teamId) addTeamMemberAction_(guestId, teamId);
+          if (teamId) addTeamMemberToDraft_({ guestId, name, personType: $("seva-new-guest-person-type").value });
         })
         .catch(error => handleApiError(error, err => {
           button.disabled = false;
@@ -7188,10 +7255,20 @@
       return $('seva-team-modal').style.display === 'flex';
     }
 
+    // Cancel discards the drafted roster along with the fields, so it says
+    // what it is about to throw away rather than doing it quietly.
+    function cancelSevaTeamForm() {
+      if (sevaRosterDirty_() && !window.confirm(
+        'Discard the volunteer changes you have not saved?')) return;
+      closeSevaTeamForm();
+    }
+
     function closeSevaTeamForm() {
       $('seva-team-modal').style.display = '';
       markDialogHidden_('seva-team-modal');
       $('seva-team-form-message').textContent = '';
+      sevaRosterDraft_ = [];
+      sevaRosterBaseline_ = [];
     }
 
     function saveSevaTeamFromForm() {
@@ -7215,12 +7292,16 @@
         endDate
       };
 
-      const done = () => {
-        $('seva-team-save-btn').disabled = false;
-        closeSevaTeamForm();
-        loadSevaWorkspaceData_();
-        showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
-      };
+      // The team first, then the roster against it -- a volunteer cannot be
+      // added to a team that does not exist yet, and the dates have to be the
+      // saved ones before anybody is judged against them.
+      const done = result => applySevaRosterDraft_((result && result.teamId) || payload.teamId)
+        .then(() => {
+          $('seva-team-save-btn').disabled = false;
+          closeSevaTeamForm();
+          loadSevaWorkspaceData_();
+          showToast(payload.teamId ? 'Seva Team updated.' : 'Seva Team added.', 'success');
+        });
 
       $('seva-team-save-btn').disabled = true;
       apiCall('saveSevaTeam', { payload })
@@ -7229,23 +7310,33 @@
           // They are named rather than counted, because deciding what to do
           // about it is the whole point of being asked.
           if (result && result.saved === false) {
-            const stranded = result.strandedVolunteers || [];
-            const names = stranded.map(item => item.name || 'A volunteer').join(', ');
-            const ok = window.confirm(
-              `${names} ${stranded.length === 1 ? 'is' : 'are'} not here for these dates.`
-              + '\n\nSaving keeps them on the team and marks them on the roster, so you can'
-              + ' remove them or fix their visit whenever you like. Nobody is taken off.');
-            if (!ok) {
-              $('seva-team-save-btn').disabled = false;
-              return;
+            // Anyone taken off in this dialog is not stranded by the new
+            // dates; they are leaving with them, so they are not worth asking
+            // about. If that accounts for all of them, there is no question.
+            const stranded = (result.strandedVolunteers || [])
+              .filter(item => sevaRosterDraft_.some(row => row.guestId === item.guestId));
+            if (stranded.length) {
+              const names = stranded.map(item => item.name || 'A volunteer').join(', ');
+              const ok = window.confirm(
+                `${names} ${stranded.length === 1 ? 'is' : 'are'} not here for these dates.`
+                + '\n\nSaving keeps them on the team and marks them on the roster, so you can'
+                + ' remove them or fix their visit whenever you like. Nobody is taken off.');
+              if (!ok) {
+                $('seva-team-save-btn').disabled = false;
+                return;
+              }
             }
             return apiCall('saveSevaTeam', { payload: { ...payload, acceptStranded: true } }).then(done);
           }
-          done();
+          return done(result);
         })
         .catch(error => handleApiError(error, error => {
           $('seva-team-save-btn').disabled = false;
           $('seva-team-form-message').textContent = getErrorMessage(error);
+          // Part of the roster may have gone through before the failure, so
+          // the list is reloaded rather than left showing a draft that is no
+          // longer what is saved.
+          loadSevaWorkspaceData_();
         }));
     }
 
@@ -11696,16 +11787,33 @@
       });
     }
 
+    // The meal editor's pills, derived from the sections they point at rather
+    // than set by hand at each place that reveals the bar. Setting them by hand
+    // meant a pill hidden for one arrangement stayed hidden for the next, and
+    // a bar with nothing left in it still took its height and its rule --
+    // which is the empty stub that appears above Schedule. The seva dialog's
+    // nav has always worked this way; this is the same rule, not a second one.
+    function syncMealSectionNav_() {
+      const nav = $('meal-section-nav');
+      const pills = [...nav.querySelectorAll('.section-nav-pill')];
+      pills.forEach(pill => { pill.hidden = $(pill.dataset.mealTarget).hidden; });
+      const visible = pills.filter(pill => !pill.hidden);
+      // One section is not a journey through a dialog; the bar earns its space
+      // only once there is somewhere else to go.
+      nav.hidden = visible.length < 2 || $('meal-editor-details').hidden;
+      if (visible.length && !visible.some(pill => pill.classList.contains('active'))) {
+        visible.forEach(pill => pill.classList.remove('active'));
+        visible[0].classList.add('active');
+      }
+    }
     function showMealArrangementForm_() {
       const isResidency = Boolean(mealEditingResidency_);
       const isNewGuest = Boolean(mealNewGuestName_) && !isResidency;
       $('meal-basic-section').hidden = !isNewGuest;
-      $('meal-section-nav').querySelector('[data-meal-target="meal-basic-section"]').hidden = !isNewGuest;
       $('meal-schedule-section').hidden = isResidency;
-      $('meal-section-nav').querySelector('[data-meal-target="meal-schedule-section"]').hidden = isResidency;
       $('meal-editor-details').hidden = false; $('meal-editor-footer').hidden = false;
-      // With only one section left there is nothing to jump between.
-      $('meal-section-nav').hidden = isResidency;
+      // The sections decide the bar, so no caller has to remember to.
+      syncMealSectionNav_();
       updateMealRecurrenceFields_(); updateMealBasicFields_();
       applyMealDateLimits_();
       const target = isResidency ? $('meal-seating-section') : isNewGuest ? $('meal-basic-section') : $('meal-schedule-section');
