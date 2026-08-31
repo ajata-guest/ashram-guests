@@ -3077,12 +3077,20 @@
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
-      /* Four figures need the row closed up to stay on one line. Only such a
-         card tightens, so the other four keep the spacing they were drawn
-         with. */
-      .workspace-card.has-four-stats .ws-stats { gap: 8px 13px; }
-      .workspace-card.has-four-stats .ws-stat { gap: 4px; }
-      .workspace-card.has-four-stats .ws-stat-label { font-size: 0.72rem; }
+      /* Four figures need the row closed up to stay on one line, and so does a
+         card whose figures carry a breakdown beneath them: Meals has only
+         three, but "4 breakfast / 3 floor · 1 table" is wider than a plain
+         stat, and measured on a 360px phone its row came out seven pixels over
+         and dropped dinner onto a second line. Counting the stats missed that
+         — what matters is how wide they are, not how many. Only these two
+         kinds tighten, so the rest keep the spacing they were drawn with. */
+      .workspace-card.has-four-stats .ws-stats,
+      .workspace-card:has(.ws-stat.has-detail) .ws-stats { gap: 8px 13px; }
+      .workspace-card.has-four-stats .ws-stat,
+      .workspace-card:has(.ws-stat.has-detail) .ws-stat { gap: 4px; }
+      .workspace-card.has-four-stats .ws-stat-label,
+      .workspace-card:has(.ws-stat.has-detail) .ws-stat-label { font-size: 0.72rem; }
+      .workspace-card:has(.ws-stat.has-detail) .ws-stat-detail { font-size: 0.64rem; }
       .modal-content { padding: 20px 16px; }
       /* Tight enough that a visit's five pills fit a phone outright, so the
          row only has to slide in the add-a-guest flow, where a sixth joins
@@ -3112,9 +3120,11 @@
        four of them there is no longer room for both below this width, and the
        indent is the part worth giving up — the alternative is a fourth figure
        dropped onto its own line, where it reads as a separate group rather
-       than the last of four. Wider phones keep the alignment. */
+       than the last of four. A card whose figures carry a breakdown gives it up
+       here for the same reason. Wider phones keep the alignment. */
     @media (max-width: 380px) {
-      .workspace-card.has-four-stats .ws-info { padding-left: 0; }
+      .workspace-card.has-four-stats .ws-info,
+      .workspace-card:has(.ws-stat.has-detail) .ws-info { padding-left: 0; }
     }
 
     @media (max-width: 340px) {
