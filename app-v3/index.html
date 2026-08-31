@@ -832,6 +832,12 @@
       font-weight: 700;
     }
 
+    /* Seva card titles carry the workspace's own salmon. Written against both
+       classes because .guest-name sets #fff and would otherwise win on source
+       order, and kept to its own class rather than scoping by page so a seva
+       card still reads as one wherever it is drawn. */
+    .guest-name.seva-card-title { color: var(--salmon); }
+
     /* The two person-level actions sit on the dialog's heading row, across
        from the name: they act on the guest, not on the record the dialog is
        editing. A long name pushes them onto their own line rather than
@@ -2088,6 +2094,12 @@
       margin: 0 0 18px;
       gap: 6px;
       padding: 10px 0;
+      /* Never shorter than a pill. Naming overflow on one axis makes the
+         browser clip the other, so a bar that ends up shorter than its
+         contents does not merely look tight -- it shaves the tops and bottoms
+         off the pills. A floor here holds whatever was squeezing it, without
+         needing to know what that was. */
+      min-height: 48px;
       background: var(--surface);
       /* The pills sit on the bar rather than being stretched by it. */
       align-items: center;
@@ -2110,6 +2122,10 @@
 
     .section-nav-pill {
       padding: 6px 12px;
+      /* Never squeezed: the bar scrolls sideways instead, which is what the
+         nowrap above is for. Shrinking would squash the labels rather than
+         letting them slide out of view. */
+      flex: 0 0 auto;
       border: 0;
       border-radius: 999px;
       background: transparent;
@@ -6790,7 +6806,7 @@
       // row rather than pinned to the corner, so a long team name pushes it
       // along instead of running underneath it.
       const head = createElement('div', 'card-head-row');
-      head.appendChild(createElement('div', 'guest-name', team.name || 'Unnamed Seva Team'));
+      head.appendChild(createElement('div', 'guest-name seva-card-title', team.name || 'Unnamed Seva Team'));
       const remove = createElement('button', 'card-icon-btn danger-icon-btn');
       remove.type = 'button';
       remove.title = 'Delete team';
@@ -7444,7 +7460,7 @@
       // the title is the seva, not the person, so an icon beside it would be
       // offering to edit a guest the heading does not name.
       const head = createElement('div', 'card-head-row');
-      head.appendChild(createElement('div', 'guest-name', label));
+      head.appendChild(createElement('div', 'guest-name seva-card-title', label));
       const remove = createElement('button', 'card-icon-btn danger-icon-btn');
       remove.type = 'button';
       remove.title = 'Delete seva';
