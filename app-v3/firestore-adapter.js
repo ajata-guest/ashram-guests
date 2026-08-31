@@ -45,6 +45,21 @@ const PERSON_TYPES = new Set(["Invited Guest", "Friend", "Visitor", "Event Staff
 // neither, so one set now serves both and cannot drift from itself.
 const SEVA_ELIGIBLE_TYPES = new Set(["Friend", "Visitor", "Other", "Permanent Resident"]);
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
+
+// When each meal is served, and how late you can turn up and still eat it.
+// The food is already made, so somebody arriving an hour after lunch has not
+// decided to skip lunch -- they are still on the roster. Two hours is the
+// window, the same one the workspace already uses to pick which meal tab to
+// open on.
+//
+// Dinner has no cut-off. It is the last sitting of the day, so there is no
+// later one to fall through to, and a guest arriving at eleven at night is
+// still someone dinner has to be kept for.
+const MEAL_SERVICE = Object.freeze({
+  Breakfast: { at: "08:00", until: "10:00" },
+  Lunch: { at: "13:00", until: "15:00" },
+  Dinner: { at: "20:00", until: "" }
+});
 const MEAL_SEATING = new Set(["Floor", "Table and chair"]);
 const MEAL_SOURCE_TYPES = new Set(["individualGuest", "sevaTeam", "individualSeva"]);
 const MEAL_RECURRENCES = new Set(["oneTime", "daily", "weekly"]);
@@ -267,6 +282,29 @@ function residencyMeals(visit) {
     ? visit.residencyMeals.filter(meal => MEALS.includes(meal))
     : [];
   return chosen.length ? chosen : MEALS;
+}
+
+// Whether a stay covers one meal on one day. The dates alone cannot answer
+// it: a guest who left at two was here for lunch and not for dinner, and one
+// who landed at seven in the evening was not here for that morning's
+// breakfast. Only the arrival day and the departure day are constrained --
+// every day in between is covered whole.
+//
+// A time that was never confirmed says nothing about the hour, so the day is
+// taken as a whole and the roster reads exactly as it did before.
+function stayCoversMeal(visit, dateKey, meal) {
+  const service = MEAL_SERVICE[meal];
+  if (!service) return true;
+
+  if (visit.arrivalTimeConfirmed && service.until && dateKeyOf(visit.arrivalAt) === dateKey) {
+    const arrival = partsInIndia(visit.arrivalAt);
+    if (arrival && arrival.time > service.until) return false;
+  }
+  if (visit.departureTimeConfirmed && dateKeyOf(visit.departureAt) === dateKey) {
+    const departure = partsInIndia(visit.departureAt);
+    if (departure && departure.time < service.at) return false;
+  }
+  return true;
 }
 
 // The same rule for someone who lives here rather than visiting.
@@ -514,15 +552,22 @@ function resolveMealDay(canonical, dateKey) {
     })
     // A guest housed here is put on the roster by residence alone — which
     // meals, and the seating they start from, are both properties of the stay.
-    .forEach(item => addSource(
-      "guest", item.guestId, residencyMeals(item),
-      // Living here and staying here are both residence, but they are not the
-      // same fact, so the roster names them differently.
-      { type: "residence", id: item.id,
-        label: isResidencyStay(item, guestsById[item.guestId]?.personType)
-          ? "Permanent resident" : "Staying in the ashram" },
-      mealSeating(item.diningSeating), true
-    ));
+    .forEach(item => {
+      // The day decides which days they are on the roster; the hour decides
+      // which meals on the first and last of them. Someone who leaves at two
+      // is not there for dinner, and nobody should have to notice that.
+      const meals = residencyMeals(item).filter(meal => stayCoversMeal(item, dateKey, meal));
+      if (!meals.length) return;
+      addSource(
+        "guest", item.guestId, meals,
+        // Living here and staying here are both residence, but they are not
+        // the same fact, so the roster names them differently.
+        { type: "residence", id: item.id,
+          label: isResidencyStay(item, guestsById[item.guestId]?.personType)
+            ? "Permanent resident" : "Staying in the ashram" },
+        mealSeating(item.diningSeating), true
+      );
+    });
 
   canonical.mealSchedules.filter(schedule => mealScheduleMatchesDate(schedule, dateKey)).forEach(schedule => {
     const meals = Array.isArray(schedule.meals) ? schedule.meals : [];
@@ -960,8 +1005,18 @@ function teamWindow_(startDate, endDate) {
   return { startDate: startDate || "", endDate: endDate || "" };
 }
 
-function stillHere(visit, todayKey) {
-  return !visit.departureDate || visit.departureDate >= todayKey;
+// Gone means the departure moment has actually passed, not merely that the
+// day has ended -- the mirror of hasArrived above, which this was missing. A
+// guest who left at 2pm is not here at 6pm, and counting them as residing for
+// the rest of the day is the same fault at the other end of the stay. Where
+// only a date was given, the whole of that day is what the record supports,
+// so they stay until it is over.
+function stillHere(visit, todayKey, now) {
+  if (!visit.departureDate) return true;
+  if (visit.departureTimeConfirmed && visit.departureMs !== null && visit.departureMs !== undefined) {
+    return visit.departureMs > now;
+  }
+  return visit.departureDate >= todayKey;
 }
 
 // Here at all: turned up and not yet gone. A residency has no arrival date to
@@ -970,7 +1025,7 @@ function stillHere(visit, todayKey) {
 function isPresent(visit, todayKey, personType, now) {
   if (!visit) return false;
   if (isResidencyStay(visit, personType)) return true;
-  return hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
+  return hasArrived(visit, todayKey, now) && stillHere(visit, todayKey, now);
 }
 
 // Residing, nearby and away are three names for where somebody is today, and
@@ -992,7 +1047,7 @@ function isAshramResident(visit, todayKey, personType, now, away) {
 // away they account for everyone whose stay is under way.
 function isNearby(visit, todayKey, now, away) {
   return Boolean(visit) && visit.accommodation !== "Ashram" && !away
-    && hasArrived(visit, todayKey, now) && stillHere(visit, todayKey);
+    && hasArrived(visit, todayKey, now) && stillHere(visit, todayKey, now);
 }
 
 // One definition of "this stay still needs something doing", shared by the

@@ -8433,7 +8433,7 @@
       // and a second number would only invite adding the two together.
       { key: 'away', label: 'Away', shortLabel: 'Away', accent: '#9aa0a6', test: (v, today) => Boolean(visitAwayOn_(v, today)) && (isResidencyStay_(v) || isVisitPresent_(v, today)) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
-      { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || Boolean(v.departureDate && v.departureDate < today) }
+      { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || (Boolean(v.departureDate) && !visitStillHere_(v, today)) }
     ]);
 
     // The reasons themselves are decided by the adapter (visitAttentionReasons)
@@ -8479,7 +8479,7 @@
     // Here now: turned up and not yet gone. Shared by Residing and Nearby so
     // the only difference between those two tabs is where the guest sleeps.
     function isVisitPresent_(visit, today) {
-      return hasVisitArrived_(visit) && (!visit.departureDate || visit.departureDate >= today);
+      return hasVisitArrived_(visit) && visitStillHere_(visit, today);
     }
 
     // The away period covering a given day, or null. Mirrors awayPeriodOn in
@@ -9106,6 +9106,18 @@
         return visit.arrivalMs <= Date.now();
       }
       return Boolean(visit.arrivalDate) && visit.arrivalDate <= todayDateKey_();
+    }
+
+    // The mirror of hasVisitArrived_, and the same rule as the adapter's
+    // stillHere: a guest who left at 2pm is not here at 6pm. Where only a date
+    // was given, the whole of that day is what the record supports, so they
+    // stay until it is over.
+    function visitStillHere_(visit, today) {
+      if (!visit || !visit.departureDate) return true;
+      if (visit.departureTimeConfirmed && visit.departureMs !== null && visit.departureMs !== undefined) {
+        return visit.departureMs > Date.now();
+      }
+      return visit.departureDate >= today;
     }
 
     // Where a stay stands right now. This used to compare date keys only, so
