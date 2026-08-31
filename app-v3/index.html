@@ -9126,13 +9126,17 @@
     // "arrives" all morning when they were already here. hasVisitArrived_ now
     // draws that line properly: with no time recorded the day still counts
     // from midnight, exactly as before, and only where somebody actually wrote
-    // a time is that time honoured. Without this the card said Arrived and
-    // Staying for a guest the Residing tab rightly had not counted yet.
+    // a time is that time honoured.
+    //
+    // Departure was left on the old test long after arrival was fixed, so the
+    // card went on saying Staying all evening for a guest who left at two. It
+    // asks visitStillHere_ now, which is the same question the Residing and
+    // Past tabs ask, so a card and the tab it sits in cannot disagree.
     function visitStayStatus_(visit) {
       const today = todayDateKey_();
       const arrival = visit.arrivalDate || '';
       const departure = visit.departureDate || '';
-      if (departure && departure < today) return 'departed';
+      if (departure && !visitStillHere_(visit, today)) return 'departed';
       if (arrival) return hasVisitArrived_(visit) ? 'staying' : 'upcoming';
       return departure ? 'staying' : 'unknown';
     }
