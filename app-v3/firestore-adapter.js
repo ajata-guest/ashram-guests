@@ -646,9 +646,14 @@ function tripStatus(trip, now = Date.now()) {
   return "Active";
 }
 
-function sevaStatus(item, allowDateless, now = Date.now()) {
+// Dateless is dateless, whether it is a shared team or one person's task.
+// This used to take an allowDateless flag that denied teams the answer, on
+// the assumption that a shared team always has dates -- it does not, and a
+// team with none was reported as running right now, which is the one thing
+// it certainly was not.
+function sevaStatus(item, now = Date.now()) {
   const start = millis(item.startAt), end = millis(item.endAt);
-  if (allowDateless && start === null && end === null) return "Seva dates TBD";
+  if (start === null && end === null) return "Seva dates not set";
   if (start !== null && now < start) return "Seva not started";
   if (end !== null && now > end) return "Seva completed";
   return "Seva active";
@@ -795,7 +800,7 @@ function taskView(task) {
     startMs: millis(task.startAt),
     endDate: task.endDateKey || dateKeyOf(task.endAt),
     endMs: millis(task.endAt),
-    status: sevaStatus(task, true),
+    status: sevaStatus(task),
     version: versionOf(task)
   };
 }
@@ -812,7 +817,7 @@ function teamView(team) {
     startMs: millis(team.startAt),
     endDate: team.endDateKey || dateKeyOf(team.endAt),
     endMs: millis(team.endAt),
-    status: sevaStatus(team, false),
+    status: sevaStatus(team),
     version: versionOf(team)
   };
 }

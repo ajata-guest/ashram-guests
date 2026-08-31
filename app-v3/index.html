@@ -6432,25 +6432,6 @@
     // held by the dialog and applied by Save Team.
     // ============================================================
 
-    function computeSevaTeamStatus(team, nowMs) {
-      const startMs = finiteTimestamp(team.startMs);
-      const endMs = finiteTimestamp(team.endMs);
-      if (startMs !== null && nowMs < startMs) return 'Seva not started';
-      if (endMs !== null && nowMs > endMs) return 'Seva completed';
-      return 'Seva active';
-    }
-
-    // The one difference from computeSevaTeamStatus: a Specific Seva entry
-    // can have no dates at all, which a shared Seva Team never can.
-    function computeSpecificSevaStatus(entry, nowMs) {
-      const startMs = finiteTimestamp(entry.startMs);
-      const endMs = finiteTimestamp(entry.endMs);
-      if (startMs === null && endMs === null) return 'Seva dates TBD';
-      if (startMs !== null && nowMs < startMs) return 'Seva not started';
-      if (endMs !== null && nowMs > endMs) return 'Seva completed';
-      return 'Seva active';
-    }
-
     // V3 Operational Workspaces Architecture — Phase H. Team roster and
     // Individual Tasks (Specific Seva) both move here from the guest modal,
     // driven by getWorkspaceData('seva') rather than allGuests — so a
@@ -6525,7 +6506,12 @@
         { value: teams.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TEAMS' },
         { value: teams.filter(t => t.status === 'Seva not started').length, label: 'NOT STARTED' },
         { value: tasks.filter(t => t.status === 'Seva active').length, label: 'ACTIVE SEVA' },
-        { value: tasks.filter(t => t.status === 'Seva dates TBD').length, label: 'DATES NOT SET', attention: true }
+        // Teams as well as tasks, now that a team can be dateless too. A tile
+        // that says DATES NOT SET and then leaves half of them out is worse
+        // than no tile.
+        { value: teams.filter(t => t.status === 'Seva dates not set').length
+            + tasks.filter(t => t.status === 'Seva dates not set').length,
+          label: 'DATES NOT SET', attention: true }
       ]);
 
       $('seva-view-teams').hidden = sevaView_ !== 'teams';
@@ -6868,10 +6854,17 @@
     }
 
     // Seva status is a date-derived word, so it gets the same colours the rest
-    // of the app gives a settled, an active and a finished thing.
+    // of the app gives a settled, an active and a finished thing: green for
+    // running, grey for finished, blue for the two that are only waiting --
+    // one for its start date, the other for someone to set one.
+    //
+    // Matched against what sevaStatus actually returns. This used to test for
+    // 'Active' and 'Completed', which the adapter has never produced -- it
+    // says 'Seva active' and 'Seva completed' -- so neither branch was ever
+    // taken and every seva badge came out blue, whatever word it carried.
     function sevaStatusBadgeClass_(status) {
-      if (status === 'Active') return 'badge-confirmed';
-      if (status === 'Completed') return 'badge-gray';
+      if (status === 'Seva active') return 'badge-confirmed';
+      if (status === 'Seva completed') return 'badge-gray';
       return 'badge-blue';
     }
 
@@ -7929,7 +7922,7 @@
         card.appendChild(createDetailLine('icon-people', `${team.name} \u00B7 ${team.status}`));
       });
       (summary.specificSeva || []).forEach(entry => {
-        const dateText = entry.status === 'Seva dates TBD' ? 'dates TBD' : formatSevaDateRange(entry.startDate, entry.endDate);
+        const dateText = entry.status === 'Seva dates not set' ? 'dates not set' : formatSevaDateRange(entry.startDate, entry.endDate);
         card.appendChild(createDetailLine('icon-people', `${entry.description}${dateText ? ` \u00B7 ${dateText}` : ''}`));
       });
 
