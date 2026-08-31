@@ -584,7 +584,56 @@
       overflow-wrap: anywhere;
     }
     .volunteer-warning::before { content: "⚠ "; }
+
+    /* The two things you can do to a volunteer, kept together in the row's
+       last column so the name keeps the space it needs to wrap. */
+    .volunteer-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    /* Green, and quieter than Remove: marking a coordinator is a routine,
+       reversible thing, and it should not compete with the one destructive
+       control sitting next to it. Written against both classes because the
+       .checkbox-label and .checkbox-input defaults appear further down the
+       sheet and would otherwise win on source order. */
+    .checkbox-label.coordinator-label {
+      gap: 6px;
+      color: var(--subtle);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+    .checkbox-label.coordinator-label:hover { color: var(--green-light); }
+    .checkbox-input.coordinator-input { width: 14px; height: 14px; accent-color: var(--green); }
+    .volunteer-row.is-coordinator .checkbox-label.coordinator-label { color: var(--green-light); }
+    .volunteer-row.is-coordinator .volunteer-number { color: var(--green); }
+    /* After the coordinator rule above, so a coordinator who is also outside
+       the team's dates keeps the amber: a problem outranks a role. */
     .volunteer-row.is-stranded .volunteer-number { color: var(--orange); }
+    /* A green state badge, in the family of pickup/confirmed rather than the
+       identity badges -- coordinating is something that is true now, not a
+       category the person belongs to. */
+    .badge-coordinator {
+      border: 1px solid rgba(46, 204, 113, 0.35);
+      background: rgba(46, 204, 113, 0.16);
+      color: var(--green);
+    }
+
+    /* On a phone the name and the two controls cannot share a line without
+       squeezing one of them, so the controls drop underneath and keep their
+       full size rather than becoming hard to hit. */
+    @media (max-width: 620px) {
+      .volunteer-row {
+        grid-template-columns: 1.6rem 1fr;
+        row-gap: 6px;
+      }
+      .volunteer-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+      }
+    }
 
     /* Still offered and still readable — greying it out entirely would leave
        you wondering whether the name was even found. The line beneath gives
@@ -6695,6 +6744,16 @@
       card.appendChild(createDetailLine('icon-calendar',
         `${dateRange || 'Dates TBD'} · ${members.length} volunteer${members.length === 1 ? '' : 's'}`));
 
+      // Who to go to about this team -- the one thing you want from the card
+      // without opening it. Read from the roster the dialog draws, in the same
+      // order, so the card and the list can never name different people.
+      const coordinators = sortRoster_(members).filter(item => item.isCoordinator);
+      if (coordinators.length) {
+        card.appendChild(createDetailLine('icon-user',
+          `${coordinators.length === 1 ? 'Coordinator' : 'Coordinators'} · `
+          + coordinators.map(item => item.name || 'Unnamed Guest').join(', ')));
+      }
+
       // Visible from the list, not only from inside the team, so a roster that
       // has drifted out of its dates is not hidden behind a tap.
       const stranded = members.filter(item => item.blockReason).length;
@@ -6813,13 +6872,32 @@
       window.setTimeout(() => $('edit-seva-team-name').focus(), 0);
     }
 
+    // The order a roster is read in. Coordinators first, because that is what
+    // the list is consulted for, and everyone else in the order they joined --
+    // a new volunteer belongs at the end, where they were added, not at the
+    // top. Firestore returns memberships in id order, so the sequence has to
+    // be restored here; this is the only place that decides it, and both the
+    // dialog and the card read the result.
+    function sortRoster_(members) {
+      return [...members].sort((a, b) => {
+        if (Boolean(a.isCoordinator) !== Boolean(b.isCoordinator)) return a.isCoordinator ? -1 : 1;
+        const byOrder = (a.order || 0) - (b.order || 0);
+        if (byOrder) return byOrder;
+        // Memberships written before the numbering was fixed can share a
+        // number, so the earlier of the two is still the earlier one.
+        const byAdded = (a.addedMs || 0) - (b.addedMs || 0);
+        if (byAdded) return byAdded;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
+
     // The roster, moved here from the list where it used to live inside an
     // expanding bar. Redraws from the copy already in memory so a name
     // appears or goes the moment it is clicked.
     function renderSevaTeamRoster_(team) {
       const list = $('seva-team-roster');
       list.replaceChildren();
-      const members = Array.isArray(team.roster) ? team.roster : [];
+      const members = sortRoster_(Array.isArray(team.roster) ? team.roster : []);
       if (!members.length) {
         list.appendChild(createElement('div', 'travel-empty', '-- Nobody yet --'));
         return;
@@ -6829,6 +6907,10 @@
         row.appendChild(createElement('span', 'volunteer-number', String(index + 1)));
         const who = createElement('div', 'volunteer-who');
         who.appendChild(createElement('span', 'volunteer-name', member.name || 'Unnamed Guest'));
+        if (member.isCoordinator) {
+          row.classList.add('is-coordinator');
+          who.appendChild(createBadge('Coordinator', 'badge-coordinator'));
+        }
         who.appendChild(createElement('span', 'volunteer-type', member.personType || ''));
         // A membership can be left outside its team's dates afterwards, by an
         // edit to the team or to this guest's own visit, so the roster says so
@@ -6842,12 +6924,46 @@
           who.appendChild(warn);
         }
         row.appendChild(who);
+
+        const actions = createElement('div', 'volunteer-actions');
+        const mark = createElement('label', 'checkbox-label coordinator-label');
+        const box = createElement('input', 'checkbox-input coordinator-input');
+        box.type = 'checkbox';
+        box.checked = member.isCoordinator === true;
+        box.addEventListener('change', () =>
+          setTeamCoordinatorAction_(member.membershipId, team.teamId, box.checked));
+        mark.appendChild(box);
+        mark.appendChild(createElement('span', '', 'Mark Coordinator'));
+        actions.appendChild(mark);
+
         const remove = createElement('button', 'row-btn danger', 'Remove');
         remove.type = 'button';
         remove.addEventListener('click', () => removeTeamMemberAction_(member.membershipId, team.teamId));
-        row.appendChild(remove);
+        actions.appendChild(remove);
+        row.appendChild(actions);
         list.appendChild(row);
       });
+    }
+
+    // Optimistic, like removing a member: the badge appears and the name rises
+    // to the top on the spot, and the box goes back to where it was if the
+    // write is refused.
+    function setTeamCoordinatorAction_(membershipId, teamId, isCoordinator) {
+      const team = (sevaWorkspaceData_.teams || []).find(t => t.teamId === teamId);
+      const member = team ? (team.roster || []).find(m => m.membershipId === membershipId) : null;
+      const was = member ? member.isCoordinator === true : false;
+      if (member) {
+        member.isCoordinator = isCoordinator === true;
+        renderSevaLists_();
+      }
+
+      apiCall('setTeamCoordinator', { membershipId, isCoordinator: isCoordinator === true })
+        .then(() => showToast(isCoordinator ? 'Marked as coordinator.' : 'No longer coordinator.', 'success'))
+        .catch(error => handleApiError(error, err => {
+          if (member) member.isCoordinator = was;
+          renderSevaLists_();
+          showToast(`Couldn't change the coordinator: ${getErrorMessage(err)}`, 'error');
+        }));
     }
 
     // Only when that dialog is showing a saved team; there is no roster to

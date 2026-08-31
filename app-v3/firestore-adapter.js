@@ -1599,6 +1599,13 @@ export function createFirestoreBridge(firebaseApp) {
         const checked = checkMember(guest.id, view);
         return {
           guestId: guest.id, membershipId: member.id, name: guest.name, personType: guest.personType,
+          // The role, and the two facts a reader needs to put the roster back
+          // into the order people joined it. Firestore hands documents back in
+          // id order, which for a membership is the team and guest ids, so the
+          // sequence is the caller's to restore rather than something to trust.
+          isCoordinator: member.isCoordinator === true,
+          order: Number(member.order) || 0,
+          addedMs: millis(member.createdAt) || 0,
           blockReason: (checked && checked.reason) || "", blockLabel: (checked && checked.label) || ""
         };
       }).filter(Boolean);
@@ -2953,9 +2960,17 @@ export function createFirestoreBridge(firebaseApp) {
     const existing = canonical.teamMemberships.find(item => item.guestId === guest.id && item.teamId === team.id);
     if (existing) return { membershipId: existing.id, guestId: guest.id, teamId: team.id };
     const id = `${team.id}--${guest.id}`;
+    // One past the highest number on the team, not one past the count of it.
+    // Counting gives the same number twice once anybody has been removed --
+    // three members numbered 1, 2, 3, remove the second, and the next joiner
+    // is numbered 3 as well -- and two members sharing a number is how a
+    // roster starts reordering itself behind your back.
+    const nextOrder = canonical.teamMemberships
+      .filter(item => item.teamId === team.id)
+      .reduce((top, item) => Math.max(top, Number(item.order) || 0), 0) + 1;
     const batch = writeBatch(db);
     batch.set(doc(db, "teamMemberships", id), {
-      guestId: guest.id, teamId: team.id, order: (canonical.teamMemberships.filter(item => item.teamId === team.id).length + 1),
+      guestId: guest.id, teamId: team.id, order: nextOrder, isCoordinator: false,
       createdAt: serverTimestamp(), createdBy: actor, updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
     await writeAuditBatch(batch, actor, "teamMembership", id, "create", ["guestId", "teamId"]);
@@ -2975,6 +2990,25 @@ export function createFirestoreBridge(firebaseApp) {
     await batch.commit();
     invalidate();
     return { membershipId: id, deleted: true };
+  }
+
+  // Coordinating is a role within one team, not a property of the guest, so
+  // it lives on the membership: the same person can coordinate one team and
+  // simply volunteer on another. Nothing here limits a team to one -- a large
+  // seva often has two people sharing it, and refusing the second would only
+  // send that fact somewhere the app cannot see it.
+  async function setTeamCoordinator(membershipId, isCoordinator) {
+    const actor = ensureApproved();
+    const id = clean(membershipId, 220);
+    const reference = doc(db, "teamMemberships", id);
+    if (!(await getDoc(reference)).exists()) throw new Error("This membership no longer exists.");
+    const flag = isCoordinator === true;
+    const batch = writeBatch(db);
+    batch.update(reference, { isCoordinator: flag, updatedAt: serverTimestamp(), updatedBy: actor });
+    await writeAuditBatch(batch, actor, "teamMembership", id, "update", ["isCoordinator"]);
+    await batch.commit();
+    invalidate();
+    return { membershipId: id, isCoordinator: flag };
   }
 
   async function upsertSpecificSeva(payload) {
@@ -4258,6 +4292,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "deleteSevaTeam") return deleteSevaTeam(extra.teamId);
       if (action === "addTeamMember") return addTeamMember(extra.guestId, extra.teamId);
       if (action === "removeTeamMember") return removeTeamMember(extra.membershipId);
+      if (action === "setTeamCoordinator") return setTeamCoordinator(extra.membershipId, extra.isCoordinator);
       if (action === "upsertSpecificSeva") return upsertSpecificSeva(extra.payload || {});
       if (action === "deleteSpecificSeva") return deleteSpecificSeva(extra.sevaId);
       if (action === "saveTrip") return saveTrip(extra.payload || {});
