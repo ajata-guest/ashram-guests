@@ -3077,22 +3077,12 @@
       .zone-description { display: none; }
       .workspace-card { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 13px 12px 13px 16px; }
       .ws-info { padding-left: 50px; }
-      /* Every card's figures close up on a phone, so the row keeps to one line
-         and the 50px indent above can stay on all five. It used to tighten
-         only cards with four figures, which missed two others: Meals has three
-         but each carries a breakdown beneath it, and Seva's three have the
-         longest labels of any card — measured at 360px that row had exactly
-         nought pixels to spare, and wrapped the moment a count reached two
-         digits. What crowds a row is how wide the figures are, not how many,
-         and no selector can know that in advance, so they all tighten.
-         At 360px this leaves the four-figure row 28px to spare on a normal
-         day and 11 on a busy one, and it still fits with every figure at two
-         digits. The roomier cards simply gain more room. */
-      .workspace-card .ws-stats { gap: 8px 8px; }
-      .workspace-card .ws-stat { gap: 3px; }
-      .workspace-card .ws-stat-label { font-size: 0.68rem; }
-      .workspace-card .ws-stat-value { font-size: 0.95rem; }
-      .workspace-card .ws-stat-detail { font-size: 0.62rem; }
+      /* On a phone the figures close up, so the row keeps to one line and the
+         50px indent above can stay on every card. Spacing only here — the type
+         is untouched, so a 412px phone reads exactly as it did, with 32px to
+         spare on its busiest card instead of the 4px it had before. */
+      .workspace-card .ws-stats { gap: 9px 10px; }
+      .workspace-card .ws-stat { gap: 4px; }
       .modal-content { padding: 20px 16px; }
       /* Tight enough that a visit's five pills fit a phone outright, so the
          row only has to slide in the add-a-guest flow, where a sixth joins
@@ -3111,13 +3101,33 @@
          125px a row against 64px here, and with four such rows that was most
          of the modal's scroll. The pair reads as date-then-time on its own
          (the time field carries a clock icon), same as desktop, so neither
-         needs its own caption. Verified no clipping down to 320px. */
+         needs its own caption.
+         minmax(0, 1fr), not 1fr: a bare 1fr is minmax(auto, 1fr), and auto
+         will not go below a column's min-content — which for a native date
+         input is about 162px. Two of those plus the gap needed 333px inside a
+         294px dialog, so on a 360px phone the second field was cut off at the
+         dialog's edge, calendar button and all, and could not be opened. */
       .date-time-row {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 8px;
       }
     }
 
+
+    /* Below this the spacing above is no longer enough — measured on a 360px
+       phone the four-figure row was still 2px over — so the figures give up a
+       little size as well. Kept to the narrowest phones: at 412px the row has
+       room to spare without it, and shrinking type nobody needs shrunk is how
+       a screen ends up harder to read than it was.
+       At 360px this leaves that row 28px spare on a normal day and 11 on a
+       busy one, so every card holds one line and keeps its indent. */
+    @media (max-width: 400px) {
+      .workspace-card .ws-stats { gap: 8px 8px; }
+      .workspace-card .ws-stat { gap: 3px; }
+      .workspace-card .ws-stat-label { font-size: 0.68rem; }
+      .workspace-card .ws-stat-value { font-size: 0.95rem; }
+      .workspace-card .ws-stat-detail { font-size: 0.62rem; }
+    }
     /* The 50px indent aligns every card's figures under its title, past the
        icon. Four figures used to give it up below this width — the row could
        not hold both — but closing the row up above buys the space back, so the
@@ -3283,7 +3293,10 @@
     .meal-weekday { display:flex; min-height:38px; align-items:center; justify-content:center; border:1px solid #3a3a3a; border-radius:7px; background:#242424; color:var(--muted); cursor:pointer; font-size:.76rem; }
     .meal-weekday input { position:absolute; opacity:0; pointer-events:none; }
     .meal-weekday:has(input:checked) { border-color:rgba(113,217,157,.6); background:rgba(113,217,157,.13); color:#8ae5af; }
-    .meal-choice-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    /* minmax(0,1fr), not 1fr: the three labels have a min-content width of
+       their own, and a bare 1fr will not shrink below it, so on a 360px phone
+       Dinner ran 18px past the dialog edge. */
+    .meal-choice-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
     .meal-choice-grid .checkbox-label { margin:0; padding:11px; border:1px solid #3b3b3b; border-radius:8px; background:#252525; }
     .meal-editor-footer { display:grid; grid-template-columns:minmax(0,3fr) minmax(90px,1fr); gap:10px; }
     .meal-editor-footer > * { width:100%; margin:0; }
