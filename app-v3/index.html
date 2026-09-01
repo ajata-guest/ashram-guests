@@ -6327,8 +6327,10 @@
         description: 'Event teams, members and individual seva',
         stats: s => [
           { value: s.seva.activeTeams, label: 'active teams' },
-          { value: s.seva.activeTeamMembers, label: 'members' },
-          { value: s.seva.activeSpecificSeva, label: 'active seva' }
+          { value: s.seva.activeSpecificSeva, label: 'active seva' },
+          // People, not commitments: somebody on two teams counts once. The
+          // same figure the workspace's Volunteers tile shows.
+          { value: s.seva.volunteers, label: 'volunteers' }
         ],
         quiet: s => (s.seva.startingSoon ? `${s.seva.startingSoon} team${s.seva.startingSoon === 1 ? '' : 's'} not started yet` : '')
       },
@@ -6519,11 +6521,12 @@
 
       renderSummaryTiles_($('seva-summary'), [
         { value: teams.filter(t => t.status === 'Seva active').length, label: 'ACTIVE TEAMS' },
-        { value: teams.filter(t => t.status === 'Seva not started').length, label: 'NOT STARTED' },
         { value: tasks.filter(t => t.status === 'Seva active').length, label: 'ACTIVE SEVA' },
-        // Teams as well as tasks, now that a team can be dateless too. A tile
-        // that says DATES NOT SET and then leaves half of them out is worse
-        // than no tile.
+        // How many people have signed up, counted once each however many
+        // teams and tasks they are on, and only for seva that has not
+        // finished. Computed by the adapter so this tile and the homepage
+        // card are the same number rather than two that agree by habit.
+        { value: sevaWorkspaceData_.volunteers || 0, label: 'VOLUNTEERS' },
         { value: teams.filter(t => t.status === 'Seva dates not set').length
             + tasks.filter(t => t.status === 'Seva dates not set').length,
           label: 'DATES NOT SET', attention: true }

@@ -974,6 +974,27 @@ function sevaBlockLabel(facts) {
   return `Not here for these dates — arrives ${facts.arrivalDate}`;
 }
 
+// How many people have put their name down for seva — not how many
+// commitments exist. One person counts once however many teams and tasks they
+// are on, which is the difference between this and the membership count it
+// replaces: somebody on two teams was two members and is one volunteer.
+//
+// Anything unfinished counts. A seva starting next week is as much an
+// enrolment as one running today, and a team whose dates are not set yet is
+// still somebody's name on a list. Only what is over drops out.
+//
+// Takes plain { guestId, status } pairs so the homepage, which walks guests,
+// and the workspace, which walks teams, can both reach it without either one
+// reshaping itself around the other.
+function countSevaVolunteers(entries) {
+  const people = new Set();
+  (entries || []).forEach(entry => {
+    if (!entry || !entry.guestId || entry.status === "Seva completed") return;
+    people.add(entry.guestId);
+  });
+  return people.size;
+}
+
 // Whether a volunteer belongs on a team is a fact about the pairing, not
 // about either one alone, so it is derived wherever a roster is read rather
 // than trusted from the moment the member was added. That check can be
@@ -1226,7 +1247,7 @@ function homeSummary(canonical, records) {
       exceptionCount: todayMeals.exceptionCount
     },
     meetings: { today: 0, upcoming: 0, needsCompletion: 0 },
-    seva: { activeTeams: 0, activeTeamMembers: 0, activeSpecificSeva: 0, startingSoon: 0 },
+    seva: { activeTeams: 0, volunteers: 0, activeSpecificSeva: 0, startingSoon: 0 },
     trips: { active: 0, upcoming: 0, needingTravel: 0 }
   };
   // Counted over every live visit, not one per guest, and from the same visit
@@ -1259,7 +1280,7 @@ function homeSummary(canonical, records) {
     }
   });
 
-  const activeTeams = new Set(), futureTeams = new Set();
+  const activeTeams = new Set(), futureTeams = new Set(), sevaEntries = [];
   records.forEach(record => {
     if (record.priorityReasons.length) result.directory.needsAttention += 1;
     const visit = record.visit;
@@ -1272,16 +1293,17 @@ function homeSummary(canonical, records) {
       else if (meeting.date < today) result.meetings.needsCompletion += 1;
       else result.meetings.upcoming += 1;
     });
-    let activeMember = false;
     record.sevaTeams.forEach(team => {
-      if (team.status === "Seva active") { activeTeams.add(team.teamId); activeMember = true; }
+      if (team.status === "Seva active") activeTeams.add(team.teamId);
       if (team.status === "Seva not started") futureTeams.add(team.teamId);
+      sevaEntries.push({ guestId: record.guestId, status: team.status });
     });
-    if (activeMember) result.seva.activeTeamMembers += 1;
+    record.specificSeva.forEach(task => sevaEntries.push({ guestId: record.guestId, status: task.status }));
     result.seva.activeSpecificSeva += record.specificSeva.filter(task => task.status === "Seva active").length;
   });
   result.seva.activeTeams = activeTeams.size;
   result.seva.startingSoon = futureTeams.size;
+  result.seva.volunteers = countSevaVolunteers(sevaEntries);
   const legsByTrip = groupBy(canonical.tripTravelLegs, "tripId");
   canonical.trips.map(tripView).forEach(trip => {
     if (trip.status === "Active") result.trips.active += 1;
@@ -1675,7 +1697,13 @@ export function createFirestoreBridge(firebaseApp) {
       const guest = guestsById[task.guestId];
       return guest ? { guestId: guest.id, name: guest.name, personType: guest.personType, ...taskView(task) } : null;
     }).filter(Boolean);
-    return { teams, individualTasks, generatedAt: Date.now() };
+    // The same count the homepage shows, from the same function, so the tile
+    // and the card cannot disagree about how many people have signed up.
+    const volunteers = countSevaVolunteers([
+      ...teams.flatMap(team => team.roster.map(member => ({ guestId: member.guestId, status: team.status }))),
+      ...individualTasks.map(task => ({ guestId: task.guestId, status: task.status }))
+    ]);
+    return { teams, individualTasks, volunteers, generatedAt: Date.now() };
   }
 
   async function tripsWorkspace() {
