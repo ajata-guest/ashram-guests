@@ -9020,12 +9020,23 @@
 
       // Said on the card rather than left to the tab, so somebody missing
       // from Residing can be found and understood in one place.
-      (visit.awayPeriods || []).forEach(period => {
-        const current = visitAwayOn_(visit, todayDateKey_());
-        const line = createDetailLine('icon-flight', describeAwayPeriod_(period));
-        if (current && current.from === period.from) line.classList.add('is-away-now');
-        card.appendChild(line);
-      });
+      //
+      // Only while it still answers that question. A finished absence explains
+      // nothing about where somebody is today, and on a residency — which
+      // never ends — they accumulated a line apiece until the card was mostly
+      // history. The record is untouched: every one of them stays in the
+      // visit editor's Away section and in the resident's meal plan.
+      const today = todayDateKey_();
+      const current = visitAwayOn_(visit, today);
+      (visit.awayPeriods || [])
+        // No last day means nobody knows when they are back, so it is running
+        // now — never history.
+        .filter(period => !period.to || period.to >= today)
+        .forEach(period => {
+          const line = createDetailLine('icon-flight', describeAwayPeriod_(period));
+          if (current && current.from === period.from) line.classList.add('is-away-now');
+          card.appendChild(line);
+        });
 
       if (!residency) {
         if (!visit.arrivalMs) outstanding.push({ label: 'Arrival date not set', badgeClass: 'badge-action' });
