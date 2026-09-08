@@ -9091,8 +9091,12 @@
 
       if (outstanding.length) card.appendChild(badgeRow_(outstanding));
 
-      appendTransportDetails_(card, visit);
-      appendJourneys_(card, visit);
+      // Worked out once for the whole card: both blocks need the same answer,
+      // and the line beneath them only makes sense if they agreed.
+      const travelParty = visitTravelParty_(visit);
+      appendTransportDetails_(card, visit, travelParty);
+      appendJourneys_(card, visit, travelParty);
+      appendTravelParty_(card, travelParty);
 
       return card;
     }
@@ -9267,7 +9271,7 @@
 
     // Cabs render like travel legs: the badge says what still needs doing, the
     // line underneath says what the journey actually is.
-    function appendTransportDetails_(card, visit) {
+    function appendTransportDetails_(card, visit, party) {
       if (!visit.pickupRequired && !visit.dropoffRequired) return;
 
       const entries = [];
@@ -9290,7 +9294,7 @@
         const row = createElement('div', 'detail-line');
         row.appendChild(createIcon_('icon-car'));
         const text = createElement('span', null,
-          entry.detail ? `${entry.name} · ${entry.detail}` : entry.name);
+          (entry.detail ? `${entry.name} · ${entry.detail}` : entry.name) + withClause_(entry.companions, party));
         text.appendChild(createBadge(entry.stateLabel, `${entry.badgeClass} journey-badge`));
         row.appendChild(text);
         stack.appendChild(row);
@@ -9344,12 +9348,13 @@
       if (dateValue) parts.push(formatCabScheduleText_(dateValue, timeValue));
       else if (location) parts.push('Date not set');
       // A shared car says so, exactly as a shared journey does. Without it the
-      // same cab shows on two people's cards looking like two bookings.
+      // same cab shows on two people's cards looking like two bookings. The
+      // names are handed back rather than written into the line: when every
+      // journey shares the same party the card names it once instead.
       const names = ((isPickup ? visit.pickupCompanions : visit.dropoffCompanions) || [])
         .map(item => item.name).filter(Boolean);
-      if (names.length) parts.push(`with ${listPeople_(names)}`);
 
-      return { label, stateLabel, badgeClass, name, detail: parts.join(' · ') };
+      return { label, stateLabel, badgeClass, name, companions: names, detail: parts.join(' · ') };
     }
 
     // A visit's legs, grouped into journeys. Two rows per leg is what made a
@@ -9458,24 +9463,67 @@
           : 'badge-travel-action';
       }
 
+      // Handed back rather than written into the line, so a card whose
+      // journeys all share the same party can name it once beneath them.
       const names = [...new Set(legs.flatMap(leg => (leg.companions || []).map(item => item.name)))]
         .filter(Boolean);
       return {
         iconId: getTravelIconId(legs[0].transportType),
-        text: `${label} · ${route}${names.length ? ` · with ${listPeople_(names)}` : ''}`,
+        text: `${label} · ${route}`,
+        companions: names,
         status,
         badgeClass
       };
     }
 
-    function appendJourneys_(card, visit) {
+
+    // The set of people a visit shares its travel with, when every shared
+    // journey shares it with the same set.
+    //
+    // A party is a fact about the group, but it is stored per journey, so a
+    // group of four arriving and leaving together had its three companions
+    // named on the pickup, again on the drop-off and again on the return:
+    // 408 characters of names on a card where 128 says the same thing. When
+    // the lists agree the card names them once and the journey lines say only
+    // what the journey is. When they do not, because one of them flies home
+    // alone, there is no single party, every line keeps its own "with", and
+    // the exception still reads correctly.
+    //
+    // Sorted before comparing: the same four people can arrive in a different
+    // order on each leg, and that is not a different party.
+    function visitTravelParty_(visit) {
+      const lists = [];
+      if (visit.pickupRequired) lists.push((visit.pickupCompanions || []).map(item => item.name).filter(Boolean));
+      if (visit.dropoffRequired) lists.push((visit.dropoffCompanions || []).map(item => item.name).filter(Boolean));
+      visitJourneys_(visit).forEach(journey => lists.push(journey.companions || []));
+      const shared = lists.filter(list => list.length);
+      // One shared journey names its companions inline; it is the repetition
+      // across several that earns a line of its own.
+      if (shared.length < 2) return null;
+      const key = list => [...list].sort().join(' ');
+      const first = key(shared[0]);
+      if (!shared.every(list => key(list) === first)) return null;
+      return [...shared[0]];
+    }
+    // party is the set every shared journey on this card travels with, or
+    // null when they differ. Named once beneath the block in the first case,
+    // inline on each line in the second.
+    function withClause_(names, party) {
+      return (!party && names && names.length) ? ` · with ${listPeople_(names)}` : '';
+    }
+
+    function appendTravelParty_(card, party) {
+      if (!party || !party.length) return;
+      card.appendChild(createDetailLine('icon-people', `Travelling with ${listPeople_(party)}`));
+    }
+    function appendJourneys_(card, visit, party) {
       const journeys = visitJourneys_(visit);
       if (!journeys.length) return;
       const stack = createElement('div', 'travel-stack');
       journeys.forEach(journey => {
         const row = createElement('div', 'detail-line');
         row.appendChild(createIcon_(journey.iconId));
-        const text = createElement('span', null, journey.text);
+        const text = createElement('span', null, journey.text + withClause_(journey.companions, party));
         text.appendChild(createBadge(journey.status, `${journey.badgeClass} journey-badge`));
         row.appendChild(text);
         stack.appendChild(row);
