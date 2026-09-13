@@ -3266,7 +3266,32 @@
        header's day cells snap to device pixels and the lane's gradient stops
        round separately; at a fractional width the two drift apart, and by the
        fortieth column the hairlines no longer line up with the dates. */
-    .staymap { display: flex; margin: 0 0 20px; gap: 12px; flex-direction: column; }
+    /* Shaped like the primary button beside it, in the quieter outline the
+       secondary actions use: same height, same padding, same icon size, so the
+       two read as a pair rather than as a button and an afterthought. */
+    .staymap-toggle {
+      display: inline-flex;
+      padding: 9px 15px;
+      gap: 7px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface-raised);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .staymap-toggle .icon { width: 17px; height: 17px; margin: 0; flex: none; }
+    .staymap-toggle:hover { border-color: #4a4a4a; background: var(--surface-hover); }
+    .staymap-toggle[aria-pressed="true"] {
+      border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      color: var(--accent);
+    }
+
+    .staymap { display: flex; margin: 0 0 20px; gap: 14px; flex-direction: column; }
 
     .staymap-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .staymap-bar .staymap-range { margin-left: 4px; color: var(--subtle); font-size: 0.8rem; }
@@ -3312,9 +3337,30 @@
     }
 
     .sm-rows { position: relative; }
-    .sm-row { min-height: var(--sm-row-h); border-bottom: 1px solid #262626; }
+    .sm-row { min-height: var(--sm-row-h); border-bottom: 1px solid #232323; }
     .sm-row:last-of-type { border-bottom: 0; }
-    .sm-row.is-selected { background: rgba(111, 186, 240, 0.07); }
+    /* Banding across a wide chart: without it the eye loses the line between a
+       name on the left and its bar three hundred pixels to the right. */
+    .sm-row:nth-child(even) .sm-lane { background-color: rgba(255, 255, 255, 0.012); }
+    .sm-row:nth-child(even) .sm-cell { background: #212121; }
+    .sm-row.is-selected .sm-cell { background: #26313a; }
+    .sm-row.is-selected .sm-lane { background-color: rgba(111, 186, 240, 0.07); }
+
+    /* Where the list crosses from the stays the ashram has to arrange to the
+       ones it does not. Sticky on the left so the label stays put when the
+       timeline is scrolled away from it. */
+    .sm-band {
+      display: flex;
+      position: sticky;
+      left: 0;
+      gap: 10px;
+      align-items: baseline;
+      width: max-content;
+      max-width: 100vw;
+      padding: 12px 10px 6px;
+    }
+    .sm-band-title { color: var(--muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .sm-band-note { color: var(--subtle); font-size: 0.72rem; }
 
     /* flex: 0 0 — never 1 1 auto. One long name on an auto-width cell widens
        that row alone and puts it out of step with every other row and with the
@@ -3391,27 +3437,55 @@
        departure day, which is the hotel convention and makes a bar's length
        exactly its number of nights. */
     .sm-bar {
+      /* Flex, not a bare block: a button lays its content out in an anonymous
+         box of its own, and the sticky label below came out twenty-one pixels
+         adrift of the bar it belongs to. Flex places it exactly. */
+      display: flex;
+      align-items: center;
       position: absolute;
       top: 50%;
       left: calc((var(--a) + 0.5) * var(--sm-day-w));
-      width: max(calc((var(--b) - var(--a)) * var(--sm-day-w)), 22px);
+      width: max(calc((var(--b) - var(--a)) * var(--sm-day-w)), 24px);
       height: var(--sm-bar-h);
       /* margin-top rather than translateY: sixty transformed boxes inside a
          scroll container is sixty candidate compositor layers on a phone, and
          a transform on a bar would also make it a containing block. */
       margin-top: calc(var(--sm-bar-h) / -2);
-      padding: 0 8px;
-      border-radius: 999px;
-      background: var(--sm-bar-bg, rgba(111, 186, 240, 0.25));
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.06)),
+        var(--sm-bar-bg, rgba(111, 186, 240, 0.25));
       color: var(--sm-bar-ink, #cfe6f8);
       box-shadow: inset 0 0 0 1px var(--sm-bar-edge, rgba(111, 186, 240, 0.5));
+      font: inherit;
+      /* No overflow here, deliberately. An ancestor that clips becomes the
+         scroll container for a sticky descendant, and with overflow:hidden on
+         the bar the label below stuck to the bar instead of to the viewport —
+         which is to say it did not stick at all. The label clips itself. */
+      cursor: pointer;
+      transition: box-shadow 0.14s ease;
+    }
+    .sm-bar:hover { box-shadow: inset 0 0 0 1px var(--sm-bar-edge, rgba(111, 186, 240, 0.5)), 0 0 0 1px rgba(255, 255, 255, 0.18); }
+
+    /* The label rides with the scroll instead of sitting at the far end of the
+       bar. A stay of eighty-eight nights is mostly off-screen, and its room
+       name was off-screen with it — you could see that somebody was here all
+       month and not where they were sleeping. Pinned just clear of the frozen
+       columns, and clamped to its own bar, so it leaves with the stay. */
+    .sm-bar-label {
+      position: sticky;
+      left: calc(var(--sm-left-w) + 8px);
+      flex: 0 1 auto;
+      padding: 0 9px;
+      max-width: 100%;
       font-size: 0.72rem;
       font-weight: 600;
-      line-height: var(--sm-bar-h);
+      line-height: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      cursor: pointer;
     }
     .sm-bar:focus-visible { outline: 2px solid var(--salmon); outline-offset: 1px; }
     /* Squared off with a chevron where the stay runs past the window. */
@@ -3445,7 +3519,23 @@
     .sm-overlay { position: absolute; z-index: 1; inset: 0; left: var(--sm-left-w); pointer-events: none; }
     .sm-overlay > i { position: absolute; top: 0; bottom: 0; left: calc(var(--i) * var(--sm-day-w)); }
     .sm-month-rule { width: 1px; background: #3a3a3a; }
-    .sm-today-band { width: var(--sm-day-w); background: rgba(250, 128, 114, 0.09); border-left: 1px solid rgba(250, 128, 114, 0.5); }
+    /* Today reads as a line through the chart rather than a tinted day, so it
+       is findable at a glance without competing with the bars for colour. */
+    .sm-today-band {
+      width: var(--sm-day-w);
+      background: linear-gradient(90deg, rgba(250, 128, 114, 0.16), rgba(250, 128, 114, 0.05));
+      border-left: 2px solid var(--salmon);
+    }
+    .sm-day.today { position: relative; }
+    .sm-day.today::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--salmon);
+    }
 
     .staymap-empty { padding: 28px 16px; color: var(--subtle); text-align: center; }
 
@@ -4190,8 +4280,8 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="accommodation-search" placeholder="Search visits..." aria-label="Search visits"></div>
-          <button id="accommodation-view-toggle" class="row-btn staymap-toggle" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="accommodation-view-label">Stay Map</span></button>
           <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Visit</span><span class="action-label-compact">Add</span></button>
+          <button id="accommodation-view-toggle" class="staymap-toggle" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="accommodation-view-label">Stay Map</span></button>
         </div>
       </div>
       <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
@@ -9137,12 +9227,24 @@
         .map(allocation => allocation.room);
     }
 
+    // Who the ashram is housing, in the order it has to think about them:
+    // its own rooms first, then the stays it booked elsewhere, then guests who
+    // made their own arrangements and need nothing from it.
+    function stayMapBand_(visit) {
+      if (visit.accommodation === 'Outside - Self-arranged' || visit.accommodation === 'No overnight stay') return 1;
+      return 0;
+    }
+
     function stayMapRows_(visits, fromKey, toKey) {
       return visits
         .filter(visit => stayMapIncludes_(visit, fromKey, toKey))
         .sort((a, b) => {
-          // Residencies last: an arriving guest is the thing you are looking
-          // for, and someone who lives here is the backdrop to it.
+          // Self-arranged stays sit below a divider: they are on the map so a
+          // date is not a mystery, not because the ashram has to act on them.
+          const byBand = stayMapBand_(a) - stayMapBand_(b);
+          if (byBand) return byBand;
+          // Residencies last within their band: an arriving guest is what you
+          // came to look at, and someone who lives here is the backdrop to it.
           const aOngoing = isResidencyStay_(a) ? 1 : 0;
           const bOngoing = isResidencyStay_(b) ? 1 : 0;
           if (aOngoing !== bOngoing) return aOngoing - bOngoing;
@@ -9162,11 +9264,34 @@
       return staymapAnchor_ || stayMapMonthOf_(getAppDateKey(Date.now()));
     }
 
+    // Worded the way the rest of the app words it — the stored values carry a
+    // hyphen that no screen elsewhere shows.
+    const STAYMAP_ACCOMMODATION_WORDS_ = Object.freeze({
+      'Outside - Arranged by Ashram': 'Outside · Arranged by the ashram',
+      'Outside - Self-arranged': 'Outside · Self-arranged',
+      'No overnight stay': 'No overnight stay',
+      'TBD': 'Accommodation not decided'
+    });
+
     function stayMapRoomSummary_(visit) {
       const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
-      if (visit.accommodation && visit.accommodation !== 'Ashram') return visit.accommodation;
+      if (visit.accommodation && visit.accommodation !== 'Ashram') {
+        return STAYMAP_ACCOMMODATION_WORDS_[visit.accommodation] || visit.accommodation;
+      }
       if (!rooms.length) return 'Room not assigned';
       return rooms.join(' & ');
+    }
+
+    // The bar has a fraction of the accommodation column's width, so the room
+    // label loses the word that is the same on every one of them. The column
+    // beside it still carries the full name, and so does the detail panel.
+    function stayMapBarLabel_(visit) {
+      if (visit.accommodation === 'Outside - Self-arranged') return 'Self-arranged';
+      if (visit.accommodation === 'Outside - Arranged by Ashram') return 'Arranged outside';
+      if (visit.accommodation === 'No overnight stay') return 'No overnight stay';
+      const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
+      if (!rooms.length) return 'Room not assigned';
+      return rooms.map(room => room.replace(/\s*-\s*Room\s*/i, ' · ')).join(' & ');
     }
 
     function stayMapSharingSummary_(visit) {
@@ -9189,7 +9314,13 @@
       const todayKey = getAppDateKey(Date.now());
       const indexByKey = new Map(days.map((day, index) => [day.key, index]));
       const buildings = accommodationBuildings_().slice().sort((a, b) => a.localeCompare(b));
-      const rows = stayMapRows_(accommodationVisits_, days[0].key, days[days.length - 1].key);
+      // Membership is the month you chose, not the whole rendered span. The
+      // month either side is drawn so a stay can run off the edge rather than
+      // stop at it, but it does not put anyone on the list: a guest who left
+      // in August has no business on September's map, and one arriving in
+      // October belongs to October.
+      const bounds = stayMapMonthBounds_(anchor);
+      const rows = stayMapRows_(accommodationVisits_, bounds.from, bounds.to);
 
       track.style.setProperty('--sm-days', String(days.length));
       // Slides the weekend shading so its pair of columns lands on the first
@@ -9218,7 +9349,18 @@
       fragment.appendChild(head);
 
       const body = createElement('div', 'sm-rows');
-      rows.forEach(visit => body.appendChild(stayMapRow_(visit, days, indexByKey, buildings)));
+      let band = -1;
+      rows.forEach(visit => {
+        const thisBand = stayMapBand_(visit);
+        // The divider is drawn once, where the list crosses from the stays the
+        // ashram is responsible for to the ones it is not.
+        if (thisBand !== band && thisBand === 1) {
+          body.appendChild(stayMapBandHeader_('Outside · self-arranged',
+            'Here for the dates, not for the ashram to arrange'));
+        }
+        band = thisBand;
+        body.appendChild(stayMapRow_(visit, days, indexByKey, buildings));
+      });
 
       // Out of flow so it cannot nudge a bar, and inside the same track so it
       // scrolls with them without a listener.
@@ -9277,13 +9419,33 @@
       return row;
     }
 
+    // The column is narrow and the night count is the part people scan for, so
+    // the year is said once when both ends share it and dropped altogether when
+    // it is this one. "27 Aug → 23 Nov · 88 nights" fits; the long form did not
+    // and was ellipsised away mid-number.
     function stayMapStayLine_(visit) {
       if (isResidencyStay_(visit)) return 'Ongoing residency';
       const nights = stayMapNights_(visit);
-      const from = visit.arrivalDate ? formatDateKeyDisplay(visit.arrivalDate) : '';
-      const to = visit.departureDate ? formatDateKeyDisplay(visit.departureDate) : '';
+      const thisYear = getAppDateKey(Date.now()).slice(0, 4);
+      const sameYear = visit.arrivalDate && visit.departureDate
+        && visit.arrivalDate.slice(0, 4) === visit.departureDate.slice(0, 4);
+      const short = key => formatDateKeyDisplay(key).replace(/ \d{4}$/, '');
+      const withYear = key => formatDateKeyDisplay(key);
+      const from = visit.arrivalDate
+        ? (sameYear || visit.arrivalDate.slice(0, 4) === thisYear ? short(visit.arrivalDate) : withYear(visit.arrivalDate))
+        : '';
+      const to = visit.departureDate
+        ? (visit.departureDate.slice(0, 4) === thisYear ? short(visit.departureDate) : withYear(visit.departureDate))
+        : '';
       const range = to ? `${from} → ${to}` : `${from} →`;
       return nights === null ? range : `${range} · ${nights} night${nights === 1 ? '' : 's'}`;
+    }
+
+    function stayMapBandHeader_(title, note) {
+      const row = createElement('div', 'sm-band');
+      row.appendChild(createElement('span', 'sm-band-title', title));
+      row.appendChild(createElement('span', 'sm-band-note', note));
+      return row;
     }
 
     function stayMapBar_(visit, indices, buildings) {
@@ -9307,11 +9469,10 @@
       }
 
       const sharing = stayMapSharingSummary_(visit);
-      if (sharing && sharing !== 'Private') {
-        const mark = createElement('span', 'sm-bar-share', '◫');
-        bar.appendChild(mark);
-      }
-      bar.appendChild(document.createTextNode(stayMapRoomSummary_(visit)));
+      const label = createElement('span', 'sm-bar-label');
+      if (sharing && sharing !== 'Private') label.appendChild(createElement('span', 'sm-bar-share', '◫'));
+      label.appendChild(document.createTextNode(stayMapBarLabel_(visit)));
+      bar.appendChild(label);
       bar.title = conflicts.length
         ? `${visit.name} · ${conflicts.join(', ')} is double-booked without confirmed sharing`
         : `${visit.name} · ${stayMapRoomSummary_(visit)}`;
