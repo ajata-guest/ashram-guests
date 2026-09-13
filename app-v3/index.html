@@ -5424,6 +5424,11 @@
       // Coalesced to one frame and passive, so a fling costs a string compare
       // per frame rather than a layout read.
       $('staymap-scroll').addEventListener('scroll', () => {
+        // The readout follows the scroll frame by frame; the guest list waits
+        // for it to stop. Restarting the timer on every event means a fling
+        // settles once, at the end, rather than at every month it passes.
+        window.clearTimeout(staymapSettleTimer_);
+        staymapSettleTimer_ = window.setTimeout(stayMapSettle_, 220);
         if (staymapScrollPending_) return;
         staymapScrollPending_ = true;
         window.requestAnimationFrame(() => { staymapScrollPending_ = false; updateStayMapRange_(); });
@@ -9096,6 +9101,7 @@
     let staymapAnchor_ = '';
     let staymapSelected_ = '';
     let staymapScrollPending_ = false;
+    let staymapSettleTimer_ = null;
     let staymapBarState_ = '';
 
     // Stated once in the stylesheet and read back, rather than kept as a
@@ -9577,6 +9583,45 @@
       staymapBarState_ = signature;
       $('staymap-range').textContent =
         `${formatDateKeyDisplay(days[first].key)} – ${formatDateKeyDisplay(days[last].key)}`;
+    }
+
+    // The day at the left edge, which is the same day the range readout counts
+    // from. The middle of the screen was the other candidate and is worse: on
+    // the thirtieth of a month the next one fills most of the view, so pressing
+    // Today would land you on today and then slide the list to next month.
+    function stayMapEdgeKey_() {
+      const scroller = $('staymap-scroll');
+      const days = stayMapDays_(stayMapAnchor_());
+      if (!days.length) return '';
+      const index = Math.round(scroller.scrollLeft / stayMapDayWidth_());
+      return days[Math.min(days.length - 1, Math.max(0, index))].key;
+    }
+
+    // Scrolling into a neighbouring month has to bring that month's guests with
+    // it. Without this the list stayed frozen on whichever month you last
+    // pressed an arrow for: scroll back from August to today and September's
+    // arrivals were simply absent, because the rows were still August's.
+    //
+    // It runs when the scrolling stops, not while it is happening — rows
+    // rearranging under a moving thumb is the thing the anchor exists to
+    // prevent. The day under the middle of the screen is held across the
+    // re-render, so the timeline does not jump when the list changes beneath.
+    function stayMapSettle_() {
+      const edgeKey = stayMapEdgeKey_();
+      const month = stayMapMonthOf_(edgeKey);
+      if (!month || month === stayMapAnchor_()) return;
+      const scroller = $('staymap-scroll');
+      const width = stayMapDayWidth_();
+      // Held across the re-render by the date rather than by the pixel: the
+      // rendered range shifts by a whole month, and months are not all the
+      // same length.
+      const offset = scroller.scrollLeft - (stayMapDays_(stayMapAnchor_()).findIndex(day => day.key === edgeKey) * width);
+      staymapAnchor_ = month;
+      renderStayMap_();
+      const index = stayMapDays_(month).findIndex(day => day.key === edgeKey);
+      if (index >= 0) scroller.scrollLeft = index * width + offset;
+      staymapBarState_ = '';
+      updateStayMapRange_();
     }
 
     function stayMapLeftWidth_() {
