@@ -2014,6 +2014,37 @@
 
     .room-row .custom-select { flex: 1; min-width: 0; }
 
+    /* The room and its controls on one line; the dates, when a stay changes
+       rooms partway through, on a second beneath. */
+    .room-row { flex-direction: column; align-items: stretch; }
+    .room-row-main { display: flex; gap: 8px; align-items: center; }
+    .room-dates-btn {
+      padding: 7px 10px;
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.76rem;
+    }
+    .room-dates-btn:hover { border-color: #4a4a4a; color: var(--text); }
+    .room-dates-btn.is-set { border-color: rgba(111, 186, 240, 0.5); background: rgba(111, 186, 240, 0.12); color: #8fc8ef; }
+    .room-row-dates {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 6px 10px;
+      margin: 8px 0 2px;
+      padding: 10px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #202020;
+    }
+    .room-date-field { display: flex; gap: 4px; flex-direction: column; min-width: 0; }
+    .room-date-field .input-label { margin: 0; }
+    .room-date-hint { grid-column: 1 / -1; color: var(--subtle); font-size: 0.72rem; }
+
     /* No margin of its own: this message only ever appears in place of an
        empty list, so whatever sits above it — a section header or its help
        text — already owns the spacing. Giving it a margin too doubled the gap
@@ -9157,6 +9188,27 @@
       return { from: visit.arrivalDate || '', to: visit.departureDate || '', ongoing: false };
     }
 
+    // A visit broken into the stretches it actually occupies, one per room it
+    // holds for part of the stay. Where no allocation carries dates — which is
+    // most stays, and every one made before rooms could carry them — that is a
+    // single stretch covering the whole visit, exactly as before. A group in
+    // two rooms at once is one stretch too: simultaneous, not sequential.
+    function stayMapSegments_(visit) {
+      const stay = stayMapVisitWindow_(visit);
+      const allocations = Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [];
+      if (!allocations.some(allocation => allocation.from || allocation.to)) {
+        return [{ room: '', window: stay }];
+      }
+      return allocations.map(allocation => ({
+        room: allocation.room,
+        window: {
+          from: allocation.from || stay.from,
+          to: allocation.to || stay.to,
+          ongoing: stay.ongoing && !allocation.from && !allocation.to
+        }
+      }));
+    }
+
     function stayMapIncludes_(visit, fromKey, toKey) {
       if (!visit || visit.cancelled) return false;
       const window = stayMapVisitWindow_(visit);
@@ -9180,9 +9232,10 @@
     // Where the bar starts and stops, in day columns, clamped to what is drawn.
     // A clamp that bit is what earns the chevron: the stay carries on past the
     // edge of the window rather than ending there.
-    function stayMapBarIndices_(visit, days, indexByKey) {
-      if (!days.length) return null;
-      const window = stayMapVisitWindow_(visit);
+    // Takes the window rather than the visit, because a stay that changes
+    // rooms has more than one.
+    function stayMapBarIndices_(window, days, indexByKey) {
+      if (!days.length || !window) return null;
       const lastIndex = days.length;
       if (window.ongoing) return { a: 0, b: lastIndex, continuesLeft: true, continuesRight: true };
       if (!window.from) return null;
@@ -9209,9 +9262,12 @@
       return '';
     }
 
-    function stayMapColourFor_(visit, buildings) {
+    function stayMapColourFor_(visit, buildings, room) {
       if (visit.accommodation && visit.accommodation !== 'Ashram') return STAYMAP_OUTSIDE_COLOUR_;
-      const building = stayMapBuildingOf_(visit);
+      // A named room colours by its own building, so a guest moving between
+      // two buildings changes colour where they moved.
+      const meta = room ? roomMetadataMap.get(room) : null;
+      const building = (meta && meta.building) || stayMapBuildingOf_(visit);
       if (!building) return null;
       const index = buildings.indexOf(building);
       if (index < 0) return null;
@@ -9227,9 +9283,18 @@
       const allocations = Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [];
       return allocations
         .filter(allocation => !allocation.sharedOk)
-        .filter(allocation => visits.some(other => other.visitId !== visit.visitId
-          && Array.isArray(other.rooms) && other.rooms.includes(allocation.room)
-          && accommodationVisitsOverlap_(visit, other)))
+        // Segment against segment: handing a room over on the tenth is not
+        // two people in it at once, and must not be drawn as one.
+        .filter(allocation => {
+          const mine = visitRoomSegmentWindow_(visit, allocation.room);
+          return visits.some(other => {
+            if (other.visitId === visit.visitId) return false;
+            if (!Array.isArray(other.rooms) || !other.rooms.includes(allocation.room)) return false;
+            const theirs = visitRoomSegmentWindow_(other, allocation.room);
+            if (mine.start === null || theirs.start === null) return false;
+            return mine.start < theirs.end && mine.end > theirs.start;
+          });
+        })
         .map(allocation => allocation.room);
     }
 
@@ -9291,13 +9356,17 @@
     // The bar has a fraction of the accommodation column's width, so the room
     // label loses the word that is the same on every one of them. The column
     // beside it still carries the full name, and so does the detail panel.
+    function stayMapShortRoom_(room) {
+      return String(room || '').replace(/\s*-\s*Room\s*/i, ' · ');
+    }
+
     function stayMapBarLabel_(visit) {
       if (visit.accommodation === 'Outside - Self-arranged') return 'Self-arranged';
       if (visit.accommodation === 'Outside - Arranged by Ashram') return 'Arranged outside';
       if (visit.accommodation === 'No overnight stay') return 'No overnight stay';
       const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
       if (!rooms.length) return 'Room not assigned';
-      return rooms.map(room => room.replace(/\s*-\s*Room\s*/i, ' · ')).join(' & ');
+      return rooms.map(stayMapShortRoom_).join(' & ');
     }
 
     function stayMapSharingSummary_(visit) {
@@ -9416,8 +9485,13 @@
       row.appendChild(acc);
 
       const lane = createElement('div', 'sm-lane');
-      const indices = stayMapBarIndices_(visit, days, indexByKey);
-      if (indices) lane.appendChild(stayMapBar_(visit, indices, buildings));
+      // One bar per stretch the guest is somewhere. A stay in one room for the
+      // whole visit is a single bar, as it always was; a stay that changes
+      // rooms partway through is drawn as the two stretches it actually is.
+      stayMapSegments_(visit).forEach(segment => {
+        const indices = stayMapBarIndices_(segment.window, days, indexByKey);
+        if (indices) lane.appendChild(stayMapBar_(visit, segment, indices, buildings));
+      });
       row.appendChild(lane);
 
       // Selecting the row explains it below; the bar itself opens the editor.
@@ -9454,7 +9528,7 @@
       return row;
     }
 
-    function stayMapBar_(visit, indices, buildings) {
+    function stayMapBar_(visit, segment, indices, buildings) {
       const bar = createElement('button', 'sm-bar');
       bar.type = 'button';
       bar.style.setProperty('--a', String(indices.a));
@@ -9462,8 +9536,11 @@
       if (indices.continuesLeft) bar.classList.add('continues-left');
       if (indices.continuesRight) bar.classList.add('continues-right');
 
-      const conflicts = stayMapConflictRooms_(visit, accommodationVisits_);
-      const colour = stayMapColourFor_(visit, buildings);
+      // A segment names its own room, so two stretches of one stay are
+      // coloured and labelled by where the guest actually was.
+      const conflicts = stayMapConflictRooms_(visit, accommodationVisits_)
+        .filter(room => !segment.room || room === segment.room);
+      const colour = stayMapColourFor_(visit, buildings, segment.room);
       if (conflicts.length) {
         bar.classList.add('is-conflict');
       } else if (!colour) {
@@ -9474,15 +9551,19 @@
         bar.style.setProperty('--sm-bar-ink', colour.ink);
       }
 
-      const sharing = stayMapSharingSummary_(visit);
+      const sharing = segment.room
+        ? (roomSharingPartnersForVisit_(visit, segment.room).length ? 'Shared' : 'Private')
+        : stayMapSharingSummary_(visit);
+      const text = segment.room ? stayMapShortRoom_(segment.room) : stayMapBarLabel_(visit);
       const label = createElement('span', 'sm-bar-label');
       if (sharing && sharing !== 'Private') label.appendChild(createElement('span', 'sm-bar-share', '◫'));
-      label.appendChild(document.createTextNode(stayMapBarLabel_(visit)));
+      label.appendChild(document.createTextNode(text));
       bar.appendChild(label);
       bar.title = conflicts.length
         ? `${visit.name} · ${conflicts.join(', ')} is double-booked without confirmed sharing`
-        : `${visit.name} · ${stayMapRoomSummary_(visit)}`;
-      bar.setAttribute('aria-label', `${visit.name}. ${stayMapStayLine_(visit)}. ${stayMapRoomSummary_(visit)}.`);
+        : `${visit.name} · ${segment.room || stayMapRoomSummary_(visit)}`;
+      bar.setAttribute('aria-label',
+        `${visit.name}. ${stayMapStayLine_(visit)}. ${segment.room || stayMapRoomSummary_(visit)}.`);
       bar.addEventListener('click', event => {
         event.stopPropagation();
         stayMapSelect_(visit.visitId);
@@ -9776,23 +9857,47 @@
     // throughout just reads "Shared with X", while whoever has the room to
     // themselves for part of their stay is told exactly which stretch is
     // shared. Same underlying overlap, two honest descriptions of it.
+    // The window a particular room is held for, which is the allocation's own
+    // dates when it has them and the whole stay when it does not. Mirrors
+    // allocationWindowMs in the adapter: the same question, asked where the
+    // answer is displayed rather than where it is enforced.
+    function visitRoomSegmentWindow_(visit, room) {
+      const stay = visitRoomWindow_(visit);
+      const allocation = (Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [])
+        .find(item => item.room === room);
+      if (!allocation || (!allocation.from && !allocation.to)) return stay;
+      const from = allocation.from ? Date.parse(`${allocation.from}T00:00:00+05:30`) : stay.start;
+      const to = allocation.to ? Date.parse(`${allocation.to}T23:59:59.999+05:30`) : stay.end;
+      return {
+        start: Number.isFinite(from) ? from : stay.start,
+        end: Number.isFinite(to) ? to : stay.end
+      };
+    }
+
     function roomSharingPartnersForVisit_(visit, room) {
-      const mine = visitRoomWindow_(visit);
+      // This guest's window for this room, not for the whole stay: somebody
+      // who moved out of it on the tenth does not share it with whoever moved
+      // in on the eleventh.
+      const mine = visitRoomSegmentWindow_(visit, room);
       const seen = new Set();
       return accommodationVisits_
         .filter(other => other.visitId !== visit.visitId
           && Array.isArray(other.rooms)
-          && other.rooms.includes(room)
-          && accommodationVisitsOverlap_(visit, other))
+          && other.rooms.includes(room))
+        .filter(other => {
+          const theirs = visitRoomSegmentWindow_(other, room);
+          if (mine.start === null || theirs.start === null) return false;
+          return mine.start < theirs.end && mine.end > theirs.start;
+        })
         .map(other => {
           const name = resolveRoomOccupantName(other.name, other.rooms, room);
           if (!name || seen.has(name)) return null;
           seen.add(name);
-          const theirs = visitRoomWindow_(other);
+          const theirs = visitRoomSegmentWindow_(other, room);
           const from = Math.max(mine.start, theirs.start);
           const to = Math.min(mine.end, theirs.end);
-          // Covers this guest's whole stay, so the dates would only repeat
-          // what the card already says above.
+          // Covers the whole time this guest is in this room, so naming the
+          // dates would only repeat what the line above already says.
           const wholeStay = from <= mine.start && to >= mine.end;
           return { name, from, to, wholeStay };
         })
@@ -11535,7 +11640,11 @@
       fillCabCompanions_('dropoff', visit);
 
       $('room-warning').textContent = '';
-      const roomValues = visit && Array.isArray(visit.rooms) ? visit.rooms : [];
+      // From the allocations rather than the bare labels, so a room that is
+      // held for part of the stay comes back with its dates.
+      const roomValues = visit && Array.isArray(visit.roomAllocations) && visit.roomAllocations.length
+        ? visit.roomAllocations.map(allocation => ({ room: allocation.room, from: allocation.from || '', to: allocation.to || '' }))
+        : (visit && Array.isArray(visit.rooms) ? visit.rooms : []);
       setRoomRows(roomValues);
       roomsOriginalForShareCheck = visit && Array.isArray(visit.roomAllocations)
         ? visit.roomAllocations.filter(allocation => allocation.sharedOk).map(allocation => allocation.room)
@@ -11587,7 +11696,7 @@
         selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
         diningSeating: getDiningSeating_(),
         isCformComplete: $('edit-cform').checked,
-        rooms: getRoomRowValues().map(room => ({ roomAllocationId: '', room })),
+        rooms: getRoomRowValues().map(entry => ({ roomAllocationId: '', ...entry })),
         sharedRoomAcks: Array.isArray(sharedRoomAcks) ? sharedRoomAcks : [],
         arrivalDate: $('edit-arrival-date').value,
         arrivalTime: $('edit-arrival-time').value,
@@ -14038,32 +14147,57 @@
       });
     }
 
+    // The dates are folded away by default. Most stays are one room for the
+    // whole visit, and two empty date fields on every row would say otherwise;
+    // they open on their own for an allocation that already has them.
     function createRoomRow() {
       const row = createElement('div', 'room-row');
       row.innerHTML = `
-        <div class="custom-select room-custom-select">
-          <button type="button" class="custom-select-trigger room-trigger" aria-haspopup="listbox" aria-expanded="false">
-            <span class="room-trigger-label">-- Select room --</span>
-            <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+        <div class="room-row-main">
+          <div class="custom-select room-custom-select">
+            <button type="button" class="custom-select-trigger room-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="room-trigger-label">-- Select room --</span>
+              <svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="custom-select-list room-custom-list" role="listbox" aria-label="Room" hidden></div>
+          </div>
+          <select class="edit-input room-select" hidden></select>
+          <button type="button" class="room-dates-btn" aria-expanded="false" title="Set the dates this room is held">Dates</button>
+          <button type="button" class="travel-remove-btn room-remove-btn" aria-label="Remove room">
+            <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
           </button>
-          <div class="custom-select-list room-custom-list" role="listbox" aria-label="Room" hidden></div>
         </div>
-        <select class="edit-input room-select" hidden></select>
-        <button type="button" class="travel-remove-btn room-remove-btn" aria-label="Remove room">
-          <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
-        </button>
+        <div class="room-row-dates" hidden>
+          <label class="room-date-field"><span class="input-label">In this room from</span>
+            <input type="date" class="edit-input room-from"></label>
+          <label class="room-date-field"><span class="input-label">until</span>
+            <input type="date" class="edit-input room-to"></label>
+          <span class="room-date-hint">Leave both blank while the room is held for the whole stay.</span>
+        </div>
       `;
       return row;
     }
 
     function addRoomRowEditor(value = '') {
+      // A bare label still works, as it always did; an object carries the
+      // dates for a stay that moves rooms partway through.
+      const entry = typeof value === 'string' ? { room: value, from: '', to: '' } : (value || {});
       const row = createRoomRow();
       $('room-list').appendChild(row);
       populateRoomRowOptions(row);
-      row.querySelector('.room-select').value = value;
+      row.querySelector('.room-select').value = entry.room || '';
+      row.querySelector('.room-from').value = entry.from || '';
+      row.querySelector('.room-to').value = entry.to || '';
+      if (entry.from || entry.to) setRoomRowDatesOpen_(row, true);
       updateRoomRowTriggerLabel(row);
       syncRoomRowList(row);
 
+      row.querySelector('.room-dates-btn').addEventListener('click', () => {
+        setRoomRowDatesOpen_(row, row.querySelector('.room-row-dates').hidden);
+      });
+      [...row.querySelectorAll('.room-from, .room-to')].forEach(input => {
+        input.addEventListener('change', () => { markModalDirty(); checkRoomAvailability(); });
+      });
       row.querySelector('.room-trigger').addEventListener('click', () => toggleRoomRowList(row));
       row.querySelector('.room-remove-btn').addEventListener('click', () => {
         row.remove();
@@ -14085,10 +14219,20 @@
       updateRoomEmptyState();
     }
 
+    function setRoomRowDatesOpen_(row, open) {
+      row.querySelector('.room-row-dates').hidden = !open;
+      row.querySelector('.room-dates-btn').setAttribute('aria-expanded', String(Boolean(open)));
+      row.querySelector('.room-dates-btn').classList.toggle('is-set', Boolean(open));
+    }
+
     function getRoomRowValues() {
       return [...$('room-list').querySelectorAll('.room-row')]
-        .map(row => row.querySelector('.room-select').value)
-        .filter(Boolean);
+        .map(row => ({
+          room: row.querySelector('.room-select').value,
+          from: row.querySelector('.room-from').value || '',
+          to: row.querySelector('.room-to').value || ''
+        }))
+        .filter(entry => entry.room);
     }
 
     function updateRoomEmptyState() {

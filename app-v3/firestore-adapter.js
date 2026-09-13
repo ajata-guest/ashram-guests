@@ -108,6 +108,27 @@ function timestampFromInput(dateKey, time, endOfDay = false) {
   return Timestamp.fromDate(date);
 }
 
+// When a room allocation is actually occupied.
+//
+// A room used to be held for the whole visit, and most still are: an
+// allocation with no dates of its own means what it has always meant, which is
+// why nothing needed migrating when they gained the option. Dates appear only
+// on a stay where somebody moved rooms partway through, and then each
+// allocation covers its own stretch of it.
+//
+// In milliseconds, because that is what every overlap test in this file
+// already speaks. An open end stays open: a visit with no departure and an
+// allocation with no last day runs on until somebody says otherwise.
+function allocationWindowMs(allocation, visitArrivalMs, visitDepartureMs) {
+  const from = allocation && allocation.fromKey
+    ? millis(timestampFromInput(allocation.fromKey, "", false))
+    : visitArrivalMs;
+  const to = allocation && allocation.toKey
+    ? millis(timestampFromInput(allocation.toKey, "", true))
+    : visitDepartureMs;
+  return { from, to };
+}
+
 function partsInIndia(value) {
   const ms = millis(value);
   if (ms === null) return null;
@@ -810,9 +831,14 @@ function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}, ridesByVis
     updatedBy: visit.updatedBy || null,
     version: versionOf(visit),
     rooms: roomRows.map(row => row.roomLabelSnapshot),
+    // from and to are blank on an allocation held for the whole visit, which
+    // is most of them. A reader that ignores them behaves exactly as it did
+    // before rooms could carry dates.
     roomAllocations: roomRows.map(row => ({
       room: row.roomLabelSnapshot,
-      sharedOk: Boolean(row.sharedOk)
+      sharedOk: Boolean(row.sharedOk),
+      from: row.fromKey || "",
+      to: row.toKey || ""
     })),
     travelLegs: (legsByVisit[visit.id] || [])
       .map(leg => travelView(leg, visit.id, ownerNames))
@@ -2096,13 +2122,20 @@ export function createFirestoreBridge(firebaseApp) {
     );
   }
 
-  const requestedRoomList = (
+  // A room may arrive as a bare label, as it always could, or as
+  // { room, from, to } when the stay moves rooms partway through. Blank dates
+  // mean the whole visit, so the plain form keeps its old meaning exactly.
+  const requestedRoomEntries = (
     Array.isArray(payload.rooms)
       ? payload.rooms
       : []
   )
-    .map(item => clean(item?.room || item, 300))
-    .filter(Boolean);
+    .map(item => (typeof item === "string"
+      ? { room: clean(item, 300), from: "", to: "" }
+      : { room: clean(item?.room, 300), from: clean(item?.from, 20), to: clean(item?.to, 20) }))
+    .filter(entry => entry.room);
+
+  const requestedRoomList = requestedRoomEntries.map(entry => entry.room);
 
   if (new Set(requestedRoomList).size !== requestedRoomList.length) {
     throw new Error("The same room cannot be assigned twice within one visit.");
@@ -2128,6 +2161,31 @@ export function createFirestoreBridge(firebaseApp) {
   requestedRooms.forEach(label => {
     if (!inventoryByLabel[label]) {
       throw new Error(`Unknown room: ${label}`);
+    }
+  });
+
+  const entryByLabel = Object.fromEntries(requestedRoomEntries.map(entry => [entry.room, entry]));
+
+  // A segment has to sit inside the stay it belongs to, and run forwards. A
+  // room held from after the guest leaves is not a room change, it is a typo,
+  // and it would draw a bar outside its own stay on the map.
+  const stayFromMs = millis(arrivalAt);
+  const stayToMs = millis(departureAt);
+  requestedRoomEntries.forEach(entry => {
+    if (entry.from && entry.to && entry.to < entry.from) {
+      throw new Error(`${entry.room} cannot end before it starts.`);
+    }
+    if (!entry.from && !entry.to) return;
+    if (stayFromMs === null) {
+      throw new Error("Set the arrival date before giving a room its own dates.");
+    }
+    const window = allocationWindowMs(
+      { fromKey: entry.from, toKey: entry.to }, stayFromMs, stayToMs);
+    if (window.from !== null && window.from < stayFromMs) {
+      throw new Error(`${entry.room} starts before the guest arrives.`);
+    }
+    if (stayToMs !== null && window.to !== null && window.to > stayToMs) {
+      throw new Error(`${entry.room} runs past the guest's departure.`);
     }
   });
 
@@ -2173,22 +2231,25 @@ export function createFirestoreBridge(firebaseApp) {
         item.roomLabelSnapshot === label
     );
 
+    // Segment against segment, not stay against stay. Two guests can hold the
+    // same room across one fortnight without ever being in it together, if one
+    // moves out on the day the other moves in — and calling that a clash would
+    // force an acknowledgement of sharing that is not happening.
+    const mine = allocationWindowMs(
+      { fromKey: entryByLabel[label]?.from, toKey: entryByLabel[label]?.to },
+      millis(arrivalAt), millis(departureAt));
+
     const occupants = allocationRows.filter(allocation => {
       const other = canonical.visits.find(
         item =>
           item.id === allocation.visitId &&
           !item.isCancelled
       );
+      if (!other) return false;
+      const theirs = allocationWindowMs(
+        allocation, millis(other.arrivalAt), millis(other.departureAt));
 
-      return (
-        other &&
-        overlap(
-          millis(arrivalAt),
-          millis(departureAt),
-          millis(other.arrivalAt),
-          millis(other.departureAt)
-        )
-      );
+      return overlap(mine.from, mine.to, theirs.from, theirs.to);
     });
 
     // Room sleeping capacity is intentionally not a fixed database limit.
@@ -2468,6 +2529,12 @@ export function createFirestoreBridge(firebaseApp) {
           roomId: inventoryItem.roomId,
           roomLabelSnapshot: label,
           order: index + 1,
+
+          // Written as empty strings rather than left off, so an allocation
+          // that used to carry dates and no longer does is actually cleared
+          // instead of keeping the old ones by omission.
+          fromKey: entryByLabel[label]?.from || "",
+          toKey: entryByLabel[label]?.to || "",
 
           sharedOk: Boolean(prior?.sharedOk) || shareAcks.has(label),
 
