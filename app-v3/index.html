@@ -108,6 +108,17 @@
          longer on them being mutually exclusive. */
       --purple-light: color-mix(in srgb, var(--purple) 55%, white);
       --purple-deep: color-mix(in srgb, var(--purple) 70%, black);
+
+      /* Stay Map geometry. Read from JS with getComputedStyle so the day width
+         is stated once; a JS constant beside a CSS one drifts the first time a
+         breakpoint changes. Whole pixels only — see the note by .staymap. */
+      --sm-name-w: 216px;
+      --sm-acc-w: 244px;
+      --sm-day-w: 52px;
+      --sm-row-h: 46px;
+      --sm-head-h: 48px;
+      --sm-bar-h: 26px;
+      --sm-left-w: calc(var(--sm-name-w) + var(--sm-acc-w));
     }
 
     * { box-sizing: border-box; }
@@ -3238,6 +3249,233 @@
     /* Rendered (so showPicker works) but invisible; anchors the picker popup
        to the left of the strip, under the month label. */
     .meal-cal-jump { position:absolute; top:0; left:8px; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
+
+    /* ---- Stay Map -------------------------------------------------------
+       A hotel-style occupancy chart: guests down the left, days across the
+       top, one bar per stay. The card grid says what needs doing about a
+       visit; this says who is here, in which room, with whom, for how long.
+
+       The sizes are custom properties on :root rather than JS constants
+       because handleRouteChange_ calls route.load() before showPage_, so the
+       map is built while its page is still display:none. Anything measured
+       then reads zero. Custom properties resolve without layout, so JS can
+       read the day width at build time and position by arithmetic — the same
+       lesson the meals strip records at scrollMealCalendarToSelected_.
+
+       --sm-day-w must stay a whole number of pixels at every width. The
+       header's day cells snap to device pixels and the lane's gradient stops
+       round separately; at a fractional width the two drift apart, and by the
+       fortieth column the hairlines no longer line up with the dates. */
+    .staymap { display: flex; margin: 0 0 20px; gap: 12px; flex-direction: column; }
+
+    .staymap-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .staymap-bar .staymap-range { margin-left: 4px; color: var(--subtle); font-size: 0.8rem; }
+
+    /* One scroller, owning both axes. Two scrollers kept in step by a scroll
+       listener is the usual way this is built and the usual source of jitter;
+       here the header and the rows are siblings inside a single scrollport, so
+       there is nothing to synchronise. The cost is that the map is a bounded
+       box with its own vertical scroll rather than a page-length list. */
+    .staymap-scroll {
+      max-height: min(72dvh, 760px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: #3a3a3a transparent;
+      /* Deliberately no scroll-behavior: smooth — it makes the browser animate
+         towards every scroll position and fights the momentum of a flick, the
+         same reason .meal-cal-scroll omits it. Today asks for smooth per call. */
+    }
+    .staymap-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+    .staymap-scroll::-webkit-scrollbar-thumb { border-radius: 999px; background: #3a3a3a; }
+    .staymap-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    /* width: max-content is what gives the sticky cells room to travel: their
+       containing block is the row, and the row is as wide as the whole track. */
+    .staymap-track { position: relative; width: max-content; min-width: 100%; }
+
+    .sm-head, .sm-row { display: flex; align-items: stretch; }
+
+    .sm-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      /* A floor, not a fixed height: naming overflow on one axis makes the
+         browser clip the other, so a bar shorter than its contents does not
+         merely look tight, it shaves the tops off the dates. */
+      min-height: var(--sm-head-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sm-rows { position: relative; }
+    .sm-row { min-height: var(--sm-row-h); border-bottom: 1px solid #262626; }
+    .sm-row:last-of-type { border-bottom: 0; }
+    .sm-row.is-selected { background: rgba(111, 186, 240, 0.07); }
+
+    /* flex: 0 0 — never 1 1 auto. One long name on an auto-width cell widens
+       that row alone and puts it out of step with every other row and with the
+       header. A fixed basis and a clipped label is what keeps the columns true.
+       The background must be opaque: the day grid scrolls underneath. */
+    .sm-cell {
+      display: flex;
+      padding: 7px 10px;
+      flex: 0 0 auto;
+      flex-direction: column;
+      gap: 2px;
+      justify-content: center;
+      min-width: 0;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .sm-name { position: sticky; left: 0; z-index: 2; width: var(--sm-name-w); }
+    .sm-acc {
+      position: sticky;
+      left: var(--sm-name-w);
+      z-index: 2;
+      width: var(--sm-acc-w);
+      border-right: 1px solid var(--border);
+    }
+    /* Inside the header's own stacking context, so they only have to beat
+       their siblings — the row's z-index already lifts the pair above the body. */
+    .sm-head .sm-name, .sm-head .sm-acc { z-index: 1; }
+
+    .sm-guest { overflow: hidden; color: var(--text); font-size: 0.86rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .sm-sub { overflow: hidden; color: var(--subtle); font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+    .sm-room { overflow: hidden; color: var(--text); font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
+    .sm-head .sm-cell { color: var(--subtle); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; }
+    .sm-acc-fold { display: none; }
+
+    /* The day grid is painted, not built. A body row holds three nodes rather
+       than ninety-odd, which is the difference between ~360 nodes on this page
+       and ~5,400 — and the cells would carry no content and no handler. */
+    .sm-lane {
+      position: relative;
+      flex: 0 0 auto;
+      width: calc(var(--sm-days) * var(--sm-day-w));
+      background-image:
+        repeating-linear-gradient(to right,
+          rgba(255, 255, 255, 0.03) 0 calc(2 * var(--sm-day-w)),
+          transparent calc(2 * var(--sm-day-w)) calc(7 * var(--sm-day-w))),
+        repeating-linear-gradient(to right,
+          #262626 0 1px, transparent 1px var(--sm-day-w));
+      background-position: calc(var(--sm-weekend-offset, 0) * var(--sm-day-w)) 0, 0 0;
+    }
+    /* Colour only — the shorthand would wipe the gradients above. */
+    .sm-row:hover .sm-lane { background-color: rgba(255, 255, 255, 0.022); }
+
+    .sm-lane-head { display: flex; }
+    .sm-day {
+      display: flex;
+      padding: 6px 0 7px;
+      flex: 0 0 var(--sm-day-w);
+      flex-direction: column;
+      gap: 1px;
+      align-items: center;
+      width: var(--sm-day-w);
+      color: var(--subtle);
+      font-size: 0.66rem;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .sm-day .sm-day-num { color: var(--muted); font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .sm-day.month-start { border-left: 1px solid #3a3a3a; }
+    .sm-day.month-start .sm-day-dow { color: #6fbaf0; font-weight: 700; }
+    .sm-day.weekend .sm-day-num { color: #7e7e7e; }
+    .sm-day.today .sm-day-dow, .sm-day.today .sm-day-num { color: var(--salmon); }
+
+    /* Arrival at midday of the arrival day and departure at midday of the
+       departure day, which is the hotel convention and makes a bar's length
+       exactly its number of nights. */
+    .sm-bar {
+      position: absolute;
+      top: 50%;
+      left: calc((var(--a) + 0.5) * var(--sm-day-w));
+      width: max(calc((var(--b) - var(--a)) * var(--sm-day-w)), 22px);
+      height: var(--sm-bar-h);
+      /* margin-top rather than translateY: sixty transformed boxes inside a
+         scroll container is sixty candidate compositor layers on a phone, and
+         a transform on a bar would also make it a containing block. */
+      margin-top: calc(var(--sm-bar-h) / -2);
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--sm-bar-bg, rgba(111, 186, 240, 0.25));
+      color: var(--sm-bar-ink, #cfe6f8);
+      box-shadow: inset 0 0 0 1px var(--sm-bar-edge, rgba(111, 186, 240, 0.5));
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: var(--sm-bar-h);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .sm-bar:focus-visible { outline: 2px solid var(--salmon); outline-offset: 1px; }
+    /* Squared off with a chevron where the stay runs past the window. */
+    .sm-bar.continues-left { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+    .sm-bar.continues-right { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+    .sm-bar.continues-left::before { content: '‹ '; opacity: 0.75; }
+    .sm-bar.continues-right::after { content: ' ›'; float: right; opacity: 0.75; }
+
+    /* No room yet: a hatch rather than a colour, so it reads as absent rather
+       than as a building nobody recognises. */
+    .sm-bar.is-unassigned {
+      background: repeating-linear-gradient(135deg,
+        rgba(255, 255, 255, 0.07) 0 6px, transparent 6px 12px);
+      color: var(--muted);
+      box-shadow: inset 0 0 0 1px #4a4a4a;
+    }
+    /* Confirmed sharing is a quiet mark, never a warning: it is a decision
+       somebody made, not a problem. A real clash is the warning. */
+    .sm-bar .sm-bar-share { margin-right: 5px; opacity: 0.8; font-weight: 400; }
+    .sm-bar.is-conflict {
+      background: repeating-linear-gradient(135deg,
+        rgba(231, 76, 60, 0.34) 0 7px, rgba(231, 76, 60, 0.16) 7px 14px);
+      color: #ffd9d4;
+      box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.75);
+    }
+
+    /* Out of flow, so it cannot shift a bar by a pixel — which a month divider
+       drawn as a border on a day cell would. It scrolls in lockstep because it
+       lives in the same track, and its z-index puts it above the bars but below
+       the pinned columns, so it is occluded cleanly at the left edge. */
+    .sm-overlay { position: absolute; z-index: 1; inset: 0; left: var(--sm-left-w); pointer-events: none; }
+    .sm-overlay > i { position: absolute; top: 0; bottom: 0; left: calc(var(--i) * var(--sm-day-w)); }
+    .sm-month-rule { width: 1px; background: #3a3a3a; }
+    .sm-today-band { width: var(--sm-day-w); background: rgba(250, 128, 114, 0.09); border-left: 1px solid rgba(250, 128, 114, 0.5); }
+
+    .staymap-empty { padding: 28px 16px; color: var(--subtle); text-align: center; }
+
+    .staymap-detail { padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .staymap-detail-head { display: flex; margin-bottom: 10px; gap: 10px; align-items: baseline; justify-content: space-between; }
+    .staymap-detail-name { color: #fff; font-size: 1.05rem; font-weight: 700; }
+    .staymap-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+    .staymap-detail-block { display: flex; gap: 3px; flex-direction: column; }
+    .staymap-detail-label { color: var(--subtle); font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; }
+    .staymap-detail-value { color: var(--text); font-size: 0.88rem; overflow-wrap: anywhere; }
+
+    .staymap-legend { display: flex; gap: 8px 16px; color: var(--subtle); font-size: 0.72rem; flex-wrap: wrap; }
+    .staymap-legend span { display: inline-flex; gap: 6px; align-items: center; }
+    .staymap-legend i { width: 11px; height: 11px; border-radius: 3px; }
+
+    /* The map gives up width in two steps. At 760 the columns narrow; at 620
+       the accommodation column folds into the guest cell as a third line and
+       its width goes to zero, which keeps every `left:` offset above correct
+       without another rule changing. */
+    @media (max-width: 760px) {
+      :root { --sm-name-w: 176px; --sm-acc-w: 168px; --sm-day-w: 48px; --sm-row-h: 48px; }
+    }
+
+    @media (max-width: 620px) {
+      :root { --sm-name-w: 136px; --sm-acc-w: 0px; --sm-day-w: 44px; --sm-row-h: 60px; }
+      .sm-acc { display: none; }
+      .sm-name { border-right: 1px solid var(--border); }
+      .sm-acc-fold { display: block; overflow: hidden; color: var(--muted); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+      .staymap-scroll { max-height: min(68dvh, 620px); }
+    }
     .meal-overview-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
     .meal-overview-card { padding:15px; border:1px solid #373737; border-radius:10px; background:#202020; color:inherit; text-align:left; cursor:pointer; }
     .meal-overview-card.active { border-color:rgba(113,217,157,.65); background:rgba(113,217,157,.09); box-shadow:inset 3px 0 #71d99d; }
@@ -3952,11 +4190,32 @@
         </div>
         <div class="page-actions">
           <div class="page-search"><input type="search" id="accommodation-search" placeholder="Search visits..." aria-label="Search visits"></div>
+          <button id="accommodation-view-toggle" class="row-btn staymap-toggle" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="accommodation-view-label">Stay Map</span></button>
           <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Visit</span><span class="action-label-compact">Add</span></button>
         </div>
       </div>
       <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
       <div id="accommodation-chips" class="quick-filters" role="group" aria-label="Accommodation filters"></div>
+      <!-- A sibling of the swipe surface, never a child: that surface narrows
+           touch-action to pan-y, which a descendant cannot widen, and it takes
+           an inline transform while rubber-banding — and a transformed ancestor
+           breaks position:sticky in everything beneath it. -->
+      <section id="accommodation-staymap" class="staymap" aria-label="Stay map" hidden>
+        <div class="staymap-bar">
+          <button id="staymap-prev" class="meal-cal-arrow" type="button" aria-label="Previous month">‹</button>
+          <button id="staymap-month" class="meal-cal-month-btn" type="button" aria-label="Choose month"><span id="staymap-month-text">Month</span></button>
+          <button id="staymap-next" class="meal-cal-arrow" type="button" aria-label="Next month">›</button>
+          <button id="staymap-today" class="meal-cal-today-btn" type="button">Today</button>
+          <span id="staymap-range" class="staymap-range"></span>
+          <input type="month" id="staymap-month-input" class="meal-cal-jump" aria-hidden="true" tabindex="-1">
+        </div>
+        <div id="staymap-scroll" class="staymap-scroll" tabindex="0" role="region" aria-label="Occupancy timeline">
+          <div id="staymap-track" class="staymap-track"></div>
+        </div>
+        <div id="staymap-empty" class="staymap-empty" hidden>Nobody with confirmed dates is staying in this period.</div>
+        <div id="staymap-legend" class="staymap-legend"></div>
+        <div id="staymap-detail" class="staymap-detail" hidden></div>
+      </section>
       <div id="accommodation-swipe-surface" class="status-swipe-surface">
         <div id="accommodation-workspace-list" class="card-grid"></div>
         <div id="accommodation-workspace-empty" class="zone-empty" hidden>No visits found.</div>
@@ -5056,6 +5315,30 @@
       $('accommodation-search').addEventListener('input', () => renderAccommodationList_());
       $('accommodation-workspace-add-btn').addEventListener('click', handleAddVisitClick_);
 
+      // ---- Stay Map controls ----
+      // Through the route, not a bare re-render, so the view survives a reload
+      // and can be linked to — the Seva workspace carries its view the same way.
+      $('accommodation-view-toggle').addEventListener('click', () => {
+        navigate(accommodationView_ === 'map' ? `#accommodation/${accommodationSection_}` : '#accommodation/map');
+      });
+      $('staymap-prev').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), -1), true));
+      $('staymap-next').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), 1), true));
+      $('staymap-today').addEventListener('click', () => setStayMapAnchor_(stayMapMonthOf_(getAppDateKey(Date.now())), true));
+      $('staymap-month').addEventListener('click', () => {
+        const input = $('staymap-month-input');
+        try { input.showPicker(); } catch (error) { input.focus(); input.click(); }
+      });
+      $('staymap-month-input').addEventListener('change', event => {
+        if (event.target.value) setStayMapAnchor_(event.target.value, false);
+      });
+      // Coalesced to one frame and passive, so a fling costs a string compare
+      // per frame rather than a layout read.
+      $('staymap-scroll').addEventListener('scroll', () => {
+        if (staymapScrollPending_) return;
+        staymapScrollPending_ = true;
+        window.requestAnimationFrame(() => { staymapScrollPending_ = false; updateStayMapRange_(); });
+      }, { passive: true });
+
       $('add-to-workspace-close-btn').addEventListener('click', closeGuestPicker_);
       $('add-to-workspace-modal').addEventListener('click', event => {
         if (event.target === $('add-to-workspace-modal')) closeGuestPicker_();
@@ -5772,6 +6055,9 @@
       window.requestAnimationFrame(() => {
         keepActiveStatusTabVisible_(pageId);
         if (pageId === 'page-meals') { scrollMealCalendarToSelected_(); updateMealCalendarBar_(); }
+        // Same reason as the meals strip: the map was built while this page was
+        // still display:none, where a scrollLeft written is clamped to zero.
+        if (pageId === 'page-accommodation' && accommodationView_ === 'map') scrollStayMapToAnchor_(false);
       });
       window.scrollTo(0, 0);
     }
@@ -5790,6 +6076,15 @@
         // The Directory has no status rail to swipe along — it is one
         // alphabetical list, filtered by chips.
         case 'accommodation':
+          // No swipe on the Stay Map, and this is not merely about the gesture
+          // meaning something else there. The rubber-band writes an inline
+          // transform onto the surface, a transformed ancestor becomes the
+          // containing block for everything inside it, and position:sticky
+          // inside one is unreliable — which would unpin the map's own columns
+          // and header. The swipe listener is on the document and only checks
+          // that the touch landed in the page, so being outside the surface is
+          // not enough on its own; the config has to go.
+          if (accommodationView_ === 'map') return null;
           return {
             keys: ACCOMMODATION_SECTIONS_.map(def => def.key),
             activeKey: accommodationSection_,
@@ -5866,8 +6161,10 @@
       const interactiveSelector = 'input, textarea, select, a, [contenteditable="true"],'
         + ' .tier-tabs, .quick-filters, .segmented, .page-toolbar,'
         // The meal calendar's strip: a horizontal drag there already means
-        // "other days", and that reading wins over changing tier.
-        + ' .meal-cal-scroll';
+        // "other days", and that reading wins over changing tier. The Stay
+        // Map's timeline is the same case — belt and braces, since its view
+        // also returns no swipe config at all.
+        + ' .meal-cal-scroll, .staymap-scroll';
 
       function applyPendingTransform() {
         frame = null;
@@ -8511,11 +8808,17 @@
 
     function loadAccommodationPage_(section) {
       if (section === 'arriving' || section === 'departing') section = 'today';
-      if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) accommodationSection_ = section;
+      // The map is a peer of the sections in the route without being one of
+      // them, so returning to cards lands on whichever section you left.
+      if (section === 'map') accommodationView_ = 'map';
+      else if (section && ACCOMMODATION_SECTIONS_.some(s => s.key === section)) {
+        accommodationSection_ = section;
+        accommodationView_ = 'cards';
+      }
       return loadWorkspaceCached_(
         'accommodation',
         () => accommodationLoaded_,
-        () => { renderAccommodationChips_(); renderAccommodationList_(); },
+        () => { renderAccommodationChips_(); renderAccommodationView_(); },
         () => apiCall('getWorkspaceData', { workspace: 'accommodation', filters: {} })
           .then(data => {
             accommodationVisits_ = Array.isArray(data.visits) ? data.visits : [];
@@ -8619,6 +8922,14 @@
       });
     }
 
+    // One entry point for both ways of drawing the same visits, so every
+    // caller that used to redraw the list keeps working in either view.
+    function renderAccommodationView_() {
+      setAccommodationView_(accommodationView_);
+      if (accommodationView_ === 'map') { renderStayMap_(); return; }
+      renderAccommodationList_();
+    }
+
     function renderAccommodationList_() {
       const today = todayDateKey_();
       const listEl = $('accommodation-workspace-list');
@@ -8663,6 +8974,493 @@
       emptyEl.textContent = query ? 'No visits match your search.' : `Nothing in ${def.label.toLowerCase()}.`;
     }
 
+
+    // ---- Stay Map ----------------------------------------------------------
+    // A hotel-style occupancy chart over the same payload the cards draw. The
+    // cards answer "what needs doing about this visit"; this answers "who is
+    // here, in which room, with whom, for how long", which the cards can only
+    // answer one at a time.
+    //
+    // Every function down to renderStayMap_ is pure arithmetic over date keys,
+    // deliberately, so the whole of the hard part can be tested without a DOM.
+
+    // Buildings exist only as data — the room records carry them and there is
+    // no list in code — so a colour is taken by position in the sorted set
+    // rather than from a lookup table. Adding a building never needs an edit
+    // here; it takes the next colour and keeps it as long as the set is sorted
+    // the same way.
+    const STAYMAP_BUILDING_COLOURS_ = Object.freeze([
+      { bg: 'rgba(111, 186, 240, 0.26)', edge: 'rgba(111, 186, 240, 0.55)', ink: '#cfe6f8', dot: '#6fbaf0' },
+      { bg: 'rgba(113, 217, 157, 0.24)', edge: 'rgba(113, 217, 157, 0.55)', ink: '#c7efd8', dot: '#71d99d' },
+      { bg: 'rgba(184, 120, 214, 0.26)', edge: 'rgba(184, 120, 214, 0.55)', ink: '#e4cef1', dot: '#b878d6' },
+      { bg: 'rgba(255, 174, 112, 0.24)', edge: 'rgba(255, 174, 112, 0.55)', ink: '#f6ddc4', dot: '#FFAE70' },
+      { bg: 'rgba(26, 188, 156, 0.24)', edge: 'rgba(26, 188, 156, 0.55)', ink: '#c2ece4', dot: '#1abc9c' },
+      { bg: 'rgba(255, 118, 117, 0.24)', edge: 'rgba(255, 118, 117, 0.55)', ink: '#f7d3d3', dot: '#ff7675' }
+    ]);
+    // Staying off campus is not a building and never competes with one for a
+    // colour, so it is named rather than indexed.
+    const STAYMAP_OUTSIDE_COLOUR_ = Object.freeze(
+      { bg: 'rgba(164, 164, 164, 0.18)', edge: 'rgba(164, 164, 164, 0.45)', ink: '#d2d2d2', dot: '#a4a4a4' });
+
+    let accommodationView_ = 'cards';
+    let staymapAnchor_ = '';
+    let staymapSelected_ = '';
+    let staymapScrollPending_ = false;
+    let staymapBarState_ = '';
+
+    // Stated once in the stylesheet and read back, rather than kept as a
+    // constant here as well. Custom properties resolve without layout, so this
+    // is correct even while the page is still display:none — which it is, since
+    // handleRouteChange_ loads a route before showing its page.
+    function stayMapDayWidth_() {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--sm-day-w');
+      return parseFloat(raw) || 52;
+    }
+
+    function stayMapMonthOf_(dateKey) { return String(dateKey || '').slice(0, 7); }
+
+    // Month arithmetic in UTC, for the reason the adapter's shiftDateKey gives
+    // about days: a month key carries no time of day, so no timezone's summer
+    // time can push it onto the wrong month.
+    function stayMapShiftMonth_(monthKey, delta) {
+      const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ''));
+      if (!match) return '';
+      const at = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1 + delta, 1));
+      return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function stayMapMonthBounds_(monthKey) {
+      const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ''));
+      if (!match) return null;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return { from: `${monthKey}-01`, to: `${monthKey}-${String(last).padStart(2, '0')}` };
+    }
+
+    // The rendered range is the anchor month with a month of room either side.
+    // You can scroll the whole of it without anything reflowing; the rows only
+    // change when the anchor does, which is what stops them rearranging
+    // themselves under your thumb mid-drag.
+    function stayMapDays_(anchorMonth) {
+      const first = stayMapMonthBounds_(stayMapShiftMonth_(anchorMonth, -1));
+      const last = stayMapMonthBounds_(stayMapShiftMonth_(anchorMonth, 1));
+      if (!first || !last) return [];
+      const days = [];
+      for (let cursor = new Date(`${first.from}T12:00:00`); dateKeyOf_(cursor) <= last.to; cursor.setDate(cursor.getDate() + 1)) {
+        days.push({ key: dateKeyOf_(cursor), date: new Date(cursor) });
+      }
+      return days;
+    }
+
+    // A residency has no dates by design, so it is present for every day there
+    // is rather than absent from all of them; its room is occupied either way,
+    // and a map that left it out could not answer whether a room is free.
+    function stayMapVisitWindow_(visit) {
+      if (isResidencyStay_(visit)) return { from: '', to: '', ongoing: true };
+      return { from: visit.arrivalDate || '', to: visit.departureDate || '', ongoing: false };
+    }
+
+    function stayMapIncludes_(visit, fromKey, toKey) {
+      if (!visit || visit.cancelled) return false;
+      const window = stayMapVisitWindow_(visit);
+      if (window.ongoing) return true;
+      // Without an arrival there is no position to draw it at. Those stay in
+      // the Attention tier under "Arrival date not set" rather than appearing
+      // here in the wrong place.
+      if (!window.from) return false;
+      return window.from <= toKey && (!window.to || window.to >= fromKey);
+    }
+
+    function stayMapNights_(visit) {
+      const window = stayMapVisitWindow_(visit);
+      if (window.ongoing || !window.from || !window.to) return null;
+      const from = Date.parse(`${window.from}T12:00:00Z`);
+      const to = Date.parse(`${window.to}T12:00:00Z`);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+      return Math.max(0, Math.round((to - from) / 86400000));
+    }
+
+    // Where the bar starts and stops, in day columns, clamped to what is drawn.
+    // A clamp that bit is what earns the chevron: the stay carries on past the
+    // edge of the window rather than ending there.
+    function stayMapBarIndices_(visit, days, indexByKey) {
+      if (!days.length) return null;
+      const window = stayMapVisitWindow_(visit);
+      const lastIndex = days.length;
+      if (window.ongoing) return { a: 0, b: lastIndex, continuesLeft: true, continuesRight: true };
+      if (!window.from) return null;
+      const rawStart = indexByKey.has(window.from) ? indexByKey.get(window.from) : (window.from < days[0].key ? -1 : lastIndex + 1);
+      const rawEnd = !window.to
+        ? lastIndex + 1
+        : (indexByKey.has(window.to) ? indexByKey.get(window.to) : (window.to < days[0].key ? -1 : lastIndex + 1));
+      if (rawStart > lastIndex || rawEnd < 0) return null;
+      const a = Math.max(0, rawStart);
+      const b = Math.min(lastIndex, Math.max(a, rawEnd));
+      return { a, b, continuesLeft: rawStart < 0, continuesRight: rawEnd > lastIndex };
+    }
+
+    // The building a visit is drawn as. A stay in several rooms of one building
+    // is that building; one spanning two buildings takes the first, because a
+    // bar has one colour and the accommodation column names them all anyway.
+    function stayMapBuildingOf_(visit) {
+      if (visit.accommodation && visit.accommodation !== 'Ashram') return '';
+      const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
+      for (const room of rooms) {
+        const meta = roomMetadataMap.get(room);
+        if (meta && meta.building) return meta.building;
+      }
+      return '';
+    }
+
+    function stayMapColourFor_(visit, buildings) {
+      if (visit.accommodation && visit.accommodation !== 'Ashram') return STAYMAP_OUTSIDE_COLOUR_;
+      const building = stayMapBuildingOf_(visit);
+      if (!building) return null;
+      const index = buildings.indexOf(building);
+      if (index < 0) return null;
+      return STAYMAP_BUILDING_COLOURS_[index % STAYMAP_BUILDING_COLOURS_.length];
+    }
+
+    // A room held by two overlapping stays where this one never acknowledged
+    // the sharing. The write path refuses to create such an allocation, so one
+    // that exists was made before the other stay did, or by a path that skipped
+    // the check — an undated visit, which the conflict test lets through. This
+    // is the first place in the app that shows it standing rather than at save.
+    function stayMapConflictRooms_(visit, visits) {
+      const allocations = Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [];
+      return allocations
+        .filter(allocation => !allocation.sharedOk)
+        .filter(allocation => visits.some(other => other.visitId !== visit.visitId
+          && Array.isArray(other.rooms) && other.rooms.includes(allocation.room)
+          && accommodationVisitsOverlap_(visit, other)))
+        .map(allocation => allocation.room);
+    }
+
+    function stayMapRows_(visits, fromKey, toKey) {
+      return visits
+        .filter(visit => stayMapIncludes_(visit, fromKey, toKey))
+        .sort((a, b) => {
+          // Residencies last: an arriving guest is the thing you are looking
+          // for, and someone who lives here is the backdrop to it.
+          const aOngoing = isResidencyStay_(a) ? 1 : 0;
+          const bOngoing = isResidencyStay_(b) ? 1 : 0;
+          if (aOngoing !== bOngoing) return aOngoing - bOngoing;
+          const byDate = String(a.arrivalDate || '').localeCompare(String(b.arrivalDate || ''));
+          if (byDate) return byDate;
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+    }
+
+    // ---- Stay Map rendering ------------------------------------------------
+
+    const STAYMAP_DOW_ = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const STAYMAP_MONTH_FMT_ = new Intl.DateTimeFormat('en-GB', { month: 'short' });
+    const STAYMAP_MONTH_LONG_FMT_ = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+
+    function stayMapAnchor_() {
+      return staymapAnchor_ || stayMapMonthOf_(getAppDateKey(Date.now()));
+    }
+
+    function stayMapRoomSummary_(visit) {
+      const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
+      if (visit.accommodation && visit.accommodation !== 'Ashram') return visit.accommodation;
+      if (!rooms.length) return 'Room not assigned';
+      return rooms.join(' & ');
+    }
+
+    function stayMapSharingSummary_(visit) {
+      const rooms = Array.isArray(visit.rooms) ? visit.rooms : [];
+      if (!rooms.length) return '';
+      const names = new Set();
+      rooms.forEach(room => roomSharingPartnersForVisit_(visit, room).forEach(partner => names.add(partner.name)));
+      if (!names.size) return 'Private';
+      return `Shared with ${listPeople_([...names])}`;
+    }
+
+    function renderStayMap_() {
+      const anchor = stayMapAnchor_();
+      const days = stayMapDays_(anchor);
+      const track = $('staymap-track');
+      const emptyEl = $('staymap-empty');
+      track.replaceChildren();
+      if (!days.length) return;
+
+      const todayKey = getAppDateKey(Date.now());
+      const indexByKey = new Map(days.map((day, index) => [day.key, index]));
+      const buildings = accommodationBuildings_().slice().sort((a, b) => a.localeCompare(b));
+      const rows = stayMapRows_(accommodationVisits_, days[0].key, days[days.length - 1].key);
+
+      track.style.setProperty('--sm-days', String(days.length));
+      // Slides the weekend shading so its pair of columns lands on the first
+      // Saturday rather than on day zero.
+      const firstDow = days[0].date.getDay();
+      track.style.setProperty('--sm-weekend-offset', String((6 - firstDow + 7) % 7));
+
+      const fragment = document.createDocumentFragment();
+
+      const head = createElement('div', 'sm-head');
+      head.appendChild(createElement('div', 'sm-cell sm-name', 'Guest & total stay'));
+      head.appendChild(createElement('div', 'sm-cell sm-acc', 'Accommodation'));
+      const headLane = createElement('div', 'sm-lane sm-lane-head');
+      days.forEach((day, index) => {
+        const startsMonth = index === 0 || days[index - 1].date.getMonth() !== day.date.getMonth();
+        const cell = createElement('div', 'sm-day');
+        if (index > 0 && startsMonth) cell.classList.add('month-start');
+        if (day.date.getDay() === 0 || day.date.getDay() === 6) cell.classList.add('weekend');
+        if (day.key === todayKey) cell.classList.add('today');
+        cell.appendChild(createElement('span', 'sm-day-dow',
+          startsMonth ? STAYMAP_MONTH_FMT_.format(day.date) : STAYMAP_DOW_[day.date.getDay()]));
+        cell.appendChild(createElement('span', 'sm-day-num', String(day.date.getDate())));
+        headLane.appendChild(cell);
+      });
+      head.appendChild(headLane);
+      fragment.appendChild(head);
+
+      const body = createElement('div', 'sm-rows');
+      rows.forEach(visit => body.appendChild(stayMapRow_(visit, days, indexByKey, buildings)));
+
+      // Out of flow so it cannot nudge a bar, and inside the same track so it
+      // scrolls with them without a listener.
+      const overlay = createElement('div', 'sm-overlay');
+      overlay.setAttribute('aria-hidden', 'true');
+      days.forEach((day, index) => {
+        if (index > 0 && days[index - 1].date.getMonth() !== day.date.getMonth()) {
+          const rule = createElement('i', 'sm-month-rule');
+          rule.style.setProperty('--i', String(index));
+          overlay.appendChild(rule);
+        }
+      });
+      if (indexByKey.has(todayKey)) {
+        const band = createElement('i', 'sm-today-band');
+        band.style.setProperty('--i', String(indexByKey.get(todayKey)));
+        overlay.appendChild(band);
+      }
+      body.appendChild(overlay);
+      fragment.appendChild(body);
+      track.appendChild(fragment);
+
+      emptyEl.hidden = rows.length > 0;
+      $('staymap-month-text').textContent = STAYMAP_MONTH_LONG_FMT_.format(new Date(`${anchor}-01T12:00:00`));
+      $('staymap-month-input').value = anchor;
+      renderStayMapLegend_(buildings);
+      renderStayMapDetail_();
+      updateStayMapRange_();
+    }
+
+    function stayMapRow_(visit, days, indexByKey, buildings) {
+      const row = createElement('div', 'sm-row');
+      row.dataset.visitId = visit.visitId;
+      if (visit.visitId === staymapSelected_) row.classList.add('is-selected');
+
+      const name = createElement('div', 'sm-cell sm-name');
+      name.appendChild(createElement('span', 'sm-guest', visit.name || 'Unnamed Guest'));
+      name.appendChild(createElement('span', 'sm-sub', stayMapStayLine_(visit)));
+      // At phone width the accommodation column is folded away to nothing, so
+      // its one useful line rides here instead. Rendered always, shown by CSS.
+      name.appendChild(createElement('span', 'sm-acc-fold', stayMapRoomSummary_(visit)));
+      row.appendChild(name);
+
+      const acc = createElement('div', 'sm-cell sm-acc');
+      acc.appendChild(createElement('span', 'sm-room', stayMapRoomSummary_(visit)));
+      const sharing = stayMapSharingSummary_(visit);
+      if (sharing) acc.appendChild(createElement('span', 'sm-sub', sharing));
+      row.appendChild(acc);
+
+      const lane = createElement('div', 'sm-lane');
+      const indices = stayMapBarIndices_(visit, days, indexByKey);
+      if (indices) lane.appendChild(stayMapBar_(visit, indices, buildings));
+      row.appendChild(lane);
+
+      // Selecting the row explains it below; the bar itself opens the editor.
+      row.addEventListener('click', () => stayMapSelect_(visit.visitId));
+      return row;
+    }
+
+    function stayMapStayLine_(visit) {
+      if (isResidencyStay_(visit)) return 'Ongoing residency';
+      const nights = stayMapNights_(visit);
+      const from = visit.arrivalDate ? formatDateKeyDisplay(visit.arrivalDate) : '';
+      const to = visit.departureDate ? formatDateKeyDisplay(visit.departureDate) : '';
+      const range = to ? `${from} → ${to}` : `${from} →`;
+      return nights === null ? range : `${range} · ${nights} night${nights === 1 ? '' : 's'}`;
+    }
+
+    function stayMapBar_(visit, indices, buildings) {
+      const bar = createElement('button', 'sm-bar');
+      bar.type = 'button';
+      bar.style.setProperty('--a', String(indices.a));
+      bar.style.setProperty('--b', String(indices.b));
+      if (indices.continuesLeft) bar.classList.add('continues-left');
+      if (indices.continuesRight) bar.classList.add('continues-right');
+
+      const conflicts = stayMapConflictRooms_(visit, accommodationVisits_);
+      const colour = stayMapColourFor_(visit, buildings);
+      if (conflicts.length) {
+        bar.classList.add('is-conflict');
+      } else if (!colour) {
+        bar.classList.add('is-unassigned');
+      } else {
+        bar.style.setProperty('--sm-bar-bg', colour.bg);
+        bar.style.setProperty('--sm-bar-edge', colour.edge);
+        bar.style.setProperty('--sm-bar-ink', colour.ink);
+      }
+
+      const sharing = stayMapSharingSummary_(visit);
+      if (sharing && sharing !== 'Private') {
+        const mark = createElement('span', 'sm-bar-share', '◫');
+        bar.appendChild(mark);
+      }
+      bar.appendChild(document.createTextNode(stayMapRoomSummary_(visit)));
+      bar.title = conflicts.length
+        ? `${visit.name} · ${conflicts.join(', ')} is double-booked without confirmed sharing`
+        : `${visit.name} · ${stayMapRoomSummary_(visit)}`;
+      bar.setAttribute('aria-label', `${visit.name}. ${stayMapStayLine_(visit)}. ${stayMapRoomSummary_(visit)}.`);
+      bar.addEventListener('click', event => {
+        event.stopPropagation();
+        stayMapSelect_(visit.visitId);
+        openVisitEditor(visit.guestId, visit.visitId);
+      });
+      return bar;
+    }
+
+    function renderStayMapLegend_(buildings) {
+      const legend = $('staymap-legend');
+      legend.replaceChildren();
+      buildings.forEach((building, index) => {
+        const item = createElement('span');
+        const dot = createElement('i');
+        dot.style.background = STAYMAP_BUILDING_COLOURS_[index % STAYMAP_BUILDING_COLOURS_.length].dot;
+        item.appendChild(dot);
+        item.appendChild(document.createTextNode(building));
+        legend.appendChild(item);
+      });
+      const outside = createElement('span');
+      const outsideDot = createElement('i');
+      outsideDot.style.background = STAYMAP_OUTSIDE_COLOUR_.dot;
+      outside.appendChild(outsideDot);
+      outside.appendChild(document.createTextNode('Outside the ashram'));
+      legend.appendChild(outside);
+
+      const pending = createElement('span');
+      const pendingDot = createElement('i');
+      pendingDot.style.background = 'repeating-linear-gradient(135deg, #6a6a6a 0 3px, transparent 3px 6px)';
+      pending.appendChild(pendingDot);
+      pending.appendChild(document.createTextNode('Room not assigned'));
+      legend.appendChild(pending);
+    }
+
+    // Store the key and derive the state at render, the way every other
+    // selection in the app works.
+    function stayMapSelect_(visitId) {
+      staymapSelected_ = staymapSelected_ === visitId ? '' : visitId;
+      $('staymap-track').querySelectorAll('.sm-row').forEach(row => {
+        row.classList.toggle('is-selected', row.dataset.visitId === staymapSelected_);
+      });
+      renderStayMapDetail_();
+    }
+
+    function renderStayMapDetail_() {
+      const panel = $('staymap-detail');
+      const visit = accommodationVisits_.find(item => item.visitId === staymapSelected_);
+      if (!visit) { panel.hidden = true; panel.replaceChildren(); return; }
+      panel.hidden = false;
+      panel.replaceChildren();
+
+      const head = createElement('div', 'staymap-detail-head');
+      head.appendChild(createElement('span', 'staymap-detail-name', visit.name || 'Unnamed Guest'));
+      head.appendChild(createElement('span', 'sm-sub', stayMapStayLine_(visit)));
+      panel.appendChild(head);
+
+      const grid = createElement('div', 'staymap-detail-grid');
+      const block = (label, value) => {
+        if (!value) return;
+        const wrap = createElement('div', 'staymap-detail-block');
+        wrap.appendChild(createElement('span', 'staymap-detail-label', label));
+        wrap.appendChild(createElement('span', 'staymap-detail-value', value));
+        grid.appendChild(wrap);
+      };
+      block('Arrives', visit.arrivalMs ? `${formatDateKeyDisplay(visit.arrivalDate)}${visit.arrivalTime ? `, ${visitTimeLabel_(visit.arrivalTime)}` : ''}` : '');
+      block('Departs', visit.departureMs ? `${formatDateKeyDisplay(visit.departureDate)}${visit.departureTime ? `, ${visitTimeLabel_(visit.departureTime)}` : ''}` : '');
+      block('Accommodation', stayMapRoomSummary_(visit));
+
+      // Per room, because the sharing arrangement is a property of the room and
+      // not of the stay: two rooms can be shared with different people.
+      (Array.isArray(visit.rooms) ? visit.rooms : []).forEach(room => {
+        const partners = roomSharingPartnersForVisit_(visit, room);
+        block(room, partners.length ? describeRoomSharing_(partners) : 'Private for the whole stay');
+      });
+
+      const conflicts = stayMapConflictRooms_(visit, accommodationVisits_);
+      if (conflicts.length) {
+        block('Needs attention', `${listPeople_(conflicts)} ${conflicts.length === 1 ? 'is' : 'are'} held by an overlapping stay without confirmed sharing.`);
+      }
+      (visit.awayPeriods || [])
+        .filter(period => !period.to || period.to >= getAppDateKey(Date.now()))
+        .forEach(period => block('Away', describeAwayPeriod_(period)));
+      panel.appendChild(grid);
+    }
+
+    // The month readout beside the arrows, from the scroll position rather than
+    // from the DOM: a signature compare per frame instead of a walk.
+    function updateStayMapRange_() {
+      const scroller = $('staymap-scroll');
+      const days = stayMapDays_(stayMapAnchor_());
+      if (!days.length) return;
+      const width = stayMapDayWidth_();
+      const perScreen = Math.max(1, Math.floor((scroller.clientWidth - stayMapLeftWidth_()) / width));
+      const first = Math.min(days.length - 1, Math.max(0, Math.round(scroller.scrollLeft / width)));
+      const last = Math.min(days.length - 1, first + perScreen - 1);
+      const signature = `${first}:${last}:${days.length}`;
+      if (signature === staymapBarState_) return;
+      staymapBarState_ = signature;
+      $('staymap-range').textContent =
+        `${formatDateKeyDisplay(days[first].key)} – ${formatDateKeyDisplay(days[last].key)}`;
+    }
+
+    function stayMapLeftWidth_() {
+      const styles = getComputedStyle(document.documentElement);
+      return (parseFloat(styles.getPropertyValue('--sm-name-w')) || 0)
+        + (parseFloat(styles.getPropertyValue('--sm-acc-w')) || 0);
+    }
+
+    // Arithmetic, never measured: the map is built while its page is still
+    // display:none, where a measured width reads zero and a scrollLeft written
+    // is clamped to zero. showPage_ calls this again once the page has layout.
+    function scrollStayMapToAnchor_(smooth) {
+      const scroller = $('staymap-scroll');
+      const days = stayMapDays_(stayMapAnchor_());
+      if (!days.length) return;
+      const todayKey = getAppDateKey(Date.now());
+      const target = days.findIndex(day => day.key === todayKey);
+      const anchorStart = days.findIndex(day => stayMapMonthOf_(day.key) === stayMapAnchor_());
+      const index = target >= 0 && stayMapMonthOf_(todayKey) === stayMapAnchor_() ? Math.max(0, target - 2) : Math.max(0, anchorStart);
+      const left = index * stayMapDayWidth_();
+      if (smooth) scroller.scrollTo({ left, behavior: 'smooth' });
+      else scroller.scrollLeft = left;
+      staymapBarState_ = '';
+      updateStayMapRange_();
+    }
+
+    function setStayMapAnchor_(monthKey, smooth) {
+      if (!/^\d{4}-\d{2}$/.test(String(monthKey || ''))) return;
+      staymapAnchor_ = monthKey;
+      renderStayMap_();
+      scrollStayMapToAnchor_(smooth);
+    }
+
+    function setAccommodationView_(view) {
+      accommodationView_ = view === 'map' ? 'map' : 'cards';
+      const isMap = accommodationView_ === 'map';
+      $('accommodation-staymap').hidden = !isMap;
+      $('accommodation-swipe-surface').hidden = isMap;
+      $('accommodation-chips').hidden = isMap;
+      $('accommodation-tabs').hidden = isMap;
+      $('accommodation-view-label').textContent = isMap ? 'Cards' : 'Stay Map';
+      $('accommodation-view-toggle').setAttribute('aria-pressed', String(isMap));
+      $('accommodation-search').placeholder = isMap ? 'Search is on the card view' : 'Search visits...';
+      $('accommodation-search').disabled = isMap;
+    }
     // Shared by every workspace page, so the tabs behave and count the same
     // way everywhere instead of each page inventing its own.
     function renderSectionTabs_(container, defs, activeKey, rows, today, onSelect) {
