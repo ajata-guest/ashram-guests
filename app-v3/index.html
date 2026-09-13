@@ -3485,11 +3485,13 @@
       padding: 0;
       border: 0;
       border-radius: 7px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.06)),
-        var(--sm-bar-bg, rgba(111, 186, 240, 0.25));
-      color: var(--sm-bar-ink, #cfe6f8);
-      box-shadow: inset 0 0 0 1px var(--sm-bar-edge, rgba(111, 186, 240, 0.5));
+      /* One flat fill, no gradient. A vertical light-to-dark wash over a
+         translucent colour made every bar read as two tones and made two
+         buildings of similar hue impossible to tell apart; the colour now
+         carries the meaning on its own. */
+      background: var(--sm-bar-bg, #306eb8);
+      color: var(--sm-bar-ink, #ffffff);
+      box-shadow: inset 0 0 0 1px var(--sm-bar-edge, #769fd0);
       font: inherit;
       /* No overflow here, deliberately. An ancestor that clips becomes the
          scroll container for a sticky descendant, and with overflow:hidden on
@@ -3498,7 +3500,7 @@
       cursor: pointer;
       transition: box-shadow 0.14s ease;
     }
-    .sm-bar:hover { box-shadow: inset 0 0 0 1px var(--sm-bar-edge, rgba(111, 186, 240, 0.5)), 0 0 0 1px rgba(255, 255, 255, 0.18); }
+    .sm-bar:hover { box-shadow: inset 0 0 0 1px var(--sm-bar-edge, #769fd0), 0 0 0 1px rgba(255, 255, 255, 0.28); }
 
     /* The label rides with the scroll instead of sitting at the far end of the
        bar. A stay of eighty-eight nights is mostly off-screen, and its room
@@ -9115,18 +9117,26 @@
     // rather than from a lookup table. Adding a building never needs an edit
     // here; it takes the next colour and keeps it as long as the set is sorted
     // the same way.
+    //
+    // Opaque, and chosen by measurement rather than by eye. Translucent fills
+    // were composited over the page ground before anybody saw them, which
+    // pulled all six toward the same dark slate: the closest pair came out at
+    // a CIE-Lab ΔE of 7, where about 20 is the point two colours stop being
+    // confusable. Solid, the closest pair is 44 and no two buildings share a
+    // hue family. Every fill carries white bold text at 4.4:1 or better.
     const STAYMAP_BUILDING_COLOURS_ = Object.freeze([
-      { bg: 'rgba(111, 186, 240, 0.26)', edge: 'rgba(111, 186, 240, 0.55)', ink: '#cfe6f8', dot: '#6fbaf0' },
-      { bg: 'rgba(113, 217, 157, 0.24)', edge: 'rgba(113, 217, 157, 0.55)', ink: '#c7efd8', dot: '#71d99d' },
-      { bg: 'rgba(184, 120, 214, 0.26)', edge: 'rgba(184, 120, 214, 0.55)', ink: '#e4cef1', dot: '#b878d6' },
-      { bg: 'rgba(255, 174, 112, 0.24)', edge: 'rgba(255, 174, 112, 0.55)', ink: '#f6ddc4', dot: '#FFAE70' },
-      { bg: 'rgba(26, 188, 156, 0.24)', edge: 'rgba(26, 188, 156, 0.55)', ink: '#c2ece4', dot: '#1abc9c' },
-      { bg: 'rgba(255, 118, 117, 0.24)', edge: 'rgba(255, 118, 117, 0.55)', ink: '#f7d3d3', dot: '#ff7675' }
+      { bg: '#306eb8', edge: '#769fd0', ink: '#ffffff', dot: '#5185c3' },
+      { bg: '#a26d1e', edge: '#c29f6b', ink: '#ffffff', dot: '#b18442' },
+      { bg: '#933fb1', edge: '#b880cc', ink: '#ffffff', dot: '#a45ebd' },
+      { bg: '#0d7d85', edge: '#5fa9ae', ink: '#ffffff', dot: '#349299' },
+      { bg: '#178443', edge: '#66ae83', ink: '#ffffff', dot: '#3c9861' },
+      { bg: '#b33c52', edge: '#cd7e8d', ink: '#ffffff', dot: '#bf5b6e' }
     ]);
     // Staying off campus is not a building and never competes with one for a
-    // colour, so it is named rather than indexed.
+    // colour, so it is named rather than indexed — and kept neutral, so a bar
+    // with no hue reads as "not one of these" rather than as a seventh one.
     const STAYMAP_OUTSIDE_COLOUR_ = Object.freeze(
-      { bg: 'rgba(164, 164, 164, 0.18)', edge: 'rgba(164, 164, 164, 0.45)', ink: '#d2d2d2', dot: '#a4a4a4' });
+      { bg: '#585552', edge: '#8b8986', ink: '#f2f0ee', dot: '#7e7b78' });
 
     let accommodationView_ = 'cards';
     let staymapAnchor_ = '';
