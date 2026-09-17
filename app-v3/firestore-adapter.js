@@ -31,6 +31,15 @@ import {
 
 const TIMEZONE = "Asia/Kolkata";
 const APPROVED_EMAILS = new Set(["atma.chetan108@gmail.com", "rajatbhatiaom@gmail.com"]);
+// The day the departure half of the C-form started being tracked. Visits that
+// ended before it are treated as closed, whatever the field says.
+//
+// cFormCheckoutComplete defaults to false, which is right for a new stay and
+// wrong for every stay already in the database: without this line, the day
+// this shipped every foreign guest ever housed here would have arrived in
+// Needs Attention at once, as a backlog nobody agreed to file. Notifier.gs
+// carries the same date and the two must agree -- a harness compares them.
+const CFORM_CHECKOUT_FROM = "2026-09-17";
 // Permanent Resident is a person who lives here rather than one passing
 // through. It is a Person Type like any other so that residents can hold an
 // ordinary guest record and reach seva, meetings and trips — all of which are
@@ -804,6 +813,7 @@ function visitView(visit, roomsByVisit, legsByVisit, ownerNames = {}, ridesByVis
     residencyMeals: residencyMeals(visit),
     residencyMealNote: visit.residencyMealNote || "",
     cformComplete: Boolean(visit.cFormComplete),
+    cformCheckoutComplete: Boolean(visit.cFormCheckoutComplete),
     pickupRequired: Boolean(pickupRide),
     pickupMs: pickupRide ? pickup.ms : null,
     pickupDate: pickupRide ? (pickupRide.cabDateKey || pickup.date) : "",
@@ -1066,6 +1076,24 @@ function stillHere(visit, todayKey, now) {
   return visit.departureDate >= todayKey;
 }
 
+// The departure half of the C-form: a foreign national leaving the ashram is
+// deregistered with the police, as they were registered on arrival. Two
+// filings, two facts, either of which can be outstanding on its own.
+//
+// It falls due the moment the guest has actually gone -- stillHere decides
+// that, so "gone" means the same thing here as it does to Residing and to the
+// Stay Map, and a 2pm departure is a departure at 2pm rather than at midnight.
+// Stated once and read by visitAttentionReasons, priorityReasons and the
+// client's own mirror, because three copies of a rule is three rules.
+function cformCheckoutDue(view, isForeign, todayKey, now) {
+  if (!isForeign || view.cancelled || view.cformCheckoutComplete) return false;
+  // Only where the ashram itself did the housing, as with the arrival half:
+  // a guest booked into a hotel was never registered here to begin with.
+  if (view.accommodation !== "Ashram") return false;
+  if (!view.departureDate || view.departureDate < CFORM_CHECKOUT_FROM) return false;
+  return hasArrived(view, todayKey, now) && !stillHere(view, todayKey, now);
+}
+
 // Here at all: turned up and not yet gone. A residency has no arrival date to
 // prove itself by — someone who lives here is present every day — which is
 // why it is answered separately rather than by the dates.
@@ -1105,8 +1133,13 @@ function isNearby(visit, todayKey, now, away) {
 // below are the chips' labels, so the workspace filters by matching them.
 function visitAttentionReasons(view, personType, isForeign, todayKey, now) {
   if (view.cancelled) return [];
-  if (view.departureDate && view.departureDate < todayKey) return [];
   const reasons = [];
+  // The only obligation that outlives the stay, so it is asked above the
+  // cutoff rather than below it. Everything after that line is about
+  // arranging a stay still ahead or under way; this one exists precisely
+  // because the guest has gone.
+  if (cformCheckoutDue(view, isForeign, todayKey, now)) reasons.push("C-form checkout pending");
+  if (view.departureDate && view.departureDate < todayKey) return reasons;
   // Someone who lives here did not turn up on a date, so no arrival is
   // missing. Their room is ordinary inventory, so one of those still is.
   if (!view.arrivalDate && !isResidencyStay(view, personType)) reasons.push("Arrival date not set");
@@ -1148,6 +1181,9 @@ function priorityReasons(record, now, todayKey) {
       if (leg.status === "Required") reasons.push(`${String(leg.direction || "").toLowerCase()} ${String(leg.transportType || "travel").toLowerCase()} required`.trim());
     });
   }
+  // Above the early return for the same reason as in visitAttentionReasons:
+  // a finished stay has exactly one thing still owing on it.
+  if (cformCheckoutDue(visit, record.isForeign, todayKey, now)) reasons.push("C-form checkout pending");
   if (stayOver) return reasons;
   // A residency has no arrival to record — someone who lives here did not
   // turn up on a date. Its room, though, is ordinary inventory allocated to
@@ -1822,6 +1858,7 @@ export function createFirestoreBridge(firebaseApp) {
       residencyMeals: [...MEALS],
       residencyMealNote: "",
       cFormComplete: false,
+      cFormCheckoutComplete: false,
       pickupRequired: false, pickupAt: null, pickupDateKey: "", pickupTimeConfirmed: false,
       pickupFrom: "", pickupDetails: "",
       dropoffRequired: false, dropoffAt: null, dropoffDateKey: "", dropoffTimeConfirmed: false,
@@ -2308,7 +2345,10 @@ export function createFirestoreBridge(firebaseApp) {
       : [],
     residencyMealNote: clean(existing?.residencyMealNote, 500),
 
+    // Two filings, two fields. Restated here like everything else because this
+    // write is a whole-document set: a field left off is a field erased.
     cFormComplete: Boolean(payload.isCformComplete),
+    cFormCheckoutComplete: Boolean(payload.isCformCheckoutComplete),
 
     // The cab now lives in its own record, because one car can carry several
     // guests and a field on one visit cannot. The old fields are left on
@@ -2953,11 +2993,18 @@ export function createFirestoreBridge(firebaseApp) {
   // than a round trip through the visit editor, and a field-level update
   // rather than a whole-document write, so nothing else on the stay can be
   // caught by it.
-  async function setCformComplete(visitId, complete, suppliedVersion) {
+  // A visit carries two of these — the arrival registration and the departure
+  // one — so which is being marked travels with the call rather than through
+  // a second near-identical action. Anything but "checkout" is the arrival
+  // form, so a caller that says nothing means what it has always meant. The
+  // audit log names them apart, or the two would be indistinguishable in it.
+  async function setCformComplete(visitId, complete, suppliedVersion, stage) {
     const done = complete === true;
+    const checkout = stage === "checkout";
+    const field = checkout ? "cFormCheckoutComplete" : "cFormComplete";
     const result = await simpleTransaction("visits", clean(visitId, 100), suppliedVersion,
-      () => ({ cFormComplete: done }), "c-form", ["cFormComplete"]);
-    return { visitId: result.id, cformComplete: done, version: result.version };
+      () => ({ [field]: done }), checkout ? "c-form-checkout" : "c-form", [field]);
+    return { visitId: result.id, stage: checkout ? "checkout" : "arrival", complete: done, version: result.version };
   }
 
   // Push subscriptions are keyed by device, not by token. V2 keyed them by
@@ -3698,6 +3745,7 @@ export function createFirestoreBridge(firebaseApp) {
           residencyMeals: residentMeals(resident),
           residencyMealNote: clean(resident.mealNote, 500),
           cFormComplete: false,
+          cFormCheckoutComplete: false,
           pickupRequired: false, pickupAt: null, pickupDateKey: "", pickupTimeConfirmed: false,
           pickupFrom: "", pickupDetails: "",
           dropoffRequired: false, dropoffAt: null, dropoffDateKey: "", dropoffTimeConfirmed: false,
@@ -4453,7 +4501,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (action === "savePushSubscription") return savePushSubscription(extra.payload || {});
       if (action === "removePushSubscription") return removePushSubscription(extra.deviceId);
       if (action === "getPushSubscription") return getPushSubscription(extra.deviceId);
-      if (action === "setCformComplete") return setCformComplete(extra.visitId, extra.complete, extra.version);
+      if (action === "setCformComplete") return setCformComplete(extra.visitId, extra.complete, extra.version, extra.stage);
       if (action === "setMeetingStatus") return setMeetingStatus(extra.meetingId, extra.status, extra.version);
       if (action === "saveSevaTeam") return saveSevaTeam(extra.payload || {});
       if (action === "deleteSevaTeam") return deleteSevaTeam(extra.teamId);

@@ -4117,6 +4117,15 @@
               C-form complete
             </label>
           </div>
+          <!-- The departure half. Two filings go to the police, one on arrival
+               and one on leaving, so they are two boxes under one heading
+               rather than one box meaning both. Either can be true alone. -->
+          <div class="checkbox-row">
+            <label class="checkbox-label" for="edit-cform-checkout">
+              <input type="checkbox" id="edit-cform-checkout" class="checkbox-input">
+              C-form checkout complete
+            </label>
+          </div>
         </div>
 
         <!-- Staying in the ashram puts a guest on the meal roster automatically,
@@ -8876,7 +8885,12 @@
       // and a second number would only invite adding the two together.
       { key: 'away', label: 'Away', shortLabel: 'Away', accent: '#9aa0a6', test: (v, today) => Boolean(visitAwayOn_(v, today)) && (isResidencyStay_(v) || isVisitPresent_(v, today)) },
       { key: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', accent: '#71d99d', test: (v, today) => Boolean(v.arrivalDate) && v.arrivalDate > today },
-      { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => Boolean(v.cancelled) || (Boolean(v.departureDate) && !visitStillHere_(v, today)) }
+      // The tabs are not exclusive — each shows every visit its own test
+      // admits — so a departed guest with the checkout still owing would
+      // otherwise sit in Attention and in Past at once. They are held here
+      // until it is ticked, which is the whole point of tracking it: the
+      // paperwork must not leave the screen with the guest.
+      { key: 'past', label: 'Past & Cancelled', shortLabel: 'Past', accent: '#aaa', test: (v, today) => !isCformCheckoutPending_(v) && (Boolean(v.cancelled) || (Boolean(v.departureDate) && !visitStillHere_(v, today))) }
     ]);
 
     // The reasons themselves are decided by the adapter (visitAttentionReasons)
@@ -8889,6 +8903,7 @@
       'Accommodation TBD',
       'Outside not confirmed',
       'C-form pending',
+      'C-form checkout pending',
       'Pickup to arrange',
       'Drop-off to arrange',
       'Needs reconfirmation',
@@ -9835,20 +9850,41 @@
         .catch(error => handleApiError(error, err => showToast(`Couldn't delete visit: ${getErrorMessage(err)}`, 'error')));
     }
 
+    // The badge and the tick that clears it. The tick beside a badge is the
+    // whole of resolving one of these: there is nothing to fill in, so opening
+    // the visit editor to move a checkbox was the long way round to a yes.
+    function cformBadge_(visit, label, stage) {
+      const group = createElement('span', 'cform-group');
+      group.appendChild(createBadge(label, 'badge-pink'));
+      const done = createElement('button', 'cform-done');
+      done.type = 'button';
+      done.title = `Mark ${label.toLowerCase()} complete`;
+      done.setAttribute('aria-label', `Mark ${visit.name || 'this guest'}'s ${label.toLowerCase()} complete`);
+      done.appendChild(createIcon_('icon-check'));
+      done.addEventListener('click', event => {
+        // The card itself opens the visit editor.
+        event.stopPropagation();
+        resolveCform_(visit, done, stage);
+      });
+      group.appendChild(done);
+      return group;
+    }
+
     // Marked from the card, and the version goes with it: if somebody else has
     // edited this stay meanwhile the write is refused rather than landing on
     // top of their change, and the message says to refresh.
-    function resolveCform_(visit, button) {
+    function resolveCform_(visit, button, stage) {
       button.disabled = true;
-      apiCall('setCformComplete', { visitId: visit.visitId, complete: true, version: visit.version })
+      const what = stage === 'checkout' ? 'C-form checkout' : 'C-form';
+      apiCall('setCformComplete', { visitId: visit.visitId, complete: true, version: visit.version, stage })
         .then(() => {
-          showToast(`C-form marked complete for ${visit.name || 'this guest'}.`, 'success');
+          showToast(`${what} marked complete for ${visit.name || 'this guest'}.`, 'success');
           loadAccommodationPage_();
           loadHomeSummary_().then(renderHome_);
         })
         .catch(error => {
           button.disabled = false;
-          handleApiError(error, err => showToast(`Couldn't update the C-form: ${getErrorMessage(err)}`, 'error'));
+          handleApiError(error, err => showToast(`Couldn't update the ${what}: ${getErrorMessage(err)}`, 'error'));
         });
     }
 
@@ -10085,22 +10121,12 @@
       // tick beside it is the whole of resolving one: there is nothing to fill
       // in, so opening the visit editor to move a checkbox was the long way
       // round to a yes.
-      if (isCformPending_(visit)) {
-        const group = createElement('span', 'cform-group');
-        group.appendChild(createBadge('C-form pending', 'badge-pink'));
-        const done = createElement('button', 'cform-done');
-        done.type = 'button';
-        done.title = 'Mark C-form complete';
-        done.setAttribute('aria-label', `Mark ${visit.name || 'this guest'}'s C-form complete`);
-        done.appendChild(createIcon_('icon-check'));
-        done.addEventListener('click', event => {
-          // The card itself opens the visit editor.
-          event.stopPropagation();
-          resolveCform_(visit, done);
-        });
-        group.appendChild(done);
-        badges.appendChild(group);
-      }
+      // Two filings — the registration on arrival and the deregistration on
+      // departure — drawn by one function rather than two near-identical
+      // blocks, so the pair cannot drift. Both are alerts: a C-form is a
+      // police deadline either way round.
+      if (isCformPending_(visit)) badges.appendChild(cformBadge_(visit, 'C-form pending', 'arrival'));
+      if (isCformCheckoutPending_(visit)) badges.appendChild(cformBadge_(visit, 'C-form checkout', 'checkout'));
       card.appendChild(badges);
 
       // Anything settled reads as a plain line; anything still outstanding
@@ -10255,6 +10281,15 @@
       if (!visit || !visit.isForeign || visit.cformComplete) return false;
       if (visit.accommodation !== 'Ashram') return false;
       return hasVisitArrived_(visit);
+    }
+
+    // The departure half. Unlike isCformPending_ above this is not a mirror:
+    // it reads the reason the adapter already worked out. The rule needs a
+    // cut-off date and the clock to answer it, and a second copy of both on
+    // this side is a second copy that can drift. Nothing here needs to know
+    // how the answer was reached, only what it is.
+    function isCformCheckoutPending_(visit) {
+      return visitAttentionReasons_(visit).includes('C-form checkout pending');
     }
 
     // Mirrors isResidencyStay in the adapter: a stay that has no beginning
@@ -11592,8 +11627,10 @@
     function toggleVisitCForm_() {
       const enabled = visitEditorGuestIsForeign_;
       $('visit-cform-row').hidden = !enabled;
-      $('edit-cform').disabled = !enabled;
-      if (!enabled) $('edit-cform').checked = false;
+      ['edit-cform', 'edit-cform-checkout'].forEach(id => {
+        $(id).disabled = !enabled;
+        if (!enabled) $(id).checked = false;
+      });
     }
 
     function populateVisitEditor_(profile, visit) {
@@ -11619,6 +11656,7 @@
       $('edit-self-arranged-staying-at').value = (visit && visit.selfArrangedStayingAt) || '';
       setDiningSeating_((visit && visit.diningSeating) || '');
       $('edit-cform').checked = Boolean(visit && visit.cformComplete);
+      $('edit-cform-checkout').checked = Boolean(visit && visit.cformCheckoutComplete);
 
       $('edit-arrival-date').value = (visit && visit.arrivalDate) || '';
       $('edit-arrival-time').value = (visit && visit.arrivalTime) || '';
@@ -11723,6 +11761,7 @@
         selfArrangedStayingAt: $('edit-self-arranged-staying-at').value.trim(),
         diningSeating: getDiningSeating_(),
         isCformComplete: $('edit-cform').checked,
+        isCformCheckoutComplete: $('edit-cform-checkout').checked,
         rooms: getRoomRowValues().map(entry => ({ roomAllocationId: '', ...entry })),
         sharedRoomAcks: Array.isArray(sharedRoomAcks) ? sharedRoomAcks : [],
         arrivalDate: $('edit-arrival-date').value,
