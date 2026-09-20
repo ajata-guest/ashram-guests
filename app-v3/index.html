@@ -9253,14 +9253,6 @@
       return String(a.guests).localeCompare(String(b.guests));
     }
 
-    function exportStayLabel_(visit) {
-      if (isResidencyStay_(visit)) return 'Ongoing residency';
-      const from = visit.arrivalDate || '';
-      const to = visit.departureDate || '';
-      if (from && to) return `${from} to ${to}`;
-      return from ? `from ${from}` : (to ? `until ${to}` : '');
-    }
-
     // Both sheets in one pass over the visits.
     //
     // The dedupe is the whole reason this is not a map over visits: one car
@@ -9284,7 +9276,6 @@
 
       (visits || []).forEach(visit => {
         if (visit.cancelled) return;
-        const stay = exportStayLabel_(visit);
         const room = (visit.rooms || []).join(' & ');
 
         ['pickup', 'dropoff'].forEach(type => {
@@ -9304,7 +9295,6 @@
             // other way, so filling both ends makes every row read alike.
             from: pickup ? (visit.pickupFrom || '') : 'Ashram',
             to: pickup ? 'Ashram' : (visit.dropoffTo || ''),
-            stay,
             room,
             notes: visit[`${type}Details`] || ''
           });
@@ -9326,7 +9316,6 @@
             time: leg.travelTime || '',
             from: leg.from || '',
             to: leg.to || '',
-            stay,
             room,
             // The cabs sheet has no columns of its own for these, and they
             // are worth more beside the ride than dropped.
@@ -9365,7 +9354,6 @@
       { key: 'time', label: 'Time', width: 8 },
       { key: 'from', label: 'From', width: 24 },
       { key: 'to', label: 'To', width: 24 },
-      { key: 'stay', label: 'Stay', width: 24 },
       { key: 'room', label: 'Room', width: 26 },
       { key: 'notes', label: 'Notes', width: 40 }
     ]);
