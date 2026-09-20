@@ -2268,6 +2268,17 @@
 
     .card-action-sheet[hidden] { display: none; }
 
+    /* A card's sheet rises from the bottom because a long press is a thumb
+       gesture and the thumb is already down there. A chooser reached from a
+       button in the header is neither: it has no card underneath it to stay
+       near, and at a desk the bottom of a tall window is simply a long way
+       from where you just clicked. */
+    .card-action-sheet.is-centered { align-items: center; }
+    .card-action-sheet.is-centered .card-action-sheet-panel {
+      margin: 0 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    }
+
     .card-action-sheet-backdrop {
       position: absolute;
       inset: 0;
@@ -8218,6 +8229,9 @@
         list.appendChild(button);
       });
       $('attribute-action-sheet-name').textContent = sheet.title || '';
+      // Set on every open rather than cleared on close, so the flag can never
+      // be left over from the sheet before.
+      $('attribute-action-sheet').classList.toggle('is-centered', Boolean(sheet.centered));
       $('attribute-action-sheet').hidden = false;
     }
 
@@ -9255,7 +9269,6 @@
 
       (visits || []).forEach(visit => {
         if (visit.cancelled) return;
-        const room = (visit.rooms || []).join(' & ');
 
         ['pickup', 'dropoff'].forEach(type => {
           const rideId = visit[`${type}RideId`];
@@ -9274,7 +9287,6 @@
             // other way, so filling both ends makes every row read alike.
             from: pickup ? (visit.pickupFrom || '') : 'Ashram',
             to: pickup ? 'Ashram' : (visit.dropoffTo || ''),
-            room,
             notes: visit[`${type}Details`] || ''
           });
         });
@@ -9295,7 +9307,6 @@
             time: leg.travelTime || '',
             from: leg.from || '',
             to: leg.to || '',
-            room,
             // The cabs sheet has no columns of its own for these, and they
             // are worth more beside the ride than dropped.
             notes: [leg.serviceNumber, leg.bookingReference, leg.notes].filter(Boolean).join(' · ')
@@ -9333,7 +9344,6 @@
       { key: 'time', label: 'Time', width: 8 },
       { key: 'from', label: 'From', width: 24 },
       { key: 'to', label: 'To', width: 24 },
-      { key: 'room', label: 'Room', width: 26 },
       { key: 'notes', label: 'Notes', width: 40 }
     ]);
 
@@ -9577,6 +9587,7 @@
       });
       openActionSheet_({
         title: 'Export travel details',
+        centered: true,
         actions: [
           entry('cabs', sets.cabs.length, 'Cabs and taxis'),
           entry('travel', sets.travel.length, 'Flights, trains and buses')
