@@ -2325,6 +2325,18 @@
       font-weight: 700;
     }
 
+    /* The actions are built into this wrapper, so the wrapper has to be the
+       column. The panel's own gap only separates the title, this box and the
+       Dismiss button beneath it -- it says nothing about what is inside here,
+       and without a rule the buttons sat as inline-block boxes, each only as
+       wide as its own text and with nothing at all between them. Every action
+       sheet in the app was drawn that way, the cards' long-press menu too. */
+    .card-action-sheet-actions {
+      display: flex;
+      gap: 8px;
+      flex-direction: column;
+    }
+
     .card-action-sheet-btn:hover { background: var(--surface-hover); }
 
     .card-action-sheet-btn.destructive {
@@ -5041,7 +5053,7 @@
     <div class="card-action-sheet-backdrop"></div>
     <div class="card-action-sheet-panel" role="dialog" aria-label="Actions">
       <div class="card-action-sheet-name" id="attribute-action-sheet-name"></div>
-      <div id="attribute-action-sheet-actions"></div>
+      <div id="attribute-action-sheet-actions" class="card-action-sheet-actions"></div>
       <button type="button" class="card-action-sheet-btn" id="attribute-action-dismiss-btn">Dismiss</button>
     </div>
   </div>
