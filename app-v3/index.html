@@ -478,6 +478,53 @@
        than another view of the day. */
     .tier-tab-end { margin-left: auto; }
 
+    /* Tabs and the export buttons on one line, with the rule running under
+       both. The width, margin and border move up here from .tier-tabs, which
+       Meals, Meetings, Trips and Seva all share and which is not touched;
+       .tier-tabs-inline unsets them for this one row.
+
+       The buttons sit outside the tabs' own horizontal scroller on purpose.
+       Inside it they would scroll away behind "Past" on a phone, which is
+       where somebody standing at the gate would look for them. */
+    .tier-row {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+      gap: 10px;
+      align-items: flex-end;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    /* min-width:0, or the tabs refuse to shrink below their content and push
+       the buttons off the right edge — a flex item defaults to min-width:auto,
+       the same trap as a bare 1fr in a grid. */
+    .tier-row .tier-tabs-inline {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: none;
+      margin: 0;
+      border-bottom: 0;
+    }
+    .tier-actions { display: flex; flex: 0 0 auto; gap: 6px; padding-bottom: 7px; }
+    .tier-export-btn {
+      display: inline-flex;
+      padding: 6px 11px;
+      gap: 6px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface-raised);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .tier-export-btn .icon { width: 15px; height: 15px; margin: 0; flex: none; }
+    .tier-export-btn:hover:not(:disabled) { border-color: #4a4a4a; background: var(--surface-hover); }
+    .tier-export-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .tier-export-count { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .tier-export-count:empty { display: none; }
+
     .zone {
       margin-bottom: 32px;
       border-radius: 10px;
@@ -3074,6 +3121,9 @@
         scrollbar-width: none;
         overscroll-behavior-x: contain;
       }
+      .tier-row { gap: 6px; }
+      .tier-actions { gap: 4px; }
+      .tier-export-btn { padding: 6px 8px; }
       .tier-tabs::-webkit-scrollbar { display: none; }
       .page-summary { grid-template-columns: repeat(2, 1fr); }
       .ribbon-desc { display: none; }
@@ -4326,7 +4376,15 @@
           <button id="accommodation-view-toggle" class="staymap-toggle" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="accommodation-view-label">Stay Map</span></button>
         </div>
       </div>
-      <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
+      <div class="tier-row">
+        <div id="accommodation-tabs" class="tier-tabs tier-tabs-inline" role="tablist" aria-label="Accommodation sections"></div>
+        <!-- Two files rather than one: the cabs somebody has to arrange, and
+             the journeys either side of them that explain the hours. -->
+        <div class="tier-actions">
+          <button id="accommodation-export-cabs" class="tier-export-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-taxi"></use></svg><span>Cabs</span><span class="tier-export-count"></span></button>
+          <button id="accommodation-export-travel" class="tier-export-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-flight"></use></svg><span>Travel</span><span class="tier-export-count"></span></button>
+        </div>
+      </div>
       <div id="accommodation-chips" class="quick-filters" role="group" aria-label="Accommodation filters"></div>
       <!-- A sibling of the swipe surface, never a child: that surface narrows
            touch-action to pan-y, which a descendant cannot widen, and it takes
@@ -5453,6 +5511,8 @@
       $('accommodation-view-toggle').addEventListener('click', () => {
         navigate(accommodationView_ === 'map' ? `#accommodation/${accommodationSection_}` : '#accommodation/map');
       });
+      $('accommodation-export-cabs').addEventListener('click', () => runTravelExport_('cabs'));
+      $('accommodation-export-travel').addEventListener('click', () => runTravelExport_('travel'));
       $('staymap-prev').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), -1), true));
       $('staymap-next').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), 1), true));
       $('staymap-today').addEventListener('click', () => setStayMapAnchor_(stayMapMonthOf_(getAppDateKey(Date.now())), true));
@@ -9151,6 +9211,10 @@
         accommodationSection_ = key;
         navigate(`#accommodation/${key}`);
       });
+      // Deliberately every visit rather than the filtered list: the export is
+      // the whole workspace, and a chip narrowing the cards on screen should
+      // not quietly narrow the spreadsheet somebody is about to hand a driver.
+      syncTravelExportButtons_();
 
       const def = ACCOMMODATION_SECTIONS_.find(s => s.key === accommodationSection_) || ACCOMMODATION_SECTIONS_[0];
       // Search is workspace-wide: while a query is present, show every
@@ -9164,6 +9228,391 @@
       emptyEl.textContent = query ? 'No visits match your search.' : `Nothing in ${def.label.toLowerCase()}.`;
     }
 
+
+    // ---- Travel exports ----------------------------------------------------
+    // Two spreadsheets off the tier row: the cabs the ashram has to arrange,
+    // and the flights, trains and buses that explain why. Both are built from
+    // accommodationVisits_ — what is already on screen — so nothing is fetched
+    // and the file can never disagree with the workspace behind it.
+
+    // A journey belongs in the file when it is still ahead, or when nobody has
+    // dated it yet and the stay it belongs to is not over. An undated cab on a
+    // visit that finished in March is not a job anybody has.
+    function exportInRange_(dateKey, visit, todayKey) {
+      return dateKey ? dateKey >= todayKey : visitStillHere_(visit, todayKey);
+    }
+
+    // Date first, and an undated journey last rather than first: it has no
+    // place in the order, and floating it to the top would bury the week's
+    // actual work under everything nobody has scheduled.
+    function compareExportRows_(a, b) {
+      if (Boolean(a.date) !== Boolean(b.date)) return a.date ? -1 : 1;
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      const at = a.time || '99:99', bt = b.time || '99:99';
+      if (at !== bt) return at < bt ? -1 : 1;
+      return String(a.guests).localeCompare(String(b.guests));
+    }
+
+    function exportStayLabel_(visit) {
+      if (isResidencyStay_(visit)) return 'Ongoing residency';
+      const from = visit.arrivalDate || '';
+      const to = visit.departureDate || '';
+      if (from && to) return `${from} to ${to}`;
+      return from ? `from ${from}` : (to ? `until ${to}` : '');
+    }
+
+    // Both sheets in one pass over the visits.
+    //
+    // The dedupe is the whole reason this is not a map over visits: one car
+    // carrying three guests appears on three visits, and a driver roster that
+    // lists it three times gets rung three times. Keyed on the id of the ride
+    // itself, and the first occurrence already names everyone aboard through
+    // its companions list.
+    //
+    // Range is OR-ed across occurrences rather than decided by whichever
+    // visit happens to come first: an undated ride shared by someone who has
+    // left and someone still here is still owed to the one still here.
+    function collectTravelExports_(visits, todayKey) {
+      const byId = new Map();
+      const add = (id, inRange, sheet, row) => {
+        const seen = byId.get(id);
+        if (seen) { seen.inRange = seen.inRange || inRange; return; }
+        byId.set(id, { inRange, sheet, row });
+      };
+      const riders = (name, companions) => [name || 'Unnamed guest']
+        .concat((companions || []).map(item => item.name).filter(Boolean));
+
+      (visits || []).forEach(visit => {
+        if (visit.cancelled) return;
+        const stay = exportStayLabel_(visit);
+        const room = (visit.rooms || []).join(' & ');
+
+        ['pickup', 'dropoff'].forEach(type => {
+          const rideId = visit[`${type}RideId`];
+          if (!visit[`${type}Required`] || !rideId) return;
+          const names = riders(visit.name, visit[`${type}Companions`]);
+          const date = visit[`${type}Date`] || '';
+          const pickup = type === 'pickup';
+          add(rideId, exportInRange_(date, visit, todayKey), 'cabs', {
+            kind: pickup ? 'Pickup' : 'Drop-off',
+            guests: names.join(' & '),
+            riders: names.length,
+            status: visit[`${type}BookingState`] || 'Requested',
+            date,
+            time: visit[`${type}Time`] || '',
+            // A pickup runs from somewhere to the ashram and a drop-off the
+            // other way, so filling both ends makes every row read alike.
+            from: pickup ? (visit.pickupFrom || '') : 'Ashram',
+            to: pickup ? 'Ashram' : (visit.dropoffTo || ''),
+            stay,
+            room,
+            notes: visit[`${type}Details`] || ''
+          });
+        });
+
+        (visit.travelLegs || []).forEach(leg => {
+          const names = riders(visit.name, leg.companions);
+          const date = leg.travelDate || '';
+          const status = leg.status === 'Confirmed' ? 'Confirmed' : 'To arrange';
+          const road = leg.transportType === 'Taxi' || leg.transportType === 'Other';
+          // A taxi is a cab whoever ordered it, so it belongs on the driver
+          // roster. Everything else is the journey either side of one.
+          add(leg.legId, exportInRange_(date, visit, todayKey), road ? 'cabs' : 'travel', road ? {
+            kind: leg.transportType,
+            guests: names.join(' & '),
+            riders: names.length,
+            status,
+            date,
+            time: leg.travelTime || '',
+            from: leg.from || '',
+            to: leg.to || '',
+            stay,
+            room,
+            // The cabs sheet has no columns of its own for these, and they
+            // are worth more beside the ride than dropped.
+            notes: [leg.serviceNumber, leg.bookingReference, leg.notes].filter(Boolean).join(' · ')
+          } : {
+            kind: leg.transportType || 'Other',
+            guests: names.join(' & '),
+            riders: names.length,
+            direction: leg.direction || '',
+            status,
+            date,
+            time: leg.travelTime || '',
+            from: leg.from || '',
+            to: leg.to || '',
+            service: leg.serviceNumber || '',
+            reference: leg.bookingReference || '',
+            notes: leg.notes || ''
+          });
+        });
+      });
+
+      const cabs = [], travel = [];
+      byId.forEach(entry => {
+        if (!entry.inRange) return;
+        (entry.sheet === 'cabs' ? cabs : travel).push(entry.row);
+      });
+      return { cabs: cabs.sort(compareExportRows_), travel: travel.sort(compareExportRows_) };
+    }
+
+    const EXPORT_CAB_COLUMNS_ = Object.freeze([
+      { key: 'kind', label: 'Kind', width: 10 },
+      { key: 'guests', label: 'Guests', width: 34 },
+      { key: 'riders', label: 'Riders', width: 7 },
+      { key: 'status', label: 'Status', width: 20 },
+      { key: 'date', label: 'Date', width: 12 },
+      { key: 'time', label: 'Time', width: 8 },
+      { key: 'from', label: 'From', width: 24 },
+      { key: 'to', label: 'To', width: 24 },
+      { key: 'stay', label: 'Stay', width: 24 },
+      { key: 'room', label: 'Room', width: 26 },
+      { key: 'notes', label: 'Notes', width: 40 }
+    ]);
+
+    const EXPORT_TRAVEL_COLUMNS_ = Object.freeze([
+      { key: 'kind', label: 'Kind', width: 10 },
+      { key: 'guests', label: 'Guests', width: 34 },
+      { key: 'riders', label: 'Riders', width: 7 },
+      { key: 'direction', label: 'Direction', width: 11 },
+      { key: 'status', label: 'Status', width: 14 },
+      { key: 'date', label: 'Date', width: 12 },
+      { key: 'time', label: 'Time', width: 8 },
+      { key: 'from', label: 'From', width: 24 },
+      { key: 'to', label: 'To', width: 24 },
+      { key: 'service', label: 'Service no.', width: 14 },
+      { key: 'reference', label: 'Booking ref', width: 16 },
+      { key: 'notes', label: 'Notes', width: 40 }
+    ]);
+
+    // ---- A spreadsheet, written by hand ------------------------------------
+    // An .xlsx is a zip of XML parts. Writing one here rather than pulling in
+    // a library keeps the app a single uploadable file and keeps the button
+    // working when the ashram's connection is not: a CDN script is one more
+    // thing that can be down at eight in the morning.
+
+    function xmlEscape_(value) {
+      const text = String(value === null || value === undefined ? '' : value);
+      let out = '';
+      for (const ch of text) {
+        const code = ch.codePointAt(0);
+        // Control characters cannot be represented in XML at all, and one
+        // pasted into a note would make the whole workbook unopenable. Tab,
+        // newline and carriage return are the three that can.
+        if (code < 32 && code !== 9 && code !== 10 && code !== 13) continue;
+        out += ch === '&' ? '&amp;'
+          : ch === '<' ? '&lt;'
+          : ch === '>' ? '&gt;'
+          : ch === '"' ? '&quot;'
+          : ch === "'" ? '&apos;'
+          : ch;
+      }
+      return out;
+    }
+
+    function columnLetter_(index) {
+      let n = index + 1, out = '';
+      while (n > 0) {
+        const rem = (n - 1) % 26;
+        out = String.fromCharCode(65 + rem) + out;
+        n = Math.floor((n - 1) / 26);
+      }
+      return out;
+    }
+
+    // Table-free, so there is no 256-entry constant sitting in the page for a
+    // checksum used a handful of times a week.
+    function crc32_(bytes) {
+      let crc = -1;
+      for (let i = 0; i < bytes.length; i += 1) {
+        crc ^= bytes[i];
+        for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+      }
+      return (crc ^ -1) >>> 0;
+    }
+
+    // Stored rather than deflated. Compression is the only genuinely hard part
+    // of writing a zip, and on a sheet of a few hundred rows it would save
+    // kilobytes nobody is counting.
+    function zipStored_(entries) {
+      const encoder = new TextEncoder();
+      const now = new Date();
+      const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xffff;
+      const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xffff;
+      const chunks = [], central = [];
+      let offset = 0;
+
+      entries.forEach(entry => {
+        const name = encoder.encode(entry.name);
+        const data = encoder.encode(entry.text);
+        const crc = crc32_(data);
+
+        const local = new Uint8Array(30 + name.length);
+        const lv = new DataView(local.buffer);
+        lv.setUint32(0, 0x04034b50, true);
+        lv.setUint16(4, 20, true);
+        lv.setUint16(6, 0x0800, true);          // names and text are UTF-8
+        lv.setUint16(8, 0, true);               // method 0 = stored
+        lv.setUint16(10, dosTime, true);
+        lv.setUint16(12, dosDate, true);
+        lv.setUint32(14, crc, true);
+        lv.setUint32(18, data.length, true);
+        lv.setUint32(22, data.length, true);
+        lv.setUint16(26, name.length, true);
+        local.set(name, 30);
+        chunks.push(local, data);
+
+        const record = new Uint8Array(46 + name.length);
+        const rv = new DataView(record.buffer);
+        rv.setUint32(0, 0x02014b50, true);
+        rv.setUint16(4, 20, true);
+        rv.setUint16(6, 20, true);
+        rv.setUint16(8, 0x0800, true);
+        rv.setUint16(10, 0, true);
+        rv.setUint16(12, dosTime, true);
+        rv.setUint16(14, dosDate, true);
+        rv.setUint32(16, crc, true);
+        rv.setUint32(20, data.length, true);
+        rv.setUint32(24, data.length, true);
+        rv.setUint16(28, name.length, true);
+        rv.setUint32(42, offset, true);
+        record.set(name, 46);
+        central.push(record);
+
+        offset += local.length + data.length;
+      });
+
+      let centralSize = 0;
+      central.forEach(record => { chunks.push(record); centralSize += record.length; });
+      const end = new Uint8Array(22);
+      const ev = new DataView(end.buffer);
+      ev.setUint32(0, 0x06054b50, true);
+      ev.setUint16(8, central.length, true);
+      ev.setUint16(10, central.length, true);
+      ev.setUint32(12, centralSize, true);
+      ev.setUint32(16, offset, true);
+      chunks.push(end);
+      return chunks;
+    }
+
+    function sheetXml_(columns, rows) {
+      const cell = (colIndex, rowNumber, value, styled) =>
+        `<c r="${columnLetter_(colIndex)}${rowNumber}" t="inlineStr"${styled ? ' s="1"' : ''}>`
+        + `<is><t xml:space="preserve">${xmlEscape_(value)}</t></is></c>`;
+      const header = `<row r="1">${columns.map((col, i) => cell(i, 1, col.label, true)).join('')}</row>`;
+      const body = rows.map((row, index) => {
+        const rowNumber = index + 2;
+        return `<row r="${rowNumber}">`
+          + columns.map((col, i) => cell(i, rowNumber, row[col.key], false)).join('')
+          + '</row>';
+      }).join('');
+      const cols = columns.map((col, i) =>
+        `<col min="${i + 1}" max="${i + 1}" width="${col.width}" customWidth="1"/>`).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        + `<dimension ref="A1:${columnLetter_(columns.length - 1)}${rows.length + 1}"/>`
+        // Frozen, so the headings stay put on a long list.
+        + '<sheetViews><sheetView workbookViewId="0">'
+        + '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
+        + '</sheetView></sheetViews>'
+        + '<sheetFormatPr defaultRowHeight="15"/>'
+        + `<cols>${cols}</cols><sheetData>${header}${body}</sheetData></worksheet>`;
+    }
+
+    function workbookParts_(sheetName, columns, rows) {
+      const ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+      return [
+        { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+          + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+          + '<Default Extension="xml" ContentType="application/xml"/>'
+          + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+          + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+          + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+          + '</Types>' },
+        { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + `<Relationship Id="rId1" Type="${ns}/officeDocument" Target="xl/workbook.xml"/>`
+          + '</Relationships>' },
+        { name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+          + ` xmlns:r="${ns}">`
+          + `<sheets><sheet name="${xmlEscape_(sheetName)}" sheetId="1" r:id="rId1"/></sheets>`
+          + '</workbook>' },
+        { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + `<Relationship Id="rId1" Type="${ns}/worksheet" Target="worksheets/sheet1.xml"/>`
+          + `<Relationship Id="rId2" Type="${ns}/styles" Target="styles.xml"/>`
+          + '</Relationships>' },
+        // Excel insists on the first two fills being none and gray125, in that
+        // order, and refuses to open the file otherwise.
+        { name: 'xl/styles.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+          + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>'
+          + '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+          + '<fills count="2"><fill><patternFill patternType="none"/></fill>'
+          + '<fill><patternFill patternType="gray125"/></fill></fills>'
+          + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+          + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+          + '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+          + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
+          + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+          + '</styleSheet>' },
+        { name: 'xl/worksheets/sheet1.xml', text: sheetXml_(columns, rows) }
+      ];
+    }
+
+    const XLSX_MIME_ = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    function downloadWorkbook_(filename, sheetName, columns, rows) {
+      const blob = new Blob(zipStored_(workbookParts_(sheetName, columns, rows)), { type: XLSX_MIME_ });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Straight away would race the download on some browsers; a tick is
+      // enough and the object cannot outlive the page either way.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function runTravelExport_(which) {
+      const todayKey = getAppDateKey(Date.now());
+      const sets = collectTravelExports_(accommodationVisits_, todayKey);
+      const cabs = which === 'cabs';
+      const rows = cabs ? sets.cabs : sets.travel;
+      const label = cabs ? 'cab and taxi journeys' : 'flights, trains and buses';
+      if (!rows.length) {
+        showToast(`No ${label} from today onwards to export.`, 'error');
+        return;
+      }
+      downloadWorkbook_(
+        `ashram-${cabs ? 'cabs' : 'travel'}-${todayKey}.xlsx`,
+        cabs ? 'Cabs' : 'Travel',
+        cabs ? EXPORT_CAB_COLUMNS_ : EXPORT_TRAVEL_COLUMNS_,
+        rows);
+      showToast(`${rows.length} ${cabs ? 'cab' : 'travel'} row${rows.length === 1 ? '' : 's'} exported.`, 'success');
+    }
+
+    // The count sits on the button, so it is obvious before pressing whether
+    // there is anything to take away.
+    function syncTravelExportButtons_() {
+      const sets = collectTravelExports_(accommodationVisits_, getAppDateKey(Date.now()));
+      [['accommodation-export-cabs', sets.cabs.length, 'cab or taxi journeys'],
+       ['accommodation-export-travel', sets.travel.length, 'flights, trains or buses']
+      ].forEach(([id, count, label]) => {
+        const button = $(id);
+        if (!button) return;
+        button.disabled = count === 0;
+        button.title = count
+          ? `Download ${count} ${label.replace(/s$/, '')}${count === 1 ? '' : 's'} as a spreadsheet`
+          : `No ${label} from today onwards`;
+        const badge = button.querySelector('.tier-export-count');
+        if (badge) badge.textContent = count ? String(count) : '';
+      });
+    }
 
     // ---- Stay Map ----------------------------------------------------------
     // A hotel-style occupancy chart over the same payload the cards draw. The
