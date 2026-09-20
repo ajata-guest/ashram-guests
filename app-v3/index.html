@@ -8949,6 +8949,37 @@
     // Residents are excluded because every one of them is staying, always:
     // the badge would appear on every resident card and distinguish nothing,
     // and "Ongoing residency" is already the first line of those cards.
+    // The window the room picker measures a proposed stay against.
+    //
+    // A blank arrival field yields null, and null compares as zero: the stay
+    // was being read as running from 1 January 1970 to forever, so every room
+    // anyone had ever slept in came back occupied -- offering to share with
+    // guests who left months ago, and blocking the save until each was
+    // acknowledged, which wrote sharedOk against a sharing arrangement that
+    // did not exist. Dates not yet known nearly always means here now or here
+    // soon, so the window opens today instead. Rooms standing empty are free
+    // again; a room occupied tonight still says so.
+    //
+    // Deliberately stricter than the save, whose overlap() returns false
+    // outright on a null start. This is an advisory, and an advisory is
+    // allowed to be more careful than the rule it advises about.
+    function roomPickerWindow_(arrivalMs, departureMs, now) {
+      return {
+        start: arrivalMs === null || arrivalMs === undefined ? now : arrivalMs,
+        end: departureMs || Number.POSITIVE_INFINITY
+      };
+    }
+
+    // Whether that window meets another guest's stay. A residency has no dates
+    // because it has no end -- someone lives there -- so it meets everything.
+    // Any other stay with no arrival on record cannot be placed in time at
+    // all, and so meets nothing.
+    function roomWindowsOverlap_(start, end, visit, residency) {
+      if (residency) return true;
+      if (!visit.arrivalMs) return false;
+      return start < (visit.departureMs || Number.POSITIVE_INFINITY) && end > visit.arrivalMs;
+    }
+
     function isStayingInAshram_(visit, today) {
       return !isResidencyStay_(visit)
         && visit.accommodation === 'Ashram'
@@ -15841,7 +15872,8 @@
       // current/nearest visit is only a fallback if the workspace has not yet
       // been loaded.
       {
-        const newEnd = newDeparture || Number.POSITIVE_INFINITY;
+        const { start: newStart, end: newEnd } =
+          roomPickerWindow_(newArrival, newDeparture, Date.now());
         const knownVisits = accommodationVisits_.length
           ? accommodationVisits_
           : directoryRecords_.map(record => record.visit
@@ -15856,9 +15888,7 @@
           // rather than offered for sharing — the room only frees up when
           // the resident moves out of it or stops being a resident.
           const residency = isResidencyStay_(visit);
-          if (!residency && !visit.arrivalMs) return;
-          const otherEnd = visit.departureMs || Number.POSITIVE_INFINITY;
-          if (residency || (newArrival < otherEnd && newEnd > visit.arrivalMs)) {
+          if (roomWindowsOverlap_(newStart, newEnd, visit, residency)) {
             guestRooms.forEach(room => {
               if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
               const occupants = occupiedRooms.get(room);
