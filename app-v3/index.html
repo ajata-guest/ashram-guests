@@ -8873,7 +8873,7 @@
       { key: 'attention', label: 'Needs Attention', shortLabel: 'Attention', accent: '#ff8b84', test: v => visitAttentionReasons_(v).length > 0 },
       { key: 'today', label: 'Today', shortLabel: 'Today', accent: '#6fbaf0', test: (v, today) => v.arrivalDate === today || v.departureDate === today },
       // A resident is residing every day, with no arrival date to prove it.
-      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => !visitAwayOn_(v, today) && (isResidencyStay_(v) || (v.accommodation === 'Ashram' && isVisitPresent_(v, today))) },
+      { key: 'residing', label: 'Residing', shortLabel: 'Residing', accent: '#b878d6', test: (v, today) => isResidencyStay_(v) ? !visitAwayOn_(v, today) : isStayingInAshram_(v, today) },
       // Here but not housed here: present, staying anywhere other than the
       // ashram. Residing, Nearby and Away are three names for where someone
       // is today and exactly one is true at a time.
@@ -8938,6 +8938,22 @@
     // the only difference between those two tabs is where the guest sleeps.
     function isVisitPresent_(visit, today) {
       return hasVisitArrived_(visit) && visitStillHere_(visit, today);
+    }
+
+    // Staying in the ashram: here now, housed by the ashram itself, not away,
+    // and not a resident. Exactly what the Residing tab means minus the
+    // residents, and stated once so the badge and the tab cannot disagree --
+    // a card badged Staying that is missing from Residing is a contradiction
+    // nobody can debug from a screenshot.
+    //
+    // Residents are excluded because every one of them is staying, always:
+    // the badge would appear on every resident card and distinguish nothing,
+    // and "Ongoing residency" is already the first line of those cards.
+    function isStayingInAshram_(visit, today) {
+      return !isResidencyStay_(visit)
+        && visit.accommodation === 'Ashram'
+        && !visitAwayOn_(visit, today)
+        && isVisitPresent_(visit, today);
     }
 
     // The away period covering a given day, or null. Mirrors awayPeriodOn in
@@ -10151,21 +10167,28 @@
       if (residency) {
         card.appendChild(createDetailLine('icon-calendar', 'Ongoing residency'));
       }
-      // With both dates the line is a bare range and says nothing about where
-      // the guest is in it, so the standing is a badge instead — it keeps the
-      // date line to one short row. Upcoming needs no badge: that is what a
-      // future date already means.
+      // Staying is badged wherever it is true, and not only where both dates
+      // happen to be known. It used to require an arrival and a departure, on
+      // the reasoning that a bare range says nothing about where the guest is
+      // inside it while a one-ended line ("Arrived 14 Sept") already does.
+      // True of the line, but two cards side by side -- one badged, one not,
+      // both of people asleep in the ashram tonight -- read as a difference in
+      // standing rather than a difference in what the date line says. A guest
+      // whose departure is not yet known is still staying.
       //
-      // Staying means staying here. On a guest the ashram is not housing, the
-      // line below already says where they are — "Outside · Self-arranged" —
-      // and a Staying badge above it only argues with it. Away is the same
-      // case a day later: the badge would claim they are here while the away
-      // line underneath says they are not. Departed keeps no such condition;
-      // gone is gone wherever they were sleeping.
-      const stayingHere = visit.accommodation === 'Ashram' && !visitAwayOn_(visit, todayDateKey_());
-      if (!residency && visit.arrivalMs && visit.departureMs) {
-        if (status === 'staying' && stayingHere) badges.appendChild(createBadge('Staying', 'badge-confirmed'));
-        else if (status === 'departed') badges.appendChild(createBadge('Departed', 'badge-gray'));
+      // Staying still means staying HERE. On a guest the ashram is not
+      // housing, the line below already says where they are -- "Outside ·
+      // Self-arranged" -- and the badge would only argue with it. Away is the
+      // same case a day later: it would claim they are here while the away
+      // line underneath says they are not. Both are the predicate's business,
+      // not this function's.
+      if (!residency && isStayingInAshram_(visit, todayDateKey_())) {
+        badges.appendChild(createBadge('Staying', 'badge-confirmed'));
+      } else if (!residency && visit.arrivalMs && visit.departureMs && status === 'departed') {
+        // Departed keeps the both-dates condition: with only a departure on
+        // record the line below already reads "Departed 14 Sept", and gone is
+        // gone wherever they were sleeping.
+        badges.appendChild(createBadge('Departed', 'badge-gray'));
       }
       if (residency) { /* the line above already says it */ }
       else if (visit.arrivalMs && visit.departureMs) {
