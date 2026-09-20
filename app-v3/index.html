@@ -2314,7 +2314,15 @@
     }
 
     .card-action-sheet-btn {
+      display: flex;
       padding: 13px;
+      gap: 10px;
+      align-items: center;
+      /* Dismiss is written as bare text in the markup rather than built by
+         the renderer, and bare text inside a flex row becomes an anonymous
+         item that does not stretch -- so without this it sat against the left
+         edge while every built button stayed centred. */
+      justify-content: center;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface);
@@ -2324,6 +2332,18 @@
       font-size: 0.95rem;
       font-weight: 700;
     }
+    /* The label takes the rest of the row and centres within it, so a button
+       with no glyph reads exactly as it did before this: one flex child at
+       full width with centred text is a centred button. */
+    .card-action-sheet-label { flex: 1; text-align: center; }
+    .card-action-sheet-btn .icon {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      flex: none;
+      color: var(--accent);
+    }
+    .card-action-sheet-btn.destructive .icon { color: #ef8a82; }
 
     /* The actions are built into this wrapper, so the wrapper has to be the
        column. The panel's own gap only separates the title, this box and the
@@ -8226,13 +8246,15 @@
       return true;
     }
 
-    // sheet = { title, actions: [{ label, destructive, run }] }
+    // sheet = { title, centered, actions: [{ label, icon, destructive, run }] }
     function openActionSheet_(sheet) {
       const list = $('attribute-action-sheet-actions');
       list.replaceChildren();
       actionSheetActions_ = (sheet.actions || []).filter(Boolean);
       actionSheetActions_.forEach(action => {
-        const button = createElement('button', `card-action-sheet-btn${action.destructive ? ' destructive' : ''}`, action.label);
+        const button = createElement('button', `card-action-sheet-btn${action.destructive ? ' destructive' : ''}`);
+        if (action.icon) button.appendChild(createIcon_(action.icon));
+        button.appendChild(createElement('span', 'card-action-sheet-label', action.label));
         button.type = 'button';
         button.addEventListener('click', () => {
           closeActionSheet_();
@@ -9592,6 +9614,9 @@
     function openTravelExportSheet_() {
       const sets = collectTravelExports_(accommodationVisits_, getAppDateKey(Date.now()));
       const entry = (which, count, name) => ({
+        // The same glyph as the button that opened the sheet, on both rows:
+        // what distinguishes them is which file, not whether it is a download.
+        icon: 'icon-download',
         label: count
           ? `${name} — ${count} journey${count === 1 ? '' : 's'}`
           : `${name} — nothing from today onwards`,
