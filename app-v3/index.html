@@ -478,52 +478,6 @@
        than another view of the day. */
     .tier-tab-end { margin-left: auto; }
 
-    /* Tabs and the export buttons on one line, with the rule running under
-       both. The width, margin and border move up here from .tier-tabs, which
-       Meals, Meetings, Trips and Seva all share and which is not touched;
-       .tier-tabs-inline unsets them for this one row.
-
-       The buttons sit outside the tabs' own horizontal scroller on purpose.
-       Inside it they would scroll away behind "Past" on a phone, which is
-       where somebody standing at the gate would look for them. */
-    .tier-row {
-      display: flex;
-      max-width: 1200px;
-      margin: 0 auto 24px;
-      gap: 10px;
-      align-items: flex-end;
-      border-bottom: 1px solid #2a2a2a;
-    }
-    /* min-width:0, or the tabs refuse to shrink below their content and push
-       the buttons off the right edge — a flex item defaults to min-width:auto,
-       the same trap as a bare 1fr in a grid. */
-    .tier-row .tier-tabs-inline {
-      flex: 1 1 auto;
-      min-width: 0;
-      max-width: none;
-      margin: 0;
-      border-bottom: 0;
-    }
-    .tier-actions { display: flex; flex: 0 0 auto; gap: 6px; padding-bottom: 7px; }
-    .tier-export-btn {
-      display: inline-flex;
-      padding: 6px 11px;
-      gap: 6px;
-      align-items: center;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      background: var(--surface-raised);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .tier-export-btn .icon { width: 15px; height: 15px; margin: 0; flex: none; }
-    .tier-export-btn:hover:not(:disabled) { border-color: #4a4a4a; background: var(--surface-hover); }
-    .tier-export-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .tier-export-count { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
-    .tier-export-count:empty { display: none; }
 
     .zone {
       margin-bottom: 32px;
@@ -3110,6 +3064,14 @@
       .page-actions:has(.primary-btn + .primary-btn) { flex-wrap: wrap; }
       .page-actions:has(.primary-btn + .primary-btn) .page-search { flex: 1 1 100%; }
       .page-actions:has(.primary-btn + .primary-btn) .primary-btn { flex: 1 1 0; justify-content: center; }
+      /* Three actions and a search box will not fit one phone row. Same shape
+         as the rule above: the search takes its own line and the three split
+         what is left, rather than the tier tabs paying for it. */
+      .page-actions:has(.export-btn) { flex-wrap: wrap; }
+      .page-actions:has(.export-btn) .page-search { flex: 1 1 100%; }
+      .page-actions:has(.export-btn) .primary-btn,
+      .page-actions:has(.export-btn) .staymap-toggle,
+      .page-actions:has(.export-btn) .export-btn { flex: 1 1 0; justify-content: center; }
       .page-title-row { gap: 8px; }
       .page-title { flex: 1; }
       .page-back { width: 34px; height: 34px; padding: 0; justify-content: center; }
@@ -3121,9 +3083,6 @@
         scrollbar-width: none;
         overscroll-behavior-x: contain;
       }
-      .tier-row { gap: 6px; }
-      .tier-actions { gap: 4px; }
-      .tier-export-btn { padding: 6px 8px; }
       .tier-tabs::-webkit-scrollbar { display: none; }
       .page-summary { grid-template-columns: repeat(2, 1fr); }
       .ribbon-desc { display: none; }
@@ -3350,6 +3309,28 @@
     /* Shaped like the primary button beside it, in the quieter outline the
        secondary actions use: same height, same padding, same icon size, so the
        two read as a pair rather than as a button and an afterthought. */
+    /* An export leaves the app with a file; it is not another way to filter
+       what is on screen. Outlined and dashed rather than filled, with the
+       download glyph in the page accent, so it does not read as a third
+       sibling of Add and Stay Map. */
+    .export-btn {
+      display: inline-flex;
+      padding: 9px 13px;
+      gap: 7px;
+      align-items: center;
+      border: 1px dashed #4f4f4f;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .export-btn .icon { width: 16px; height: 16px; margin: 0; flex: none; color: var(--accent); }
+    .export-btn:hover:not(:disabled) { border-color: var(--accent); background: rgba(255, 255, 255, 0.03); }
+    .export-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
     .staymap-toggle {
       display: inline-flex;
       padding: 9px 15px;
@@ -4374,17 +4355,12 @@
           <div class="page-search"><input type="search" id="accommodation-search" placeholder="Search visits..." aria-label="Search visits"></div>
           <button id="accommodation-workspace-add-btn" class="primary-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg><span class="action-label-full">Add Visit</span><span class="action-label-compact">Add</span></button>
           <button id="accommodation-view-toggle" class="staymap-toggle" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="accommodation-view-label">Stay Map</span></button>
+          <!-- One control rather than two: which file you want is a question
+               worth a sentence, and the action sheet has room for one. -->
+          <button id="accommodation-export-btn" class="export-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg><span>Export</span></button>
         </div>
       </div>
-      <div class="tier-row">
-        <div id="accommodation-tabs" class="tier-tabs tier-tabs-inline" role="tablist" aria-label="Accommodation sections"></div>
-        <!-- Two files rather than one: the cabs somebody has to arrange, and
-             the journeys either side of them that explain the hours. -->
-        <div class="tier-actions">
-          <button id="accommodation-export-cabs" class="tier-export-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-taxi"></use></svg><span>Cabs</span><span class="tier-export-count"></span></button>
-          <button id="accommodation-export-travel" class="tier-export-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-flight"></use></svg><span>Travel</span><span class="tier-export-count"></span></button>
-        </div>
-      </div>
+      <div id="accommodation-tabs" class="tier-tabs" role="tablist" aria-label="Accommodation sections"></div>
       <div id="accommodation-chips" class="quick-filters" role="group" aria-label="Accommodation filters"></div>
       <!-- A sibling of the swipe surface, never a child: that surface narrows
            touch-action to pan-y, which a descendant cannot widen, and it takes
@@ -5095,6 +5071,10 @@
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
     <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+    <!-- A tray with an arrow coming down into it. Nothing else here says
+         "take this away with you", and without it an export button reads as
+         one more way to filter the list. -->
+    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></symbol>
     <symbol id="icon-check" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
     <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
     <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></symbol>
@@ -5511,8 +5491,7 @@
       $('accommodation-view-toggle').addEventListener('click', () => {
         navigate(accommodationView_ === 'map' ? `#accommodation/${accommodationSection_}` : '#accommodation/map');
       });
-      $('accommodation-export-cabs').addEventListener('click', () => runTravelExport_('cabs'));
-      $('accommodation-export-travel').addEventListener('click', () => runTravelExport_('travel'));
+      $('accommodation-export-btn').addEventListener('click', openTravelExportSheet_);
       $('staymap-prev').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), -1), true));
       $('staymap-next').addEventListener('click', () => setStayMapAnchor_(stayMapShiftMonth_(stayMapAnchor_(), 1), true));
       $('staymap-today').addEventListener('click', () => setStayMapAnchor_(stayMapMonthOf_(getAppDateKey(Date.now())), true));
@@ -9584,22 +9563,38 @@
       showToast(`${rows.length} ${cabs ? 'cab' : 'travel'} row${rows.length === 1 ? '' : 's'} exported.`, 'success');
     }
 
-    // The count sits on the button, so it is obvious before pressing whether
-    // there is anything to take away.
-    function syncTravelExportButtons_() {
+    // Which of the two files you want is a question worth a sentence, and a
+    // button in a header row has space for one word. The sheet has room for
+    // both the sentence and the count, so the choice is made where it can be
+    // explained rather than guessed from an icon.
+    function openTravelExportSheet_() {
       const sets = collectTravelExports_(accommodationVisits_, getAppDateKey(Date.now()));
-      [['accommodation-export-cabs', sets.cabs.length, 'cab or taxi journeys'],
-       ['accommodation-export-travel', sets.travel.length, 'flights, trains or buses']
-      ].forEach(([id, count, label]) => {
-        const button = $(id);
-        if (!button) return;
-        button.disabled = count === 0;
-        button.title = count
-          ? `Download ${count} ${label.replace(/s$/, '')}${count === 1 ? '' : 's'} as a spreadsheet`
-          : `No ${label} from today onwards`;
-        const badge = button.querySelector('.tier-export-count');
-        if (badge) badge.textContent = count ? String(count) : '';
+      const entry = (which, count, name) => ({
+        label: count
+          ? `${name} — ${count} journey${count === 1 ? '' : 's'}`
+          : `${name} — nothing from today onwards`,
+        run: () => runTravelExport_(which)
       });
+      openActionSheet_({
+        title: 'Export travel details',
+        actions: [
+          entry('cabs', sets.cabs.length, 'Cabs and taxis'),
+          entry('travel', sets.travel.length, 'Flights, trains and buses')
+        ]
+      });
+    }
+
+    // Nothing at all to take away is the one case worth saying before the tap
+    // rather than after it.
+    function syncTravelExportButtons_() {
+      const button = $('accommodation-export-btn');
+      if (!button) return;
+      const sets = collectTravelExports_(accommodationVisits_, getAppDateKey(Date.now()));
+      const total = sets.cabs.length + sets.travel.length;
+      button.disabled = total === 0;
+      button.title = total
+        ? `Download cab or travel details as a spreadsheet — ${sets.cabs.length} cab, ${sets.travel.length} travel`
+        : 'No cab or travel journeys from today onwards';
     }
 
     // ---- Stay Map ----------------------------------------------------------
