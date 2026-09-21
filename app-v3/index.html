@@ -4370,7 +4370,7 @@
           <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
-          Add only journeys the ashram is arranging. Dates and times are optional; dated legs are held in the order they happen, and a leg with no date yet can be given any date and will take its place once saved.
+          Add only journeys the ashram is arranging. Dates and times are optional, and legs can be filled in any order &mdash; they sort themselves into the order they happen when you save. Anything still undated stays at the end.
         </p>
         <div id="travel-leg-list" class="travel-leg-list"></div>
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
@@ -4822,7 +4822,7 @@
           <button id="add-trip-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
-          Dates and times are optional; dated legs are held in the order they happen, and a leg with no date yet can be given any date and will take its place once saved.
+          Dates and times are optional, and legs can be filled in any order &mdash; they sort themselves into the order they happen when you save. Anything still undated stays at the end.
         </p>
         <div id="trip-travel-leg-list" class="travel-leg-list"></div>
         <div id="trip-travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
@@ -15308,7 +15308,7 @@
       list.replaceChildren();
       (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg, listId, emptyId));
       updateTravelEmptyState(listId, emptyId);
-      updateTravelDateConstraints(listId);
+      syncTravelLegTimeFields(listId);
     }
 
     // "A", "A and B", "A, B and C". Travelling groups can be any size, and
@@ -15405,13 +15405,6 @@
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
       editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-      // A leg that arrives with no date has not been placed in the itinerary:
-      // compareLegs parks every undated leg at the end of the list regardless
-      // of when it really happens, so its position here means nothing. It is
-      // recorded once, on open, and not cleared when a date is typed -- the
-      // row does not move until the next save re-sorts it, and until then it
-      // must neither be bounded by its accidental neighbours nor bound them.
-      if (!leg.travelDate) editor.dataset.unplaced = '1';
       editor.innerHTML = `
         <div class="travel-leg-summary">
           <div class="travel-leg-summary-text">
@@ -15528,10 +15521,10 @@
         editor.remove();
         refreshAllLegSummaries(listId);
         updateTravelEmptyState(listId, emptyId);
-        updateTravelDateConstraints(listId);
+        syncTravelLegTimeFields(listId);
         markModalDirty();
       });
-      editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => updateTravelDateConstraints(listId));
+      editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => syncTravelLegTimeFields(listId));
       ['direction', 'transportType', 'from', 'to', 'travelDate'].forEach(field => {
         editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateLegSummary(editor));
       });
@@ -15566,9 +15559,9 @@
         toggleLegExpanded(editor);
       });
 
-      // Position matters twice over: updateTravelDateConstraints reads the
-      // list in order, and an undated leg has nothing but its position to be
-      // ordered by once it is saved.
+      // Placed where the caller asked, which is only about where a newly
+      // added row appears. Nothing reads the position any more: the legs are
+      // sorted into the order they happen when the dialog is saved.
       if (place && place.before && place.before.parentNode === list) list.insertBefore(editor, place.before);
       else if (place && place.after && place.after.parentNode === list) place.after.after(editor);
       else list.appendChild(editor);
@@ -15576,7 +15569,7 @@
       editor.classList.toggle('leg-expanded', !isExistingLeg);
       updateLegSummary(editor);
       updateTravelEmptyState(listId, emptyId);
-      updateTravelDateConstraints(listId);
+      syncTravelLegTimeFields(listId);
       return editor;
     }
 
@@ -15660,53 +15653,51 @@
       $(emptyId).style.display = $(listId).children.length ? 'none' : 'block';
     }
 
-    // Each dated leg is held between the dated legs either side of it, so the
-    // list you see reads in the order it happens.
+    // A time needs a date to belong to, and that is the whole of it now.
     //
-    // Unplaced legs sit outside all of that. They were parked at the end of
-    // the list for having no date, not for happening last, and taking a bound
-    // from that position was a trap that fed itself: an undated leg could
-    // only ever be given a date after the last dated one, so a journey that
-    // really happened earlier could never be dated at all. Fr. Pinto's
-    // inbound bus, which has to run three days before he arrives, was being
-    // held to "12 November or later".
-    function updateTravelDateConstraints(listId = 'travel-leg-list') {
-      const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
-      const placedDate = editor => editor.dataset.unplaced === '1'
-        ? ''
-        : editor.querySelector('[data-field="travelDate"]').value;
-      editors.forEach((editor, index) => {
+    // This used to hold each leg between the dated legs either side of it in
+    // the list, which read a row position as an ordering. It never was one:
+    // compareLegs parks every undated leg at the end whatever date it would
+    // really have, so an undated leg could only be given a date after the
+    // last dated one -- and a journey that happened earlier could never be
+    // dated at all. The legs sort themselves on the way out instead, so any
+    // row may hold any date.
+    function syncTravelLegTimeFields(listId = 'travel-leg-list') {
+      [...$(listId).querySelectorAll('.travel-leg-editor')].forEach(editor => {
         const dateInput = editor.querySelector('[data-field="travelDate"]');
-        let previousDate = '';
-        let nextDate = '';
-
-        for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
-          const candidate = placedDate(editors[previousIndex]);
-          if (candidate) {
-            previousDate = candidate;
-            break;
-          }
-        }
-
-        for (let nextIndex = index + 1; nextIndex < editors.length; nextIndex += 1) {
-          const candidate = placedDate(editors[nextIndex]);
-          if (candidate) {
-            nextDate = candidate;
-            break;
-          }
-        }
-
-        const unplaced = editor.dataset.unplaced === '1';
-        dateInput.min = unplaced ? '' : previousDate;
-        dateInput.max = unplaced ? '' : nextDate;
-
         const timeInput = editor.querySelector('[data-field="travelTime"]');
         if (!dateInput.value) timeInput.value = '';
         timeInput.disabled = !dateInput.value;
       });
     }
 
+    // Where a leg sits in the itinerary is decided by when it happens, not by
+    // which row it was typed into. Sorting here is what lets the rows be
+    // filled in any order: the editor used to make the operator arrange them
+    // and then refuse the save when the arrangement disagreed with the dates,
+    // which is a question the dates already answer.
+    //
+    // Compared as text rather than parsed: a date key and a HH:MM time sort
+    // correctly as strings and carry no timezone to get wrong. An undated leg
+    // has no moment to be sorted by, so it keeps its place at the end -- the
+    // same rule compareLegs applies in the adapter, so the order saved is the
+    // order that comes back.
+    function travelLegMoment_(leg) {
+      return leg.travelDate ? `${leg.travelDate} ${leg.travelTime || '00:00'}` : '';
+    }
+
+    function compareTravelLegPayloads_(a, b) {
+      const left = travelLegMoment_(a);
+      const right = travelLegMoment_(b);
+      if (!left && !right) return 0;
+      if (!left) return 1;
+      if (!right) return -1;
+      return left < right ? -1 : (left > right ? 1 : 0);
+    }
+
     function collectTravelLegPayloads(listId = 'travel-leg-list') {
+      // Array.prototype.sort is stable, so undated legs keep the order they
+      // were entered in rather than shuffling among themselves.
       return [...$(listId).querySelectorAll('.travel-leg-editor')].map(editor => {
         const value = field => editor.querySelector(`[data-field="${field}"]`).value.trim();
         return {
@@ -15723,12 +15714,11 @@
           notes: value('notes'),
           companionVisitIds: companionVisitIdsIn_(editor)
         };
-      });
+      }).sort(compareTravelLegPayloads_);
     }
 
     function validateTravelLegEditors(listId = 'travel-leg-list') {
       const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
-      let previousDatedLeg = null;
 
       for (let index = 0; index < editors.length; index += 1) {
         const editor = editors[index];
@@ -15760,32 +15750,10 @@
           return false;
         }
 
-        if (!dateValue) continue;
-
-        if (previousDatedLeg) {
-          if (dateValue < previousDatedLeg.dateValue) {
-            showToast(
-              `Travel leg ${index + 1} cannot be earlier than travel leg ${previousDatedLeg.index + 1}.`,
-              'error'
-            );
-            dateInput.focus();
-            return false;
-          }
-
-          if (dateValue === previousDatedLeg.dateValue
-              && timeValue
-              && previousDatedLeg.timeValue
-              && timeValue <= previousDatedLeg.timeValue) {
-            showToast(
-              `Travel leg ${index + 1} must be later than travel leg ${previousDatedLeg.index + 1}.`,
-              'error'
-            );
-            timeInput.focus();
-            return false;
-          }
-        }
-
-        previousDatedLeg = { index, dateValue, timeValue };
+        // Nothing further to check. A leg being earlier than the row above it
+        // used to be refused here; the legs are sorted into the order they
+        // happen on the way out instead, so there is no wrong order left to
+        // reject -- only a row that was filled in before the one it precedes.
       }
 
       return true;
