@@ -1406,11 +1406,37 @@ export function createFirestoreBridge(firebaseApp) {
   let cacheGeneration = 0;
   let remoteUnsubscribe = null;
   let initialAuditSnapshotSeen = false;
+  // The audit documents this client wrote. The listener uses them to tell its
+  // own writes from another device's. Matching on actorEmail instead would
+  // treat one account signed in on a phone and a desktop as a single client
+  // and skip an invalidation that was genuinely needed.
+  const ownAuditIds = new Set();
 
-  function invalidate() {
+  // Drop what a write actually changed rather than the whole snapshot.
+  //
+  // A visit save touches five of the eighteen collections and a C-form tick
+  // touches one; clearing everything meant the page's own reload fetched the
+  // other thirteen back unchanged, which is most of the wait after a save.
+  //
+  // Called with no names it still clears everything, which is what every
+  // write path that has not been converted relies on. That default is the
+  // whole safety of this: a path that says nothing loses no correctness, only
+  // the speed-up. Naming too few collections is the dangerous mistake -- it
+  // shows as stale data on screen and not as an error -- so the harness
+  // checks each converted path against the collections it actually writes.
+  function invalidate(...names) {
+    const dropped = names.flat().filter(Boolean);
+    // Bumped either way: a refresh already in flight was reading from before
+    // this write and must not be allowed to repopulate the cache afterwards.
     cacheGeneration += 1;
-    canonicalCache = null;
     canonicalPromise = null;
+    if (!dropped.length || !canonicalCache) {
+      canonicalCache = null;
+      return;
+    }
+    const kept = { ...canonicalCache };
+    dropped.forEach(name => { delete kept[name]; });
+    canonicalCache = kept;
   }
 
   function authError(message) {
@@ -1441,6 +1467,10 @@ export function createFirestoreBridge(firebaseApp) {
     return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
   }
 
+  function canonicalMissing_() {
+    return COLLECTIONS.filter(name => !canonicalCache?.[name]);
+  }
+
   function refreshCanonical_(force = false) {
     // A forced read must not settle for one that was already in flight before
     // it was asked for. Every write path calls loadCanonical(true) to validate
@@ -1449,12 +1479,18 @@ export function createFirestoreBridge(firebaseApp) {
     // a save be checked against data from before that save was attempted.
     if (canonicalPromise && !force) return canonicalPromise;
     const generation = cacheGeneration;
-    const request = Promise.all(COLLECTIONS.map(readCollection)).then(all => {
-      const nextCanonical = Object.fromEntries(COLLECTIONS.map((name, index) => [name, all[index]]));
+    // Forced still means all of it: the point of a forced read is to see the
+    // server as it is now, and a collection nobody invalidated is exactly the
+    // one another device may have changed without telling us.
+    const wanted = force ? COLLECTIONS : canonicalMissing_();
+    const request = Promise.all(wanted.map(name => readCollection(name))).then(all => {
+      const fetched = Object.fromEntries(wanted.map((name, index) => [name, all[index]]));
       // A local write or audit event may invalidate while these reads are in
       // flight. Never let an older request repopulate the cache afterward.
-      if (generation === cacheGeneration) canonicalCache = nextCanonical;
-      return nextCanonical;
+      if (generation !== cacheGeneration) return { ...canonicalCache, ...fetched };
+      const merged = force ? fetched : { ...canonicalCache, ...fetched };
+      canonicalCache = merged;
+      return merged;
     }).catch(error => {
       if (error?.code === "permission-denied") throw accessError("Access denied for this Google account.");
       throw error;
@@ -1469,8 +1505,13 @@ export function createFirestoreBridge(firebaseApp) {
     ensureApproved();
     // Cache lifetime is event-driven. Local writes and the audit listener call
     // invalidate(); ordinary navigation and idle time do not expire it.
-    if (!force && canonicalCache) return canonicalCache;
-    return refreshCanonical_(force);
+    if (force) return refreshCanonical_(true);
+    // Looping rather than awaiting once: the request already in flight was
+    // fetching whatever was missing when it started, and an invalidate landing
+    // since then can have emptied something it was never going to bring back.
+    // Every pass fetches strictly less, so this settles.
+    while (canonicalMissing_().length) await refreshCanonical_(false);
+    return canonicalCache;
   }
 
   async function directorySnapshot(options = {}) {
@@ -1793,8 +1834,20 @@ export function createFirestoreBridge(firebaseApp) {
     throw new Error(`Unknown workspace: ${workspace}`);
   }
 
+  // Firestore hands back the id before the write, which is what makes this
+  // work at all. A transaction retry mints a fresh one each attempt, so ids
+  // accumulate for writes that never landed: the set is bounded and evicted
+  // oldest-first, and a forgotten id costs one extra refresh, never a stale
+  // cache.
+  function newAuditRef_() {
+    const reference = doc(collection(db, "auditLogs"));
+    ownAuditIds.add(reference.id);
+    if (ownAuditIds.size > 64) ownAuditIds.delete(ownAuditIds.values().next().value);
+    return reference;
+  }
+
   async function writeAuditBatch(batch, actor, type, id, action, fields) {
-    batch.set(doc(collection(db, "auditLogs")), auditEntry(actor, type, id, action, fields));
+    batch.set(newAuditRef_(), auditEntry(actor, type, id, action, fields));
   }
 
   async function committedVersion(collectionName, id) {
@@ -1811,9 +1864,9 @@ export function createFirestoreBridge(firebaseApp) {
       assertVersion(snapshot.data(), suppliedVersion);
       const patch = transform(snapshot.data());
       transaction.update(reference, { ...patch, updatedAt: serverTimestamp(), updatedBy: actor });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, collectionName, id, action, fields));
+      transaction.set(newAuditRef_(), auditEntry(actor, collectionName, id, action, fields));
     });
-    invalidate();
+    invalidate(collectionName);
     return { id, version: await committedVersion(collectionName, id) };
   }
 
@@ -1882,7 +1935,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (data.personType === "Permanent Resident") {
         transaction.set(doc(db, "visits", `RES-${id}`), residencyVisitData(id, actor));
       }
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "create", ["name", "personType"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "guest", id, "create", ["name", "personType"]));
     });
     invalidate();
     return { guestId: id, version: await committedVersion("guests", id) };
@@ -1927,7 +1980,7 @@ export function createFirestoreBridge(firebaseApp) {
           });
         });
       }
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "update-basics", ["name", "personType", "foreignNational", "invitedPurposes", "staffAssignment"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "guest", id, "update-basics", ["name", "personType", "foreignNational", "invitedPurposes", "staffAssignment"]));
     });
     invalidate();
     return { guestId: id, version: await committedVersion("guests", id) };
@@ -1959,7 +2012,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (!snapshot.exists()) throw new Error("This guest no longer exists.");
       assertVersion(snapshot.data(), suppliedVersion);
       transaction.delete(reference);
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", id, "delete", ["document"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "guest", id, "delete", ["document"]));
     });
     invalidate();
     return { guestId: id, deleted: true };
@@ -2533,7 +2586,7 @@ export function createFirestoreBridge(firebaseApp) {
       });
 
       transaction.set(
-        doc(collection(db, "auditLogs")),
+        newAuditRef_(),
         auditEntry(
           actor,
           "guest",
@@ -2717,7 +2770,7 @@ export function createFirestoreBridge(firebaseApp) {
       });
 
     transaction.set(
-      doc(collection(db, "auditLogs")),
+      newAuditRef_(),
       auditEntry(
         actor,
         "visit",
@@ -2734,7 +2787,7 @@ export function createFirestoreBridge(firebaseApp) {
     );
   });
 
-  invalidate();
+  invalidate("visits", "visitRooms", "visitTravelLegs", "cabRides", "guests");
 
   return {
     visitId,
@@ -2814,7 +2867,7 @@ export function createFirestoreBridge(firebaseApp) {
       if (newGuestData) {
         if ((await transaction.get(guestRef)).exists()) throw new Error("A guest with this ID already exists.");
         transaction.set(guestRef, { ...newGuestData, createdAt: serverTimestamp(), createdBy: actor });
-        transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "guest", sourceId, "create", ["name", "personType"]));
+        transaction.set(newAuditRef_(), auditEntry(actor, "guest", sourceId, "create", ["name", "personType"]));
       }
       const existing = scheduleSnapshot.exists() ? scheduleSnapshot.data() : null;
       transaction.set(scheduleRef, {
@@ -2835,12 +2888,12 @@ export function createFirestoreBridge(firebaseApp) {
         updatedBy: actor,
         schemaVersion: 1
       });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(
+      transaction.set(newAuditRef_(), auditEntry(
         actor, "mealSchedule", scheduleId, existing ? "update" : "create",
         ["sourceType", "sourceId", "recurrence", "dateKey", "weekdays", "startDateKey", "endDateKey", "meals", "defaultSeating", "note", "active"]
       ));
     });
-    invalidate();
+    invalidate("mealSchedules", "guests");
     return { scheduleId, guestId: sourceType === "individualGuest" ? sourceId : "", guestCreated: Boolean(newGuestData), version: await committedVersion("mealSchedules", scheduleId) };
   }
 
@@ -2853,7 +2906,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "mealSchedule", id, "delete", ["document"]);
     await batch.commit();
-    invalidate();
+    invalidate("mealSchedules");
     return { scheduleId: id, deleted: true };
   }
 
@@ -2890,7 +2943,7 @@ export function createFirestoreBridge(firebaseApp) {
         updatedBy: actor,
         schemaVersion: 1
       });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "permanentResident", id, existing ? "update" : "create", ["name", "defaultSeating", "activeFromKey", "activeUntilKey", "active", "note"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "permanentResident", id, existing ? "update" : "create", ["name", "defaultSeating", "activeFromKey", "activeUntilKey", "active", "note"]));
     });
     invalidate();
     return { residentId: id, version: await committedVersion("permanentResidents", id) };
@@ -2941,8 +2994,8 @@ export function createFirestoreBridge(firebaseApp) {
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
       updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
-    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "mealOverride", id, existing ? "update" : "create", ["included", "seatingOverride", "note"]));
-    invalidate();
+    await setDoc(newAuditRef_(), auditEntry(actor, "mealOverride", id, existing ? "update" : "create", ["included", "seatingOverride", "note"]));
+    invalidate("mealOverrides");
     return { overrideId: id, version: await committedVersion("mealOverrides", id) };
   }
 
@@ -2980,7 +3033,7 @@ export function createFirestoreBridge(firebaseApp) {
         createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
         updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
       });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "meeting", id, existing ? "update" : "create", ["startAt", "notes"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "meeting", id, existing ? "update" : "create", ["startAt", "notes"]));
     });
     invalidate();
     return { meetingId: id, version: await committedVersion("meetings", id) };
@@ -3123,8 +3176,8 @@ export function createFirestoreBridge(firebaseApp) {
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
       updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
-    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "sevaTeam", id, existing ? "update" : "create", ["name", "event", "dates"]));
-    invalidate();
+    await setDoc(newAuditRef_(), auditEntry(actor, "sevaTeam", id, existing ? "update" : "create", ["name", "event", "dates"]));
+    invalidate("sevaTeams");
     return { teamId: id, version: await committedVersion("sevaTeams", id) };
   }
 
@@ -3144,7 +3197,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "sevaTeam", id, "delete", ["document", `members:${members}`]);
     await batch.commit();
-    invalidate();
+    invalidate("sevaTeams", "teamMemberships");
     return { teamId: id, deleted: true, membersDeleted: members };
   }
 
@@ -3182,7 +3235,7 @@ export function createFirestoreBridge(firebaseApp) {
     });
     await writeAuditBatch(batch, actor, "teamMembership", id, "create", ["guestId", "teamId"]);
     await batch.commit();
-    invalidate();
+    invalidate("teamMemberships");
     return { membershipId: id, guestId: guest.id, teamId: team.id };
   }
 
@@ -3195,7 +3248,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "teamMembership", id, "delete", ["document"]);
     await batch.commit();
-    invalidate();
+    invalidate("teamMemberships");
     return { membershipId: id, deleted: true };
   }
 
@@ -3214,7 +3267,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.update(reference, { isCoordinator: flag, updatedAt: serverTimestamp(), updatedBy: actor });
     await writeAuditBatch(batch, actor, "teamMembership", id, "update", ["isCoordinator"]);
     await batch.commit();
-    invalidate();
+    invalidate("teamMemberships");
     return { membershipId: id, isCoordinator: flag };
   }
 
@@ -3249,9 +3302,9 @@ export function createFirestoreBridge(firebaseApp) {
         createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
         updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
       });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "specificSeva", id, existing ? "update" : "create", ["description", "dates"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "specificSeva", id, existing ? "update" : "create", ["description", "dates"]));
     });
-    invalidate();
+    invalidate("specificSeva");
     return { sevaId: id, guestId, version: await committedVersion("specificSeva", id) };
   }
 
@@ -3264,7 +3317,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "specificSeva", id, "delete", ["document"]);
     await batch.commit();
-    invalidate();
+    invalidate("specificSeva");
     return { sevaId: id, deleted: true };
   }
 
@@ -3294,7 +3347,7 @@ export function createFirestoreBridge(firebaseApp) {
         createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
         updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
       });
-      transaction.set(doc(collection(db, "auditLogs")), auditEntry(actor, "trip", id, existing ? "update" : "create", ["name", "dates", "cancelled"]));
+      transaction.set(newAuditRef_(), auditEntry(actor, "trip", id, existing ? "update" : "create", ["name", "dates", "cancelled"]));
     });
     invalidate();
     return { tripId: id, version: await committedVersion("trips", id) };
@@ -3357,7 +3410,7 @@ export function createFirestoreBridge(firebaseApp) {
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
       updatedAt: serverTimestamp(), updatedBy: actor, schemaVersion: 1
     });
-    await setDoc(doc(collection(db, "auditLogs")), auditEntry(actor, "tripTravelLeg", id, existing ? "update" : "create", ["itinerary"]));
+    await setDoc(newAuditRef_(), auditEntry(actor, "tripTravelLeg", id, existing ? "update" : "create", ["itinerary"]));
     invalidate();
     return { legId: id, tripId, version: await committedVersion("tripTravelLegs", id) };
   }
@@ -3501,7 +3554,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "mealOverride", id, "delete", ["document"]);
     await batch.commit();
-    invalidate();
+    invalidate("mealOverrides");
     return { overrideId: id, deleted: true };
   }
 
@@ -3534,7 +3587,7 @@ export function createFirestoreBridge(firebaseApp) {
     });
     await writeAuditBatch(batch, actor, "mealSeatingChange", id, "set", ["seating", "fromKey"]);
     await batch.commit();
-    invalidate();
+    invalidate("mealSeatingChanges");
     return { seatingChangeId: id, fromKey, seating, supersededCount: superseded.length };
   }
 
@@ -4310,7 +4363,7 @@ export function createFirestoreBridge(firebaseApp) {
     });
     await writeAuditBatch(batch, actor, "permanentResident", residentId, "resident-meals", ["meals", "defaultSeating", "mealNote"]);
     await batch.commit();
-    invalidate();
+    invalidate("permanentResidents");
     return { residentId, meals };
   }
 
@@ -4363,7 +4416,7 @@ export function createFirestoreBridge(firebaseApp) {
     await writeAuditBatch(batch, actor, "mealAbsence", id, "set",
       clashes.length ? ["fromKey", "toKey", "cancelledMeetings"] : ["fromKey", "toKey"]);
     await batch.commit();
-    invalidate();
+    invalidate("mealAbsences", "meetings");
     return { absenceId: id, fromKey, toKey, saved: true, meetingsCancelled: clashes };
   }
 
@@ -4376,7 +4429,7 @@ export function createFirestoreBridge(firebaseApp) {
     batch.delete(reference);
     await writeAuditBatch(batch, actor, "mealAbsence", id, "delete", ["document"]);
     await batch.commit();
-    invalidate();
+    invalidate("mealAbsences");
     return { absenceId: id, deleted: true };
   }
 
@@ -4401,7 +4454,7 @@ export function createFirestoreBridge(firebaseApp) {
     });
     await writeAuditBatch(batch, actor, "visit", visitId, "residency-meals", ["residencyMeals", "diningSeating", "residencyMealNote"]);
     await batch.commit();
-    invalidate();
+    invalidate("visits");
     return { visitId, meals };
   }
 
@@ -4532,8 +4585,18 @@ export function createFirestoreBridge(firebaseApp) {
     remoteUnsubscribe = onSnapshot(latestAudit, snapshot => {
       if (!initialAuditSnapshotSeen) { initialAuditSnapshotSeen = true; return; }
       if (snapshot.empty) return;
+      const entry = snapshot.docs[0];
+      // A write of our own has already invalidated exactly what it changed.
+      // Clearing the whole cache again here undid that a moment later, and
+      // could land while the reload that write had triggered was still in
+      // flight -- in which case the generation guard threw that away too and
+      // the page fetched all eighteen collections a second time.
+      if (ownAuditIds.has(entry.id)) {
+        ownAuditIds.delete(entry.id);
+        return;
+      }
       invalidate();
-      callback?.(snapshot.docs[0].data());
+      callback?.(entry.data());
     }, error => console.warn("Realtime change listener paused:", error));
     return remoteUnsubscribe;
   }
