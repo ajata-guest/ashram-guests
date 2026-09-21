@@ -1918,19 +1918,25 @@
       padding: 11px 12px;
       gap: 10px;
       align-items: center;
-      border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+      /* Written out rather than mixed from --accent: that variable is set per
+         page, on .page-content, and this dialog lives outside every page. An
+         undefined custom property inside color-mix makes the whole
+         declaration invalid, so the rows came out with no border and no
+         background at all. #8fc8ef is the blue this editor already uses for
+         its leg icons. */
+      border: 1px solid rgba(143, 200, 239, 0.34);
       border-radius: 8px;
-      background: color-mix(in srgb, var(--accent) 7%, #242424);
+      background: #232a30;
       color: #ddd;
       cursor: pointer;
       font: inherit;
       font-size: 0.85rem;
       text-align: left;
     }
-    .travel-cab-row > .icon { flex: 0 0 15px; margin: 0; color: var(--accent); }
+    .travel-cab-row > .icon { flex: 0 0 15px; margin: 0; color: #8fc8ef; }
     .travel-cab-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .travel-cab-go { flex: 0 0 14px; width: 14px; height: 14px; margin: 0; color: #888; }
-    .travel-cab-row:hover { border-color: var(--accent); }
+    .travel-cab-row:hover { border-color: rgba(143, 200, 239, 0.7); }
 
     /* What sits between the way in and the way out. The one place a break
        in the chain is expected, so it is explained rather than flagged. */
@@ -1940,13 +1946,13 @@
       padding: 9px 12px;
       gap: 9px;
       align-items: center;
-      border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+      border: 1px dashed rgba(143, 200, 239, 0.34);
       border-radius: 8px;
-      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      background: rgba(143, 200, 239, 0.06);
       color: #ddd;
       font-size: 0.8rem;
     }
-    .travel-stay-band .icon { flex: 0 0 16px; margin: 0; color: var(--accent); }
+    .travel-stay-band .icon { flex: 0 0 16px; margin: 0; color: #8fc8ef; }
     .travel-stay-nights { color: #8a8a8a; }
 
     .travel-leg-status { flex: 0 0 auto; }
