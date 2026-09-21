@@ -1904,6 +1904,51 @@
 
     /* Said on the closed row, so the whole itinerary can be read for what is
        outstanding without opening five of them one at a time. */
+    /* The ashram’s own two hops, shown in the itinerary because they are
+       part of the journey -- the drop-off is how the guest reaches the
+       station the next leg departs from, and without it the chain looked
+       broken where it is in fact complete.
+
+       Read-only here on purpose. A cab carries a booking tick and a list of
+       riders where a leg carries a PNR and a direction, so one row cannot
+       edit both; tapping this jumps to the Cabs section instead. */
+    .travel-cab-row {
+      display: flex;
+      width: 100%;
+      padding: 11px 12px;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 7%, #242424);
+      color: #ddd;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+    .travel-cab-row > .icon { flex: 0 0 15px; margin: 0; color: var(--accent); }
+    .travel-cab-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .travel-cab-go { flex: 0 0 14px; width: 14px; height: 14px; margin: 0; color: #888; }
+    .travel-cab-row:hover { border-color: var(--accent); }
+
+    /* What sits between the way in and the way out. The one place a break
+       in the chain is expected, so it is explained rather than flagged. */
+    .travel-stay-band {
+      display: flex;
+      margin: 6px 0;
+      padding: 9px 12px;
+      gap: 9px;
+      align-items: center;
+      border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      color: #ddd;
+      font-size: 0.8rem;
+    }
+    .travel-stay-band .icon { flex: 0 0 16px; margin: 0; color: var(--accent); }
+    .travel-stay-nights { color: #8a8a8a; }
+
     .travel-leg-status { flex: 0 0 auto; }
     .travel-leg-status:empty { display: none; }
 
@@ -5724,6 +5769,17 @@
         $(id).addEventListener('change', event => {
           if (event.target.checked) setDiningSeating_(event.target.dataset.diningSeating);
         });
+      });
+      // The cabs and the stay are drawn into the itinerary from these fields,
+      // so the chain is redrawn whenever one of them moves. Cheap: it rebuilds
+      // a handful of rows.
+      ['edit-pickup-required', 'edit-pickup-date', 'edit-pickup-time', 'edit-pickup-from',
+       'edit-pickup-booking-confirmed', 'edit-dropoff-required', 'edit-dropoff-date',
+       'edit-dropoff-time', 'edit-dropoff-to', 'edit-dropoff-booking-confirmed',
+       'edit-arrival-date', 'edit-arrival-time', 'edit-departure-date', 'edit-departure-time'
+      ].forEach(id => {
+        $(id).addEventListener('input', () => renderTravelChain_());
+        $(id).addEventListener('change', () => renderTravelChain_());
       });
       $('edit-arrival-date').addEventListener('input', handleDateChange);
       $('edit-arrival-time').addEventListener('input', handleDateChange);
@@ -15373,7 +15429,7 @@
       (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg, listId, emptyId));
       updateTravelEmptyState(listId, emptyId);
       syncTravelLegTimeFields(listId);
-      renderTravelJoins_(listId);
+      renderTravelChain_(listId);
     }
 
     // A group travelling together travels together the whole way: Fr. Sijo is
@@ -15611,7 +15667,7 @@
         refreshAllLegSummaries(listId);
         updateTravelEmptyState(listId, emptyId);
         syncTravelLegTimeFields(listId);
-        renderTravelJoins_(listId);
+        renderTravelChain_(listId);
         markModalDirty();
       });
       editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => {
@@ -15623,7 +15679,7 @@
           updateLegSummary(editor);
           // From, To and the date all change where this leg sits in the
           // chain, so the joints either side of it are redrawn with it.
-          renderTravelJoins_(listId);
+          renderTravelChain_(listId);
         });
       });
       // Picking a direction by hand stops the app guessing it from then on.
@@ -15656,7 +15712,7 @@
           // row's own listener never fires and the joint beside it would sit
           // a keystroke behind. This listener is registered after the one that
           // redraws them, so the redraw has already happened by now.
-          renderTravelJoins_(listId);
+          renderTravelChain_(listId);
         });
       });
 
@@ -15677,7 +15733,7 @@
       updateLegSummary(editor);
       updateTravelEmptyState(listId, emptyId);
       syncTravelLegTimeFields(listId);
-      renderTravelJoins_(listId);
+      renderTravelChain_(listId);
       return editor;
     }
 
@@ -15801,28 +15857,129 @@
     // a leg typed into the last row may genuinely belong in the middle, and
     // calling that a hole in the chain would cry wolf on every new leg. Two
     // dated legs, by contrast, are in an order the app can vouch for.
-    function renderTravelJoins_(listId = 'travel-leg-list') {
+    // One of the ashram's two cabs as a link in the chain. The far end is the
+    // place somebody typed; the near end is the ashram itself, which is why a
+    // pickup runs to it and a drop-off from it.
+    function cabChainEntry_(type) {
+      if (!$(`edit-${type}-required`).checked) return null;
+      const pickup = type === 'pickup';
+      const place = $(pickup ? 'edit-pickup-from' : 'edit-dropoff-to').value.trim();
+      const date = $(`edit-${type}-date`).value;
+      const time = $(`edit-${type}-time`).value;
+      const booked = $(`edit-${type}-booking-confirmed`).checked;
+      const route = pickup
+        ? `${place || 'Pickup point not set'} → Ashram`
+        : `Ashram → ${place || 'Drop-off point not set'}`;
+      const when = date
+        ? String(localDateInfo(date, time || '', false).display || date).replace(/^[A-Za-z]{3},\s*/, '')
+        : 'date not set';
+
+      const row = createElement('button', 'travel-cab-row');
+      row.type = 'button';
+      row.appendChild(createIcon_('icon-car'));
+      row.appendChild(createElement('span', 'travel-cab-text', `Cab · ${route} · ${when}`));
+      row.appendChild(createBadge(booked ? 'Booked' : 'To book',
+        `travel-leg-status ${booked ? 'badge-confirmed' : 'badge-action'}`));
+      const go = createIcon_('icon-chevron-right');
+      go.setAttribute('class', 'icon travel-cab-go');
+      row.appendChild(go);
+      row.title = 'Edit in the Cabs section';
+      row.addEventListener('click', () => {
+        setActiveVisitSection_('visit-sec-cabs');
+        const target = $('visit-sec-cabs');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return {
+        kind: 'cab', el: row, dated: Boolean(date),
+        from: pickup ? place : 'Ashram',
+        to: pickup ? 'Ashram' : place
+      };
+    }
+
+    // The stay, drawn where the way in becomes the way out. A break there is
+    // guaranteed — the guest stops — so it is explained instead of flagged.
+    function stayChainEntry_() {
+      const from = $('edit-arrival-date').value;
+      const to = $('edit-departure-date').value;
+      if (!from && !to) return null;
+      const band = createElement('div', 'travel-stay-band');
+      band.appendChild(createIcon_('icon-bed'));
+      const span = createElement('span', null, 'At the ashram');
+      band.appendChild(span);
+      const detail = from && to
+        ? ` · ${dateFormat(getInputTimestamp(from, $('edit-arrival-time').value, false))} → ${dateFormat(getInputTimestamp(to, $('edit-departure-time').value, true))}`
+        : (from ? ` · from ${dateFormat(getInputTimestamp(from, '', false))}` : ` · until ${dateFormat(getInputTimestamp(to, '', true))}`);
+      span.appendChild(document.createTextNode(detail));
+      if (from && to) {
+        const nights = Math.max(0, Math.round(
+          (getInputTimestamp(to, '', false) - getInputTimestamp(from, '', false)) / 86400000));
+        band.appendChild(createElement('span', 'travel-stay-nights',
+          `${nights} night${nights === 1 ? '' : 's'}`));
+      }
+      return { kind: 'stay', el: band };
+    }
+
+    // Draws the whole chain: the legs, the ashram's two cabs, the stay between
+    // them, and the joints that say where one hop meets the next. Rebuilt from
+    // scratch each time rather than patched — there are never more than a
+    // handful, and anything cleverer would have to track which row moved.
+    //
+    // A break is only claimed when both hops either side of it are dated. The
+    // rows do not re-sort while the dialog is open — they sort on save — so a
+    // leg typed into the last row may genuinely belong in the middle, and
+    // calling that a hole would cry wolf on every new leg. Two dated hops, by
+    // contrast, are in an order the app can vouch for.
+    function renderTravelChain_(listId = 'travel-leg-list') {
       const list = $(listId);
-      [...list.querySelectorAll('.travel-leg-join')].forEach(node => node.remove());
+      [...list.querySelectorAll('.travel-leg-join, .travel-cab-row, .travel-stay-band')]
+        .forEach(node => node.remove());
       const editors = [...list.querySelectorAll('.travel-leg-editor')];
       const field = (editor, name) => editor.querySelector(`[data-field="${name}"]`).value.trim();
-      editors.forEach((editor, index) => {
-        if (!index) return;
-        const previous = editors[index - 1];
-        const arrivesAt = field(previous, 'to');
-        const leavesFrom = field(editor, 'from');
-        const join = createElement('div', 'travel-leg-join');
-        join.appendChild(createElement('i', 'travel-leg-joint'));
-        if (samePlace_(arrivesAt, leavesFrom)) {
-          join.appendChild(createElement('span', 'travel-leg-place', arrivesAt));
-        } else if (arrivesAt && leavesFrom && field(previous, 'travelDate') && field(editor, 'travelDate')) {
-          join.classList.add('is-broken');
-          const chip = createElement('span', 'travel-leg-place travel-leg-place-gap');
-          chip.appendChild(createIcon_('icon-alert'));
-          chip.appendChild(document.createTextNode(`${arrivesAt} → ${leavesFrom} · nothing recorded`));
-          join.appendChild(chip);
+
+      const entries = editors.map(editor => ({
+        kind: 'leg', el: editor,
+        from: field(editor, 'from'), to: field(editor, 'to'),
+        dated: Boolean(field(editor, 'travelDate'))
+      }));
+
+      // Only the visit editor has cabs; a trip's legs stand on their own.
+      if (listId === 'travel-leg-list') {
+        const boundary = entries.findIndex(entry =>
+          entry.el.querySelector('[data-field="direction"]').value === 'Outbound');
+        const middle = [cabChainEntry_('pickup'), stayChainEntry_(), cabChainEntry_('dropoff')]
+          .filter(Boolean);
+        entries.splice(boundary < 0 ? entries.length : boundary, 0, ...middle);
+      }
+
+      // Legs are already in the DOM; everything else is inserted before the
+      // next leg still to come, which keeps the order without moving them.
+      let cursor = 0;
+      const place = node => {
+        const anchor = editors[cursor] || null;
+        if (anchor) list.insertBefore(node, anchor); else list.appendChild(node);
+      };
+      entries.forEach((entry, index) => {
+        const previous = entries[index - 1];
+        if (previous && previous.kind !== 'stay' && entry.kind !== 'stay') {
+          const join = createElement('div', 'travel-leg-join');
+          join.appendChild(createElement('i', 'travel-leg-joint'));
+          if (samePlace_(previous.to, entry.from)) {
+            join.appendChild(createElement('span', 'travel-leg-place', previous.to));
+          } else if (previous.to && entry.from && previous.dated && entry.dated) {
+            join.classList.add('is-broken');
+            const chip = createElement('span', 'travel-leg-place travel-leg-place-gap');
+            chip.appendChild(createIcon_('icon-alert'));
+            // Not "nothing recorded": the two ends may well both be recorded
+            // and simply be written differently — "Dehradun" against
+            // "Dehradun Railway Station". All the app can say is that it
+            // cannot join them.
+            chip.appendChild(document.createTextNode(`${previous.to} → ${entry.from} · does not connect`));
+            join.appendChild(chip);
+          }
+          place(join);
         }
-        list.insertBefore(join, editor);
+        if (entry.kind === 'leg') cursor += 1;
+        else place(entry.el);
       });
     }
 
