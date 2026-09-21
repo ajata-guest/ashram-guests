@@ -4370,7 +4370,7 @@
           <button id="add-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
-          Add only journeys the ashram is arranging. Legs stay in this order. Dates and times are optional, but every later dated leg must occur after the earlier dated legs.
+          Add only journeys the ashram is arranging. Dates and times are optional; dated legs are held in the order they happen, and a leg with no date yet can be given any date and will take its place once saved.
         </p>
         <div id="travel-leg-list" class="travel-leg-list"></div>
         <div id="travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
@@ -4822,7 +4822,7 @@
           <button id="add-trip-travel-leg-btn" class="travel-add-btn" type="button">+ Add travel leg</button>
         </div>
         <p class="travel-help">
-          Legs stay in this order. Dates and times are optional, but every later dated leg must occur after the earlier dated legs.
+          Dates and times are optional; dated legs are held in the order they happen, and a leg with no date yet can be given any date and will take its place once saved.
         </p>
         <div id="trip-travel-leg-list" class="travel-leg-list"></div>
         <div id="trip-travel-empty" class="travel-empty">No flight, train, bus, taxi, or other travel has been added.</div>
@@ -15405,6 +15405,13 @@
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
       editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      // A leg that arrives with no date has not been placed in the itinerary:
+      // compareLegs parks every undated leg at the end of the list regardless
+      // of when it really happens, so its position here means nothing. It is
+      // recorded once, on open, and not cleared when a date is typed -- the
+      // row does not move until the next save re-sorts it, and until then it
+      // must neither be bounded by its accidental neighbours nor bound them.
+      if (!leg.travelDate) editor.dataset.unplaced = '1';
       editor.innerHTML = `
         <div class="travel-leg-summary">
           <div class="travel-leg-summary-text">
@@ -15653,15 +15660,28 @@
       $(emptyId).style.display = $(listId).children.length ? 'none' : 'block';
     }
 
+    // Each dated leg is held between the dated legs either side of it, so the
+    // list you see reads in the order it happens.
+    //
+    // Unplaced legs sit outside all of that. They were parked at the end of
+    // the list for having no date, not for happening last, and taking a bound
+    // from that position was a trap that fed itself: an undated leg could
+    // only ever be given a date after the last dated one, so a journey that
+    // really happened earlier could never be dated at all. Fr. Pinto's
+    // inbound bus, which has to run three days before he arrives, was being
+    // held to "12 November or later".
     function updateTravelDateConstraints(listId = 'travel-leg-list') {
       const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
+      const placedDate = editor => editor.dataset.unplaced === '1'
+        ? ''
+        : editor.querySelector('[data-field="travelDate"]').value;
       editors.forEach((editor, index) => {
         const dateInput = editor.querySelector('[data-field="travelDate"]');
         let previousDate = '';
         let nextDate = '';
 
         for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
-          const candidate = editors[previousIndex].querySelector('[data-field="travelDate"]').value;
+          const candidate = placedDate(editors[previousIndex]);
           if (candidate) {
             previousDate = candidate;
             break;
@@ -15669,15 +15689,16 @@
         }
 
         for (let nextIndex = index + 1; nextIndex < editors.length; nextIndex += 1) {
-          const candidate = editors[nextIndex].querySelector('[data-field="travelDate"]').value;
+          const candidate = placedDate(editors[nextIndex]);
           if (candidate) {
             nextDate = candidate;
             break;
           }
         }
 
-        dateInput.min = previousDate;
-        dateInput.max = nextDate;
+        const unplaced = editor.dataset.unplaced === '1';
+        dateInput.min = unplaced ? '' : previousDate;
+        dateInput.max = unplaced ? '' : nextDate;
 
         const timeInput = editor.querySelector('[data-field="travelTime"]');
         if (!dateInput.value) timeInput.value = '';
