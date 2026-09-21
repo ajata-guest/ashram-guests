@@ -986,6 +986,12 @@
     .badge-warning { border: 1px solid rgba(231, 76, 60, 0.3); background: rgba(231, 76, 60, 0.14); color: var(--red); }
     .badge-travel-critical { border: 1px solid color-mix(in srgb, var(--red-deep) 48%, transparent); background: color-mix(in srgb, var(--red-deep) 20%, transparent); color: var(--red-deep); }
     .badge-travel-action { border: 1px solid rgba(250, 128, 114, 0.46); background: rgba(250, 128, 114, 0.16); color: #ff9d92; }
+    /* A ticket exists but is not safe yet. Lemon rather than the amber of
+       badge-action, which is three quarters of the way to orange: measured at
+       a CIE-Lab distance of 33 from it, where about 20 is where two colours
+       stop being tellable apart, and 53 from the confirmed green so it cannot
+       be mistaken for "done". */
+    .badge-waitlist { border: 1px solid rgba(215, 224, 79, 0.40); background: rgba(215, 224, 79, 0.15); color: #d7e04f; }
 
     .badge-saving { border: 1px solid rgba(52, 152, 219, 0.3); background: rgba(52, 152, 219, 0.14); color: #6fbaf0; }
 
@@ -8995,7 +9001,8 @@
       'Drop-off to arrange',
       'Needs reconfirmation',
       'Needs rescheduling',
-      'Personal travel to arrange'
+      'Personal travel to arrange',
+      'Travel on the waiting list'
     ].map(label => ({ label, test: visit => visitAttentionReasons_(visit).includes(label) })));
 
     // Who the guest is, rather than what still needs doing. Kept as its own
@@ -9328,7 +9335,9 @@
         (visit.travelLegs || []).forEach(leg => {
           const names = riders(visit.name, leg.companions);
           const date = leg.travelDate || '';
-          const status = leg.status === 'Confirmed' ? 'Confirmed' : 'To arrange';
+          const status = leg.status === 'Confirmed' ? 'Confirmed'
+            : leg.status === 'Waitlisted' ? 'Waiting list'
+            : 'To arrange';
           const road = leg.transportType === 'Taxi' || leg.transportType === 'Other';
           // A taxi is a cab whoever ordered it, so it belongs on the driver
           // roster. Everything else is the journey either side of one.
@@ -11138,13 +11147,24 @@
     // routeLegs is the stretch whose endpoints name the journey — for a return
     // that is the outward half, since the way back is what the label says.
     function journeySummary_(label, legs, routeLegs) {
-      const outstanding = legs.filter(leg => leg.status !== 'Confirmed');
+      // Three states, not two. A waitlisted leg is not among the ones still to
+      // book — a ticket has been bought — but it cannot let the journey go
+      // green either, because it may yet not clear. So it is counted out of
+      // the number and shown as its own badge.
+      const toBook = legs.filter(leg => leg.status !== 'Confirmed' && leg.status !== 'Waitlisted');
+      const waiting = legs.filter(leg => leg.status === 'Waitlisted');
       const route = [routeLegs[0].from, routeLegs[routeLegs.length - 1].to]
         .filter(Boolean).join(' → ') || legs[0].transportType;
 
       let status;
       let badgeClass;
-      if (!outstanding.length) {
+      if (!toBook.length && waiting.length) {
+        // Every ticket bought, not every ticket safe. Without this the journey
+        // fell through to green the moment nothing was left to book, which is
+        // the one thing a waiting list must never look like.
+        status = 'Waiting list';
+        badgeClass = 'badge-waitlist';
+      } else if (!toBook.length) {
         // Green has to mean "nothing to do here" or it is not worth scanning
         // for, so it is only ever reached with every leg booked. Once the
         // whole journey is behind them it goes quiet instead.
@@ -11161,9 +11181,9 @@
         // printing — 1/1 is just "to book" said arithmetically.
         status = legs.length === 1
           ? 'To book'
-          : `${outstanding.length}/${legs.length} left`;
+          : `${toBook.length}/${legs.length} left`;
         // Nothing to book against is the more urgent of the two.
-        badgeClass = outstanding.some(leg => !leg.travelDate)
+        badgeClass = toBook.some(leg => !leg.travelDate)
           ? 'badge-travel-critical'
           : 'badge-travel-action';
       }
@@ -11177,7 +11197,11 @@
         text: `${label} · ${route}`,
         companions: names,
         status,
-        badgeClass
+        badgeClass,
+        // Only when there is also something to book: with nothing left to
+        // book the badge above already says Waiting list, and saying it twice
+        // on one line is noise.
+        waiting: toBook.length && waiting.length ? 'Waiting list' : ''
       };
     }
 
@@ -11230,6 +11254,7 @@
         row.appendChild(createIcon_(journey.iconId));
         const text = createElement('span', null, journey.text + withClause_(journey.companions, party));
         text.appendChild(createBadge(journey.status, `${journey.badgeClass} journey-badge`));
+        if (journey.waiting) text.appendChild(createBadge(journey.waiting, 'badge-waitlist journey-badge'));
         row.appendChild(text);
         stack.appendChild(row);
       });
@@ -15458,6 +15483,7 @@
               <label class="input-label">Status *</label>
               <select class="edit-input" data-field="status">
                 <option value="Required">To arrange</option>
+                <option value="Waitlisted">On the waiting list</option>
                 <option value="Confirmed">Booked / confirmed</option>
               </select>
             </div>

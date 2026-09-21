@@ -738,6 +738,21 @@ function sevaStatus(item, now = Date.now()) {
 // it reports are everyone else on the journey rather than including the
 // reader. A leg with one rider reports none, which is how it looked before
 // shared journeys existed.
+// A leg is still to arrange, it is confirmed, or a ticket exists on a waiting
+// list and may yet not clear. Waitlisted is the state the app had no word for:
+// recorded as Required it looked unarranged when the ticket was already paid
+// for, and as Confirmed it looked settled when it might still not happen.
+//
+// Anything else is read as Required rather than stored. A fourth value would
+// pass through every reader as "not confirmed" and quietly behave like one,
+// which is exactly how a typo becomes a status.
+const TRAVEL_STATUSES = new Set(["Required", "Confirmed", "Waitlisted"]);
+
+function travelStatus(value) {
+  const status = clean(value, 100);
+  return TRAVEL_STATUSES.has(status) ? status : "Required";
+}
+
 function travelView(leg, forVisitId = "", ownerNames = {}) {
   const info = serializeDate(leg.travelAt, leg.timeConfirmed);
   const riders = legVisitIds(leg);
@@ -758,7 +773,7 @@ function travelView(leg, forVisitId = "", ownerNames = {}) {
     travelDisplay: info.display,
     travelMs: info.ms,
     timeConfirmed: Boolean(leg.timeConfirmed),
-    status: leg.status || "Required",
+    status: travelStatus(leg.status),
     serviceNumber: leg.serviceNumber || "",
     bookingReference: leg.bookingReference || "",
     notes: leg.notes || "",
@@ -1163,6 +1178,12 @@ function visitAttentionReasons(view, personType, isForeign, todayKey, now) {
     reasons.push("Needs rescheduling");
   }
   if ((view.travelLegs || []).some(leg => leg.status === "Required")) reasons.push("Personal travel to arrange");
+  // Its own reason rather than folded into the one above: a ticket that never
+  // clears is exactly the thing that gets forgotten, and "to arrange" would
+  // send somebody looking for a booking that has already been made.
+  if ((view.travelLegs || []).some(leg => leg.status === "Waitlisted")) {
+    reasons.push("Travel on the waiting list");
+  }
   return reasons;
 }
 
@@ -2694,7 +2715,7 @@ export function createFirestoreBridge(firebaseApp) {
           ),
 
           status:
-            clean(leg.status, 100) || "Required",
+            travelStatus(leg.status),
 
           serviceNumber: clean(
             leg.serviceNumber
@@ -3404,7 +3425,7 @@ export function createFirestoreBridge(firebaseApp) {
       from: clean(payload.from), to: clean(payload.to),
       travelAt: timestampFromInput(travelDateKey, clean(payload.travelTime, 20), false),
       travelDateKey, timeConfirmed: Boolean(payload.travelTime),
-      status: clean(payload.status, 100) || "Required", serviceNumber: clean(payload.serviceNumber),
+      status: travelStatus(payload.status), serviceNumber: clean(payload.serviceNumber),
       bookingReference: clean(payload.bookingReference), notes: clean(payload.notes),
       order: Math.max(1, Number(payload.order) || 1),
       createdAt: existing?.createdAt || serverTimestamp(), createdBy: existing?.createdBy || actor,
