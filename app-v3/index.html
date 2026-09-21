@@ -1869,6 +1869,44 @@
       align-items: center;
     }
 
+    /* The joint between two legs. Where one ends is where the next begins,
+       so the place is written once, here, rather than twice in the rows
+       either side of it -- and when it is written once, matching is the
+       default and you stop having to read it. */
+    .travel-leg-join {
+      display: flex;
+      padding: 0 12px;
+      gap: 9px;
+      align-items: center;
+      min-height: 22px;
+    }
+    .travel-leg-joint { width: 2px; align-self: stretch; margin-left: 6px; background: #3d3d3d; }
+    .travel-leg-place { color: #8a8a8a; font-size: 0.74rem; font-weight: 600; }
+    /* A hole in the chain, shown only when the order can be trusted -- see
+       renderTravelJoins_. Amber rather than red: a missing hop is usually a
+       leg nobody has entered yet, not a mistake. */
+    .travel-leg-join.is-broken .travel-leg-joint {
+      background: repeating-linear-gradient(to bottom, #6b5330 0 4px, transparent 4px 8px);
+    }
+    .travel-leg-place-gap {
+      display: inline-flex;
+      padding: 2px 8px;
+      gap: 5px;
+      align-items: center;
+      border: 1px solid rgba(243, 156, 18, 0.38);
+      border-radius: 999px;
+      background: rgba(243, 156, 18, 0.13);
+      color: #f6bd55;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .travel-leg-place-gap .icon { width: 13px; height: 13px; margin: 0; flex: none; }
+
+    /* Said on the closed row, so the whole itinerary can be read for what is
+       outstanding without opening five of them one at a time. */
+    .travel-leg-status { flex: 0 0 auto; }
+    .travel-leg-status:empty { display: none; }
+
     .travel-leg-chevron {
       color: #888;
       transition: transform 0.2s ease;
@@ -5671,9 +5709,10 @@
       });
       $('trip-editor-save-btn').addEventListener('click', saveTripFromEditor_);
       $('trip-add-participant-btn').addEventListener('click', handleAddParticipantClick_);
-      $('add-trip-travel-leg-btn').addEventListener('click', () => addTravelLegEditor({}, 'trip-travel-leg-list', 'trip-travel-empty'));
+      $('add-trip-travel-leg-btn').addEventListener('click', () =>
+        addTravelLegEditor(nextLegDraft_('trip-travel-leg-list'), 'trip-travel-leg-list', 'trip-travel-empty'));
       $('add-room-btn').addEventListener('click', () => { addRoomRowEditor(); checkRoomAvailability(); });
-      $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor());
+      $('add-travel-leg-btn').addEventListener('click', () => addTravelLegEditor(nextLegDraft_()));
       ['pickup', 'dropoff'].forEach(type => {
         $(type + '-companion-add').addEventListener('click',
           () => addCompanionTo_($(type + '-companions')));
@@ -15334,6 +15373,26 @@
       (Array.isArray(legs) ? legs : []).forEach(leg => addTravelLegEditor(leg, listId, emptyId));
       updateTravelEmptyState(listId, emptyId);
       syncTravelLegTimeFields(listId);
+      renderTravelJoins_(listId);
+    }
+
+    // A group travelling together travels together the whole way: Fr. Sijo is
+    // on all five of Fr. Pinto's legs and was being added to each of them by
+    // hand. The last leg's party is offered to the next one, and removing a
+    // chip is one tap for the case where somebody peels off.
+    //
+    // Deliberately not the direction or the transport: those change leg to leg
+    // and a wrong guess there is worse than an empty field.
+    function nextLegDraft_(listId = 'travel-leg-list') {
+      const editors = [...$(listId).querySelectorAll('.travel-leg-editor')];
+      const last = editors[editors.length - 1];
+      if (!last) return {};
+      return {
+        companions: companionChipsIn_(last).map(chip => ({
+          visitId: chip.dataset.visitId,
+          name: chip.dataset.name
+        }))
+      };
     }
 
     // "A", "A and B", "A, B and C". Travelling groups can be any size, and
@@ -15429,6 +15488,9 @@
       const list = $(listId);
       const isExistingLeg = Boolean(leg.travelId);
       const editor = createElement('div', 'travel-leg-editor');
+      // A leg arriving from the database already carries the direction
+      // somebody chose for it; only a new row is open to being guessed.
+      if (leg.direction) editor.dataset.directionChosen = '1';
       editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
       editor.innerHTML = `
         <div class="travel-leg-summary">
@@ -15437,6 +15499,7 @@
             <span>New travel leg</span>
           </div>
           <div class="travel-leg-summary-actions">
+            <span class="badge travel-leg-status"></span>
             <button class="travel-remove-btn" type="button" aria-label="Remove travel leg">
               <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
             </button>
@@ -15548,11 +15611,24 @@
         refreshAllLegSummaries(listId);
         updateTravelEmptyState(listId, emptyId);
         syncTravelLegTimeFields(listId);
+        renderTravelJoins_(listId);
         markModalDirty();
       });
-      editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => syncTravelLegTimeFields(listId));
-      ['direction', 'transportType', 'from', 'to', 'travelDate'].forEach(field => {
-        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => updateLegSummary(editor));
+      editor.querySelector('[data-field="travelDate"]').addEventListener('input', () => {
+        syncTravelLegTimeFields(listId);
+        inferLegDirection_(editor, listId);
+      });
+      ['direction', 'transportType', 'from', 'to', 'travelDate', 'status'].forEach(field => {
+        editor.querySelector(`[data-field="${field}"]`).addEventListener('input', () => {
+          updateLegSummary(editor);
+          // From, To and the date all change where this leg sits in the
+          // chain, so the joints either side of it are redrawn with it.
+          renderTravelJoins_(listId);
+        });
+      });
+      // Picking a direction by hand stops the app guessing it from then on.
+      editor.querySelector('[data-field="direction"]').addEventListener('change', () => {
+        editor.dataset.directionChosen = '1';
       });
 
       // Return is a command rather than a direction — a leg is physically
@@ -15576,6 +15652,11 @@
           syncMirroredReturnLeg_(editor, listId);
           // Editing the way back's own route ends the mirroring for good.
           if (editor.dataset.mirroredFrom) delete editor.dataset.mirroredFrom;
+          // The mirror writes the other row's From and To directly, so that
+          // row's own listener never fires and the joint beside it would sit
+          // a keystroke behind. This listener is registered after the one that
+          // redraws them, so the redraw has already happened by now.
+          renderTravelJoins_(listId);
         });
       });
 
@@ -15596,7 +15677,32 @@
       updateLegSummary(editor);
       updateTravelEmptyState(listId, emptyId);
       syncTravelLegTimeFields(listId);
+      renderTravelJoins_(listId);
       return editor;
+    }
+
+    // Which way a leg runs is nearly always decided by its date: before the
+    // guest arrives it is a leg in, after they leave it is a leg out. Asking
+    // for it on every leg was a required field with a knowable answer.
+    //
+    // Only ever a default. A leg that already carries a direction from the
+    // database is left alone, and picking one by hand stops the guessing for
+    // that row -- the field stays real because the card groups journeys by it,
+    // and a guest who leaves and comes back mid-stay is a case only a person
+    // can call.
+    function inferLegDirection_(editor, listId = 'travel-leg-list') {
+      if (editor.dataset.directionChosen === '1') return;
+      const select = editor.querySelector('[data-field="direction"]');
+      const date = editor.querySelector('[data-field="travelDate"]').value;
+      if (!date) return;
+      // A trip has its own window; a visit uses the stay being edited.
+      const stay = listId === 'trip-travel-leg-list'
+        ? { from: $('edit-trip-start').value, to: $('edit-trip-end').value }
+        : { from: $('edit-arrival-date').value, to: $('edit-departure-date').value };
+      if (stay.from && date < stay.from) select.value = 'Inbound';
+      else if (stay.to && date > stay.to) select.value = 'Outbound';
+      else return;
+      updateLegSummary(editor);
     }
 
     // Builds the way back from an outward leg: the same transport, the route
@@ -15669,14 +15775,67 @@
         : `${direction || 'New'} ${type.toLowerCase()} leg`;
 
       editor.querySelector('.travel-leg-summary-text use').setAttribute('href', `#${getTravelIconId(type)}`);
+
+      const status = value('status') || 'Required';
+      const badge = editor.querySelector('.travel-leg-status');
+      const look = TRAVEL_STATUS_LOOK_[status] || TRAVEL_STATUS_LOOK_.Required;
+      badge.textContent = look.label;
+      badge.className = `badge travel-leg-status ${look.badgeClass}`;
+    }
+
+    // One place decides what a leg's status looks like, so the closed row, the
+    // card and the spreadsheet cannot drift into three different words for the
+    // same thing.
+    const TRAVEL_STATUS_LOOK_ = Object.freeze({
+      Required: { label: 'To arrange', badgeClass: 'badge-action' },
+      Waitlisted: { label: 'Waiting list', badgeClass: 'badge-waitlist' },
+      Confirmed: { label: 'Booked', badgeClass: 'badge-confirmed' }
+    });
+
+    // Draws the joints between the legs, rebuilt from scratch each time rather
+    // than patched: there are never more than a handful, and anything cleverer
+    // would have to track which row moved.
+    //
+    // A break is only drawn when both legs either side of it are dated. The
+    // rows do not re-sort while the dialog is open -- they sort on save -- so
+    // a leg typed into the last row may genuinely belong in the middle, and
+    // calling that a hole in the chain would cry wolf on every new leg. Two
+    // dated legs, by contrast, are in an order the app can vouch for.
+    function renderTravelJoins_(listId = 'travel-leg-list') {
+      const list = $(listId);
+      [...list.querySelectorAll('.travel-leg-join')].forEach(node => node.remove());
+      const editors = [...list.querySelectorAll('.travel-leg-editor')];
+      const field = (editor, name) => editor.querySelector(`[data-field="${name}"]`).value.trim();
+      editors.forEach((editor, index) => {
+        if (!index) return;
+        const previous = editors[index - 1];
+        const arrivesAt = field(previous, 'to');
+        const leavesFrom = field(editor, 'from');
+        const join = createElement('div', 'travel-leg-join');
+        join.appendChild(createElement('i', 'travel-leg-joint'));
+        if (samePlace_(arrivesAt, leavesFrom)) {
+          join.appendChild(createElement('span', 'travel-leg-place', arrivesAt));
+        } else if (arrivesAt && leavesFrom && field(previous, 'travelDate') && field(editor, 'travelDate')) {
+          join.classList.add('is-broken');
+          const chip = createElement('span', 'travel-leg-place travel-leg-place-gap');
+          chip.appendChild(createIcon_('icon-alert'));
+          chip.appendChild(document.createTextNode(`${arrivesAt} → ${leavesFrom} · nothing recorded`));
+          join.appendChild(chip);
+        }
+        list.insertBefore(join, editor);
+      });
     }
 
     function refreshAllLegSummaries(listId = 'travel-leg-list') {
       [...$(listId).querySelectorAll('.travel-leg-editor')].forEach(updateLegSummary);
     }
 
+    // Counts legs rather than child nodes: the joints between them are
+    // children too, and a stale one left over from a removal would have kept
+    // "no travel legs yet" hidden after the last leg was deleted.
     function updateTravelEmptyState(listId = 'travel-leg-list', emptyId = 'travel-empty') {
-      $(emptyId).style.display = $(listId).children.length ? 'none' : 'block';
+      const legs = $(listId).querySelectorAll('.travel-leg-editor').length;
+      $(emptyId).style.display = legs ? 'none' : 'block';
     }
 
     // A time needs a date to belong to, and that is the whole of it now.
