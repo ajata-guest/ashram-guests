@@ -992,6 +992,15 @@
        stop being tellable apart, and 53 from the confirmed green so it cannot
        be mistaken for "done". */
     .badge-waitlist { border: 1px solid rgba(215, 224, 79, 0.40); background: rgba(215, 224, 79, 0.15); color: #d7e04f; }
+    /* Which leg is waiting, under the journey it belongs to. The badge on the
+       line above can only say that one of them is. Indented to sit under the
+       journey text rather than under its icon. */
+    .travel-waiting-note {
+      margin: -3px 0 2px 25px;
+      color: #d7e04f;
+      font-size: 0.75rem;
+      line-height: 1.35;
+    }
 
     .badge-saving { border: 1px solid rgba(52, 152, 219, 0.3); background: rgba(52, 152, 219, 0.14); color: #6fbaf0; }
 
@@ -1836,31 +1845,45 @@
       overflow: hidden;
     }
 
+    /* The route gets a line to itself. On one line it shared about 330px with
+       a status badge, a bin and a chevron, and it was the only part carrying
+       an ellipsis -- so "Dehradun Railway Station to Delhi" came out as
+       "Dehradun Railw..." on a phone and the destination was unreadable. It
+       wraps rather than truncates now: a long route is worth a second line. */
     .travel-leg-summary {
       display: flex;
       padding: 11px 12px;
       gap: 10px;
-      align-items: center;
-      justify-content: space-between;
+      align-items: flex-start;
       cursor: pointer;
     }
+
+    .travel-leg-icon { flex: 0 0 15px; margin-top: 3px; color: #8fc8ef; }
 
     .travel-leg-summary-text {
       display: flex;
       min-width: 0;
+      flex: 1 1 auto;
+      gap: 4px;
+      flex-direction: column;
+    }
+
+    .travel-leg-route {
+      color: #ddd;
+      font-size: 0.87rem;
+      font-weight: 600;
+      line-height: 1.32;
+      overflow-wrap: anywhere;
+    }
+
+    .travel-leg-meta {
+      display: flex;
       gap: 8px;
       align-items: center;
-      color: #ddd;
-      font-size: 0.85rem;
+      flex-wrap: wrap;
+      color: #8a8a8a;
+      font-size: 0.75rem;
     }
-
-    .travel-leg-summary-text span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .travel-leg-summary-text .icon { color: #8fc8ef; flex: 0 0 15px; }
 
     .travel-leg-summary-actions {
       display: flex;
@@ -1917,7 +1940,7 @@
       width: 100%;
       padding: 11px 12px;
       gap: 10px;
-      align-items: center;
+      align-items: flex-start;
       /* Written out rather than mixed from --accent: that variable is set per
          page, on .page-content, and this dialog lives outside every page. An
          undefined custom property inside color-mix makes the whole
@@ -1933,8 +1956,18 @@
       font-size: 0.85rem;
       text-align: left;
     }
-    .travel-cab-row > .icon { flex: 0 0 15px; margin: 0; color: #8fc8ef; }
-    .travel-cab-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .travel-cab-row > .icon { flex: 0 0 15px; margin: 3px 0 0; color: #8fc8ef; }
+    .travel-cab-row .travel-leg-status,
+    .travel-cab-row .travel-cab-go { margin-top: 1px; }
+    .travel-cab-text {
+      display: flex;
+      min-width: 0;
+      flex: 1 1 auto;
+      gap: 4px;
+      flex-direction: column;
+    }
+    .travel-cab-route { color: #ddd; font-weight: 600; line-height: 1.32; overflow-wrap: anywhere; }
+    .travel-cab-when { color: #8a8a8a; font-size: 0.75rem; }
     .travel-cab-go { flex: 0 0 14px; width: 14px; height: 14px; margin: 0; color: #888; }
     .travel-cab-row:hover { border-color: rgba(143, 200, 239, 0.7); }
 
@@ -11197,8 +11230,29 @@
       return `${sameYear ? dayMonth(first) : dateFormat(first)} – ${dateFormat(last)}`;
     }
 
-    const samePlace_ = (a, b) => Boolean(a) && Boolean(b)
-      && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+    // Two names for the same place. A cab to "Rishikesh Bus Stand" feeds a leg
+    // out of "Rishikesh", and insisting on the exact string left a break
+    // between them that nobody could close without retyping one to match.
+    //
+    // Whole words, never raw substrings: "Del" is not "Delhi", and a short
+    // name would otherwise match half the world by accident. One name has to
+    // appear in the other as a run of complete words, which is also why
+    // "Delhi Airport" and "Delhi Railway Station" stay apart — sharing the
+    // word "Delhi" does not get you between two terminals, a cab does.
+    //
+    // Used by the itinerary's joints, by the chaining of undated legs, and by
+    // the test for whether a journey is a Return. Deliberately one rule for
+    // all three: the same idea written twice is the thing that drifts.
+    const placeWords_ = value => String(value || '').toLowerCase()
+      .replace(/[^a-z0-9\s]+/g, ' ').split(/\s+/).filter(Boolean);
+
+    const samePlace_ = (a, b) => {
+      const left = placeWords_(a);
+      const right = placeWords_(b);
+      if (!left.length || !right.length) return false;
+      const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
+      return ` ${longer.join(' ')} `.includes(` ${shorter.join(' ')} `);
+    };
 
     // Undated legs can only be ordered by the order they were typed in, and
     // that order is routinely wrong for the way home: it retraces the way out
@@ -11299,10 +11353,12 @@
         companions: names,
         status,
         badgeClass,
-        // Only when there is also something to book: with nothing left to
-        // book the badge above already says Waiting list, and saying it twice
-        // on one line is noise.
-        waiting: toBook.length && waiting.length ? 'Waiting list' : ''
+        // The routes themselves. The card could say a journey had a waiting
+        // list but not which of its three trains was on it, which is the one
+        // thing you need before ringing anybody.
+        waitingRoutes: waiting
+          .map(leg => [leg.from, leg.to].filter(Boolean).join(' → '))
+          .filter(Boolean)
       };
     }
 
@@ -11346,6 +11402,17 @@
       if (!party || !party.length) return;
       card.appendChild(createDetailLine('icon-people', `Travelling with ${listPeople_(party)}`));
     }
+    // Names the legs rather than counting them, up to two. Three routes is a
+    // paragraph on a card, so beyond that it goes back to a count -- the
+    // editor lists every one of them, a tap away, each with its own status.
+    function describeWaitingRoutes_(routes) {
+      if (routes.length === 1) return `On the waiting list · ${routes[0]}`;
+      if (routes.length === 2) {
+        return `On the waiting list · ${routes[0]} and ${routes[1]}`;
+      }
+      return `${routes.length} legs on the waiting list`;
+    }
+
     function appendJourneys_(card, visit, party) {
       const journeys = visitJourneys_(visit);
       if (!journeys.length) return;
@@ -11355,9 +11422,12 @@
         row.appendChild(createIcon_(journey.iconId));
         const text = createElement('span', null, journey.text + withClause_(journey.companions, party));
         text.appendChild(createBadge(journey.status, `${journey.badgeClass} journey-badge`));
-        if (journey.waiting) text.appendChild(createBadge(journey.waiting, 'badge-waitlist journey-badge'));
         row.appendChild(text);
         stack.appendChild(row);
+        if (journey.waitingRoutes.length) {
+          stack.appendChild(createElement('div', 'travel-waiting-note',
+            describeWaitingRoutes_(journey.waitingRoutes)));
+        }
       });
       card.appendChild(stack);
     }
@@ -15556,12 +15626,15 @@
       editor.dataset.travelId = String(leg.travelId || `travel-${Date.now()}-${Math.random().toString(16).slice(2)}`);
       editor.innerHTML = `
         <div class="travel-leg-summary">
+          <svg class="icon travel-leg-icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
           <div class="travel-leg-summary-text">
-            <svg class="icon" aria-hidden="true"><use href="#icon-flight"></use></svg>
-            <span>New travel leg</span>
+            <span class="travel-leg-route">New travel leg</span>
+            <span class="travel-leg-meta">
+              <span class="travel-leg-when"></span>
+              <span class="badge travel-leg-status"></span>
+            </span>
           </div>
           <div class="travel-leg-summary-actions">
-            <span class="badge travel-leg-status"></span>
             <button class="travel-remove-btn" type="button" aria-label="Remove travel leg">
               <svg class="icon" aria-hidden="true"><use href="#icon-trash"></use></svg>
             </button>
@@ -15831,12 +15904,15 @@
         ? String(localDateInfo(dateValue, '', false).display || dateValue).replace(/^[A-Za-z]{3},\s*/, '')
         : 'date not set';
 
-      const label = editor.querySelector('.travel-leg-summary-text span');
-      label.textContent = route
-        ? `${type} \u00B7 ${route} \u00B7 ${dateText}`
-        : `${direction || 'New'} ${type.toLowerCase()} leg`;
+      // The route is the line worth reading; the transport and the date sit
+      // under it with the status, where there is room for all three.
+      editor.querySelector('.travel-leg-route').textContent = route
+        || `${direction || 'New'} ${type.toLowerCase()} leg`;
+      editor.querySelector('.travel-leg-when').textContent = route
+        ? `${type} \u00B7 ${dateText}`
+        : dateText;
 
-      editor.querySelector('.travel-leg-summary-text use').setAttribute('href', `#${getTravelIconId(type)}`);
+      editor.querySelector('.travel-leg-icon use').setAttribute('href', `#${getTravelIconId(type)}`);
 
       const status = value('status') || 'Required';
       const badge = editor.querySelector('.travel-leg-status');
@@ -15883,7 +15959,10 @@
       const row = createElement('button', 'travel-cab-row');
       row.type = 'button';
       row.appendChild(createIcon_('icon-car'));
-      row.appendChild(createElement('span', 'travel-cab-text', `Cab · ${route} · ${when}`));
+      const text = createElement('span', 'travel-cab-text');
+      text.appendChild(createElement('span', 'travel-cab-route', route));
+      text.appendChild(createElement('span', 'travel-cab-when', `Cab · ${when}`));
+      row.appendChild(text);
       row.appendChild(createBadge(booked ? 'Booked' : 'To book',
         `travel-leg-status ${booked ? 'badge-confirmed' : 'badge-action'}`));
       const go = createIcon_('icon-chevron-right');
