@@ -9198,14 +9198,18 @@
       };
     }
 
-    // Whether that window meets another guest's stay. A residency has no dates
-    // because it has no end -- someone lives there -- so it meets everything.
-    // Any other stay with no arrival on record cannot be placed in time at
-    // all, and so meets nothing.
-    function roomWindowsOverlap_(start, end, visit, residency) {
+    // Whether that window meets another guest's hold on a room. A residency has
+    // no dates because it has no end -- someone lives there -- so it meets
+    // everything. Any other hold that cannot be placed in time meets nothing.
+    //
+    // The hold, not the whole stay. A guest who leaves Room 18 on the tenth and
+    // takes Room 20 on the eleventh occupies each for its own stretch; measured
+    // stay against stay, both rooms looked occupied for the whole visit, and
+    // the dropdown offered to share a room that was standing empty.
+    function roomWindowsOverlap_(start, end, hold, residency) {
       if (residency) return true;
-      if (!visit.arrivalMs) return false;
-      return start < (visit.departureMs || Number.POSITIVE_INFINITY) && end > visit.arrivalMs;
+      if (!hold || hold.start === null) return false;
+      return start < hold.end && end > hold.start;
     }
 
     function isStayingInAshram_(visit, today) {
@@ -10585,19 +10589,15 @@
       return `${unique.slice(0, -1).join(', ')}, and ${unique[unique.length - 1]}`;
     }
 
-    // Sharing is described from this guest's own point of view. Two guests in
-    // one room for different stretches see different things: whoever is there
-    // throughout just reads "Shared with X", while whoever has the room to
-    // themselves for part of their stay is told exactly which stretch is
-    // shared. Same underlying overlap, two honest descriptions of it.
     // The window a particular room is held for, which is the allocation's own
     // dates when it has them and the whole stay when it does not. Mirrors
     // allocationWindowMs in the adapter: the same question, asked where the
     // answer is displayed rather than where it is enforced.
-    function visitRoomSegmentWindow_(visit, room) {
-      const stay = visitRoomWindow_(visit);
-      const allocation = (Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [])
-        .find(item => item.room === room);
+    //
+    // Taken as a bare { from, to } rather than a saved allocation, so the room
+    // picker can ask it about a row still being typed. That is the only way the
+    // dropdown and the save can be made to give the same answer.
+    function allocationWindow_(allocation, stay) {
       if (!allocation || (!allocation.from && !allocation.to)) return stay;
       const from = allocation.from ? Date.parse(`${allocation.from}T00:00:00+05:30`) : stay.start;
       const to = allocation.to ? Date.parse(`${allocation.to}T23:59:59.999+05:30`) : stay.end;
@@ -10607,6 +10607,18 @@
       };
     }
 
+    function visitRoomSegmentWindow_(visit, room) {
+      return allocationWindow_(
+        (Array.isArray(visit.roomAllocations) ? visit.roomAllocations : [])
+          .find(item => item.room === room),
+        visitRoomWindow_(visit));
+    }
+
+    // Sharing is described from this guest's own point of view. Two guests in
+    // one room for different stretches see different things: whoever is there
+    // throughout just reads "Shared with X", while whoever has the room to
+    // themselves for part of their stay is told exactly which stretch is
+    // shared. Same underlying overlap, two honest descriptions of it.
     function roomSharingPartnersForVisit_(visit, room) {
       // This guest's window for this room, not for the whole stay: somebody
       // who moved out of it on the tenth does not share it with whoever moved
@@ -16758,9 +16770,16 @@
       const newArrival = getInputTimestamp($('edit-arrival-date').value, $('edit-arrival-time').value, false);
       const newDeparture = getInputTimestamp($('edit-departure-date').value, $('edit-departure-time').value, true);
       const currentVisitId = $('visit-editor-visit-id').value;
-      // room value -> every other overlapping occupant's name — a list, not
-      // a single entry, because room sharing has no fixed capacity ceiling.
+      // room value -> every other guest's hold on that room — a list, not a
+      // single entry, because room sharing has no fixed capacity ceiling.
+      // Deliberately not filtered by date as it is built: each row below asks
+      // about its own stretch, and two rows on one card can hold different
+      // ones.
       const occupiedRooms = new Map();
+
+      // The stretch a room row covers when it carries no dates of its own,
+      // which is most of them.
+      const stayWindow = roomPickerWindow_(newArrival, newDeparture, Date.now());
 
       // Advisory only — saveVisitPlan runs the authoritative conflict check
       // in Firestore. Prefer the workspace's complete visit list so multiple
@@ -16768,8 +16787,6 @@
       // current/nearest visit is only a fallback if the workspace has not yet
       // been loaded.
       {
-        const { start: newStart, end: newEnd } =
-          roomPickerWindow_(newArrival, newDeparture, Date.now());
         const knownVisits = accommodationVisits_.length
           ? accommodationVisits_
           : directoryRecords_.map(record => record.visit
@@ -16784,20 +16801,21 @@
           // rather than offered for sharing — the room only frees up when
           // the resident moves out of it or stops being a resident.
           const residency = isResidencyStay_(visit);
-          if (roomWindowsOverlap_(newStart, newEnd, visit, residency)) {
-            guestRooms.forEach(room => {
-              if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
-              const occupants = occupiedRooms.get(room);
-              if (!occupants.some(item => item.visitId === visit.visitId)) {
-                occupants.push({
-                  visitId: visit.visitId,
-                  name: resolveRoomOccupantName(visit.name, guestRooms, room),
-                  openEnded: !visit.departureMs,
-                  locked: residency
-                });
-              }
-            });
-          }
+          guestRooms.forEach(room => {
+            if (!occupiedRooms.has(room)) occupiedRooms.set(room, []);
+            const occupants = occupiedRooms.get(room);
+            if (!occupants.some(item => item.visitId === visit.visitId)) {
+              occupants.push({
+                visitId: visit.visitId,
+                name: resolveRoomOccupantName(visit.name, guestRooms, room),
+                openEnded: !visit.departureMs,
+                locked: residency,
+                residency,
+                // This guest's hold on this one room, not their whole stay.
+                window: visitRoomSegmentWindow_(visit, room)
+              });
+            }
+          });
         });
       }
 
@@ -16814,6 +16832,14 @@
             .filter(Boolean)
         );
 
+        // What this row is asking for: its own dates where it has them, the
+        // whole stay where it does not -- read by the same rule as the holds
+        // it is about to be measured against.
+        const rowWindow = allocationWindow_({
+          from: row.querySelector('.room-from').value || '',
+          to: row.querySelector('.room-to').value || ''
+        }, stayWindow);
+
         [...select.options].forEach(option => {
           if (!option.value) return;
           if (siblingValues.has(option.value)) {
@@ -16822,8 +16848,9 @@
             return;
           }
 
-          const occupants = occupiedRooms.get(option.value);
-          if (!occupants || !occupants.length) return;
+          const occupants = (occupiedRooms.get(option.value) || []).filter(occupant =>
+            roomWindowsOverlap_(rowWindow.start, rowWindow.end, occupant.window, occupant.residency));
+          if (!occupants.length) return;
 
           // A room someone lives in is not a room to share into, and for
           // anyone else it is not a choice at all — so it leaves the list
