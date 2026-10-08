@@ -3628,6 +3628,42 @@
     .sm-head .sm-cell { color: var(--subtle); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; }
     .sm-acc-fold { display: none; }
 
+    /* The two frozen columns can be dragged wider or narrower, because what
+       fits depends on the screen. The strip lives inside its own cell: .sm-cell
+       clips what overflows, so one straddling the border would be cut in half.
+       The cells are sticky, which already makes them a containing block. */
+    .sm-head-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sm-resize {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 4;
+      width: 14px;
+      /* Without this the browser claims the gesture as a sideways scroll and
+         the map slides under the finger instead of the border moving. */
+      touch-action: none;
+      cursor: col-resize;
+    }
+    .sm-resize::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 3px;
+      bottom: 8px;
+      width: 2px;
+      border-radius: 2px;
+      background: #565656;
+      transition: background 0.12s ease;
+    }
+    .sm-resize:hover::after,
+    .sm-resize:focus-visible::after,
+    .sm-resize.is-dragging::after { background: var(--salmon); }
+    .sm-resize:focus-visible { outline: none; }
+    /* The pointer leaves the strip the instant the drag starts moving, so the
+       cursor and the no-select belong to the page, not to the handle. */
+    body.is-col-resizing { cursor: col-resize; user-select: none; }
+
     /* The day grid is painted, not built. A body row holds three nodes rather
        than ninety-odd, which is the difference between ~360 nodes on this page
        and ~5,400 — and the cells would carry no content and no handler. */
@@ -5685,6 +5721,30 @@
         staymapScrollPending_ = true;
         window.requestAnimationFrame(() => { staymapScrollPending_ = false; updateStayMapRange_(); });
       }, { passive: true });
+
+      // Bound to the scroller, not to the strips: the header is rebuilt on
+      // every render, so per-handle listeners would have to be redone each
+      // time. Pointer capture retargets the moves to the handle, which still
+      // bubbles through here.
+      applyStayMapWidths_();
+      ['(max-width: 620px)', '(max-width: 760px)'].forEach(query => {
+        const media = window.matchMedia(query);
+        const reapply = () => applyStayMapWidths_();
+        if (media.addEventListener) media.addEventListener('change', reapply);
+        else media.addListener(reapply);
+      });
+      $('staymap-scroll').addEventListener('pointerdown', startStayMapResize_);
+      $('staymap-scroll').addEventListener('pointermove', moveStayMapResize_);
+      $('staymap-scroll').addEventListener('pointerup', endStayMapResize_);
+      $('staymap-scroll').addEventListener('pointercancel', endStayMapResize_);
+      $('staymap-scroll').addEventListener('lostpointercapture', endStayMapResize_);
+      $('staymap-scroll').addEventListener('dblclick', event => {
+        const handle = event.target.closest && event.target.closest('.sm-resize');
+        if (!handle) return;
+        event.preventDefault();
+        fitStayMapColumn_(handle.dataset.column);
+      });
+      $('staymap-scroll').addEventListener('keydown', handleStayMapResizeKey_);
 
       $('add-to-workspace-close-btn').addEventListener('click', closeGuestPicker_);
       $('add-to-workspace-modal').addEventListener('click', event => {
@@ -10094,6 +10154,206 @@
       return `Shared with ${listPeople_([...names])}`;
     }
 
+    // ---- Resizable frozen columns -----------------------------------------
+    //
+    // The columns were fixed widths chosen by screen size, and what fits
+    // depends on the screen: "Abhishiktananda Sadan - Room 18 & ..." is cut off
+    // on one display, while on another the columns take width the dates need.
+    const STAYMAP_WIDTH_KEY_ = 'v3-staymap-widths';
+
+    const STAYMAP_COLUMNS_ = Object.freeze({
+      name: { prop: '--sm-name-w', label: 'guest', min: 120, max: 520 },
+      acc: { prop: '--sm-acc-w', label: 'accommodation', min: 110, max: 520 }
+    });
+
+    // The stylesheet gives up width in two steps, and a width dragged on a
+    // laptop has no business deciding what a phone shows. Kept per step, so
+    // the three layouts each keep their own.
+    function stayMapTier_() {
+      if (window.matchMedia('(max-width: 620px)').matches) return 'narrow';
+      if (window.matchMedia('(max-width: 760px)').matches) return 'mid';
+      return 'wide';
+    }
+
+    function stayMapWidths_() {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(STAYMAP_WIDTH_KEY_) || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function rememberStayMapWidth_(key, px) {
+      const all = stayMapWidths_();
+      const tier = stayMapTier_();
+      const kept = Object.assign({}, all[tier]);
+      if (Number.isFinite(px) && px > 0) kept[key] = Math.round(px);
+      else delete kept[key];
+      if (Object.keys(kept).length) all[tier] = kept;
+      else delete all[tier];
+      // Private mode refuses to store. The drag still worked; it simply will
+      // not be there next time, which beats throwing in the middle of it.
+      try { window.localStorage.setItem(STAYMAP_WIDTH_KEY_, JSON.stringify(all)); }
+      catch (error) { /* nothing to do about it */ }
+    }
+
+    // Written inline on <html>. An inline style beats a media query without
+    // this code having to restate the breakpoints, and stayMapLeftWidth_ and
+    // stayMapDayWidth_ go on reading the right number, since both ask
+    // documentElement for it.
+    function applyStayMapWidths_() {
+      const tier = stayMapTier_();
+      const saved = stayMapWidths_()[tier] || {};
+      Object.keys(STAYMAP_COLUMNS_).forEach(key => {
+        const prop = STAYMAP_COLUMNS_[key].prop;
+        // At phone width the accommodation column is folded away to nothing.
+        // It must keep the zero the stylesheet gives it, or every left: offset
+        // built on it lands in the wrong place.
+        const value = tier === 'narrow' && key === 'acc' ? NaN : Number(saved[key]);
+        if (Number.isFinite(value) && value > 0) {
+          document.documentElement.style.setProperty(prop, Math.round(value) + 'px');
+        } else {
+          document.documentElement.style.removeProperty(prop);
+        }
+      });
+    }
+
+    function stayMapColumnWidth_(key) {
+      return parseFloat(getComputedStyle(document.documentElement)
+        .getPropertyValue(STAYMAP_COLUMNS_[key].prop)) || 0;
+    }
+
+    // How far a column may be dragged. The ceiling is not a constant: on a
+    // narrow screen a width that is useful on a laptop would leave no dates at
+    // all, so a strip of them is reserved whatever the screen.
+    function stayMapWidthRange_(key) {
+      const column = STAYMAP_COLUMNS_[key];
+      const other = key === 'name' ? stayMapColumnWidth_('acc') : stayMapColumnWidth_('name');
+      const scroller = $('staymap-scroll');
+      const room = (scroller ? scroller.clientWidth : 0) - other - 120;
+      return { min: column.min, max: Math.max(column.min, Math.min(column.max, room)) };
+    }
+
+    function setStayMapWidth_(key, px, remember) {
+      const range = stayMapWidthRange_(key);
+      const next = Math.round(Math.min(Math.max(px, range.min), range.max));
+      document.documentElement.style.setProperty(STAYMAP_COLUMNS_[key].prop, next + 'px');
+      if (remember) rememberStayMapWidth_(key, next);
+      return next;
+    }
+
+    // The width the text actually wants. Measured with a Range rather than from
+    // the element, because every one of these cells clips with an ellipsis: the
+    // box reports the width it was given, while the range reports the width of
+    // the words inside it, which is the question being asked.
+    function stayMapNaturalWidth_(key) {
+      const track = $('staymap-track');
+      if (!track) return 0;
+      const range = document.createRange();
+      let widest = 0;
+      track.querySelectorAll(key === 'name' ? '.sm-name' : '.sm-acc').forEach(cell => {
+        cell.querySelectorAll('span').forEach(span => {
+          if (span.classList.contains('sm-resize')) return;
+          range.selectNodeContents(span);
+          widest = Math.max(widest, range.getBoundingClientRect().width);
+        });
+      });
+      // The cell's own padding, plus room for the grab strip so the last letter
+      // does not end up sitting underneath it.
+      return widest ? Math.ceil(widest) + 28 : 0;
+    }
+
+    // Double-click fits the column to its contents; double-click again, with
+    // nothing left to fit, hands it back to the stylesheet.
+    function fitStayMapColumn_(key) {
+      if (!STAYMAP_COLUMNS_[key]) return;
+      const wanted = stayMapNaturalWidth_(key);
+      const range = stayMapWidthRange_(key);
+      // Compared against the clamped figure, not the raw one: a column already
+      // at its ceiling would otherwise keep trying to grow and never reset.
+      const target = wanted ? Math.round(Math.min(Math.max(wanted, range.min), range.max)) : 0;
+      if (!target || Math.abs(stayMapColumnWidth_(key) - target) <= 1) {
+        document.documentElement.style.removeProperty(STAYMAP_COLUMNS_[key].prop);
+        rememberStayMapWidth_(key, NaN);
+        return;
+      }
+      setStayMapWidth_(key, target, true);
+    }
+
+    let staymapResize_ = null;
+
+    function startStayMapResize_(event) {
+      const handle = event.target.closest && event.target.closest('.sm-resize');
+      if (!handle || event.button > 0) return;
+      const key = handle.dataset.column;
+      if (!STAYMAP_COLUMNS_[key]) return;
+      event.preventDefault();
+      staymapResize_ = {
+        key,
+        handle,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startWidth: stayMapColumnWidth_(key)
+      };
+      handle.classList.add('is-dragging');
+      document.body.classList.add('is-col-resizing');
+      // Capture so the drag survives the pointer leaving the 14px strip, which
+      // it does immediately. Without it the border stops following the finger.
+      try { handle.setPointerCapture(event.pointerId); } catch (error) { /* gone already */ }
+    }
+
+    function moveStayMapResize_(event) {
+      if (!staymapResize_ || event.pointerId !== staymapResize_.pointerId) return;
+      event.preventDefault();
+      setStayMapWidth_(staymapResize_.key,
+        staymapResize_.startWidth + (event.clientX - staymapResize_.startX), false);
+    }
+
+    // Saved at the end rather than on every move: a drag is one decision, not
+    // two hundred, and localStorage is synchronous.
+    function endStayMapResize_(event) {
+      if (!staymapResize_) return;
+      if (event && event.pointerId !== undefined
+        && event.pointerId !== staymapResize_.pointerId) return;
+      const key = staymapResize_.key;
+      staymapResize_.handle.classList.remove('is-dragging');
+      document.body.classList.remove('is-col-resizing');
+      staymapResize_ = null;
+      rememberStayMapWidth_(key, stayMapColumnWidth_(key));
+    }
+
+    function handleStayMapResizeKey_(event) {
+      const handle = event.target.closest && event.target.closest('.sm-resize');
+      if (!handle || !STAYMAP_COLUMNS_[handle.dataset.column]) return;
+      const key = handle.dataset.column;
+      const step = event.shiftKey ? 4 : 16;
+      if (event.key === 'ArrowLeft') setStayMapWidth_(key, stayMapColumnWidth_(key) - step, true);
+      else if (event.key === 'ArrowRight') setStayMapWidth_(key, stayMapColumnWidth_(key) + step, true);
+      else if (event.key === 'Enter' || event.key === ' ') fitStayMapColumn_(key);
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // The header cell carries the grab strip for its own right-hand border, and
+    // its label goes in a span so the fit measurement can ask it the same
+    // question it asks every other line in the column.
+    function stayMapHeadCell_(className, label, key) {
+      const cell = createElement('div', className);
+      cell.appendChild(createElement('span', 'sm-head-label', label));
+      const handle = createElement('span', 'sm-resize');
+      handle.dataset.column = key;
+      handle.tabIndex = 0;
+      handle.setAttribute('role', 'separator');
+      handle.setAttribute('aria-orientation', 'vertical');
+      handle.setAttribute('aria-label', 'Resize the ' + STAYMAP_COLUMNS_[key].label
+        + ' column. Arrow keys adjust it, Enter fits it to the text.');
+      handle.title = 'Drag to resize \u00b7 double-click to fit the text';
+      cell.appendChild(handle);
+      return cell;
+    }
+
     function renderStayMap_() {
       const anchor = stayMapAnchor_();
       const days = stayMapDays_(anchor);
@@ -10101,6 +10361,9 @@
       const emptyEl = $('staymap-empty');
       track.replaceChildren();
       if (!days.length) return;
+      // Cheap, and it means a width survives a re-render whatever order the
+      // page was set up in.
+      applyStayMapWidths_();
 
       const todayKey = getAppDateKey(Date.now());
       const indexByKey = new Map(days.map((day, index) => [day.key, index]));
@@ -10122,8 +10385,8 @@
       const fragment = document.createDocumentFragment();
 
       const head = createElement('div', 'sm-head');
-      head.appendChild(createElement('div', 'sm-cell sm-name', 'Guest & total stay'));
-      head.appendChild(createElement('div', 'sm-cell sm-acc', 'Accommodation'));
+      head.appendChild(stayMapHeadCell_('sm-cell sm-name', 'Guest & total stay', 'name'));
+      head.appendChild(stayMapHeadCell_('sm-cell sm-acc', 'Accommodation', 'acc'));
       const headLane = createElement('div', 'sm-lane sm-lane-head');
       days.forEach((day, index) => {
         const startsMonth = index === 0 || days[index - 1].date.getMonth() !== day.date.getMonth();
